@@ -1,6 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import Home from "@/components/home/Home";
+import Home from "@/components/pages/home/Home";
 
 beforeAll(() => {
   jest.useFakeTimers();
