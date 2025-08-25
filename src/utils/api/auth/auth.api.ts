@@ -24,7 +24,13 @@ export const loginUser = async (payload: object): Promise<any> => {
   }
 };
 export const verifyToken = async (): Promise<any> => {
-  return post("/auth/verify-token", {});
+  try{
+    const response = await post("/auth/verify-token", {});
+    return response.data;
+  } catch (error: any) {
+    console.error("Error verifying token:", error);
+    throw new Error(error.response?.data?.message || "Token verification failed");
+  }
 };
 
 export const getOtp = async (payload: Payload) => {
