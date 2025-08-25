@@ -23,6 +23,7 @@ export const loginUser = async (payload: object): Promise<any> => {
     throw new Error(error.response?.data?.message || "Login failed");
   }
 };
+
 export const verifyToken = async (): Promise<any> => {
   try{
     const response = await post("/auth/verify-token", {});
@@ -89,5 +90,15 @@ export const getUsers = async (filter: any): Promise<any> => {
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "Client List Get failed");
+  }
+};
+
+export const logoutUser = async (): Promise<any> => {
+  try{
+    const response = await post("/auth/logout", {});
+    return response.data;
+  } catch (error: any) {
+    console.error("Error logging out:", error);
+    throw new Error(error.response?.data?.message || "Logout failed");
   }
 };

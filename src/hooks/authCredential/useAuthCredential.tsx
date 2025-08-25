@@ -43,20 +43,16 @@ const useAuthCredential = () => {
   };
 
   const logoutUserCreadintial = async () => {
-    // const result = await api.auth.logoutUser();
-    // console.log("result===>", result);
-    // if (result) {
-    //   document.cookie =
-    //     "token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    //   // setUser(null);
-    //   router.push("/login");
-    // }
+    const result = await api.auth.logoutUser();
+    console.log("result===>", result);
+    setUser(null);
+    router.push("/login");
   };
   return {
     loginCredential,
     handleChange,
     handleSubmit,
-    logoutUserCreadintial,
+    handleLogout: logoutUserCreadintial,
     isLoading,
   };
 };

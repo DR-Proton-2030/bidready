@@ -4,6 +4,7 @@ import {
   getUsers,
   googleSignUp,
   loginUser,
+  logoutUser,
   signupUser,
   verifyToken,
 } from "./auth/auth.api";
@@ -17,5 +18,6 @@ export const api = {
     googleSignUp,
     createUsers,
     getUsers,
+    logoutUser
   },
 };

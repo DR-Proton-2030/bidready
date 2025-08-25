@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useLayout } from "@/contexts/layoutContext/LayoutContext";
 import AuthContext from "@/contexts/authContext/authContext";
+import useAuthCredential from "@/hooks/authCredential/useAuthCredential";
 
 const Navbar = () => {
   const pathname = usePathname();
@@ -20,6 +21,7 @@ const Navbar = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const { user } = useContext(AuthContext);
+  const { handleLogout } = useAuthCredential();
 
   // Get page title from pathname
   const getPageTitle = (path: string) => {
@@ -184,13 +186,13 @@ const Navbar = () => {
                   </div>
                   
                   <div className="border-t border-gray-200 py-2">
-                    <a
-                      href="#"
+                    <div
+                      onClick={handleLogout}
                       className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50"
                     >
                       <LogOut className="w-4 h-4 mr-3" />
                       Sign out
-                    </a>
+                    </div>
                   </div>
                 </div>
               )}
