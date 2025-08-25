@@ -1,31 +1,49 @@
-import { Permission, AccessRequest, Role } from '@/@types/interface/accessManagement.interface';
+import {
+  Permission,
+  AccessRequest,
+  Role,
+} from "@/@types/interface/accessManagement.interface";
 
 export const PERMISSIONS_DATA: Permission[] = [
   {
     id: 1,
     name: "Project Management",
-    description: "Create, edit, and delete projects",
-    users: 12,
+    description: "Create, edit, and delete construction projects",
+    users: 10,
     lastUpdated: "2 hours ago",
   },
   {
     id: 2,
-    name: "Blueprint Access",
-    description: "View and modify system blueprints",
-    users: 8,
-    lastUpdated: "1 day ago",
+    name: "Blueprint Management",
+    description: "Upload, view, and update architectural blueprints",
+    users: 14,
+    lastUpdated: "5 hours ago",
   },
   {
     id: 3,
+    name: "Takeoff & Estimation",
+    description: "Run AI takeoffs and generate cost estimates",
+    users: 7,
+    lastUpdated: "1 day ago",
+  },
+  {
+    id: 4,
+    name: "Collaboration Access",
+    description: "Comment, tag, and assign tasks on blueprints",
+    users: 12,
+    lastUpdated: "2 days ago",
+  },
+  {
+    id: 5,
     name: "User Administration",
-    description: "Manage user accounts and roles",
+    description: "Manage user accounts, roles, and permissions",
     users: 3,
     lastUpdated: "3 days ago",
   },
   {
-    id: 4,
+    id: 6,
     name: "System Settings",
-    description: "Configure system-wide settings",
+    description: "Configure platform-wide settings",
     users: 2,
     lastUpdated: "1 week ago",
   },
@@ -34,23 +52,37 @@ export const PERMISSIONS_DATA: Permission[] = [
 export const ACCESS_REQUESTS_DATA: AccessRequest[] = [
   {
     id: 1,
-    user: "Alice Brown",
-    permission: "Blueprint Access",
+    user: "David Miller",
+    permission: "Takeoff & Estimation",
     requestDate: "2 hours ago",
     status: "Pending",
   },
   {
     id: 2,
-    user: "Bob Wilson",
-    permission: "Project Management",
-    requestDate: "1 day ago",
+    user: "Rachel Adams",
+    permission: "Blueprint Management",
+    requestDate: "6 hours ago",
     status: "Approved",
   },
   {
     id: 3,
-    user: "Carol Davis",
-    permission: "User Administration",
+    user: "Emily Johnson",
+    permission: "Project Management",
+    requestDate: "1 day ago",
+    status: "Pending",
+  },
+  {
+    id: 4,
+    user: "Michael Chen",
+    permission: "Collaboration Access",
     requestDate: "2 days ago",
+    status: "Approved",
+  },
+  {
+    id: 5,
+    user: "Sarah Lee",
+    permission: "User Administration",
+    requestDate: "3 days ago",
     status: "Denied",
   },
 ];
@@ -58,19 +90,33 @@ export const ACCESS_REQUESTS_DATA: AccessRequest[] = [
 export const SYSTEM_ROLES: Role[] = [
   {
     name: "Admin",
-    description: "Full system access",
+    description: "Full system access, including user and settings management",
   },
   {
     name: "Project Manager",
-    description: "Project oversight",
+    description: "Oversees projects, assigns tasks, and monitors progress",
   },
   {
-    name: "Developer",
-    description: "Development access",
+    name: "Estimator",
+    description:
+      "Runs AI takeoffs, calculates quantities, and prepares cost estimates",
+  },
+  {
+    name: "Architect",
+    description: "Uploads and revises blueprints, ensures design accuracy",
+  },
+  {
+    name: "Engineer",
+    description: "Provides structural, mechanical, and technical design input",
+  },
+  {
+    name: "Contractor",
+    description:
+      "Executes construction based on approved blueprints and estimates",
   },
   {
     name: "Viewer",
-    description: "Read-only access",
+    description: "Read-only access to projects, blueprints, and reports",
   },
 ];
 
