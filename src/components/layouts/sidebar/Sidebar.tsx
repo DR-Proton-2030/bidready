@@ -7,6 +7,7 @@ import { sidebarItems } from "@/constants/sidebar/sidebarItem.constant";
 import { useLayout } from "@/contexts/layoutContext/LayoutContext";
 import CompanyLogo from "@/components/shared/companyLogo/CompanyLogo";
 import AuthContext from "@/contexts/authContext/authContext";
+import Image from "next/image";
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -27,10 +28,19 @@ const Sidebar = () => {
       >
         <div className="h-full flex flex-col custom-scrollbar overflow-y-auto">
           {/* Logo section */}
-                  {/* Logo Section */}
-        <div className="p-6 border-b border-gray-100">
-          <CompanyLogo width={150} />
-        </div>
+          {/* Logo Section */}
+          <div className="p-6 border-b border-gray-100">
+            {user?.company_details?.logo ? (
+              <Image
+                src={user?.company_details?.logo}
+                alt={`${user?.company_details?.company_name || "Company"} logo`}
+                width={150}
+                height={10}
+              />
+            ) : (
+              <CompanyLogo width={150} />
+            )}
+          </div>
 
           {/* Navigation items */}
           <nav className="flex-1 p-4 space-y-2">
@@ -74,17 +84,29 @@ const Sidebar = () => {
             {!isSidebarCollapsed ? (
               <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 animate-fade-in">
                 <div className="w-10 h-10 sidebar-gradient rounded-full flex items-center justify-center">
-                  <img src={user?.profile_picture} alt={user?.full_name} className="w-full h-full rounded-full object-cover" />
+                  <img
+                    src={user?.profile_picture}
+                    alt={user?.full_name}
+                    className="w-full h-full rounded-full object-cover"
+                  />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
-                  <p className="text-xs text-gray-500">{user?.role}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.full_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user?.company_details?.company_name}
+                  </p>
                 </div>
               </div>
             ) : (
               <div className="flex justify-center">
                 <div className="w-10 h-10 sidebar-gradient rounded-full flex items-center justify-center group">
-                  <img src={user?.profile_picture} alt={user?.full_name} className="w-full h-full rounded-full object-cover" />
+                  <img
+                    src={user?.profile_picture}
+                    alt={user?.full_name}
+                    className="w-full h-full rounded-full object-cover"
+                  />
                   <div className="tooltip group-hover:opacity-100">
                     {user?.full_name}
                   </div>

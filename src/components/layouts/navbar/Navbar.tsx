@@ -148,7 +148,7 @@ const Navbar = () => {
                 </div>
                 <div className="hidden sm:block text-left">
                   <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
-                  <p className="text-xs text-gray-500">{user?.role}</p>
+                  <p className="text-xs text-gray-500">{user?.company_details?.company_name}</p>
                 </div>
                 <ChevronDown className="w-4 h-4" />
               </button>

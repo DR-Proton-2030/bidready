@@ -1,3 +1,5 @@
+import { ICompany } from "./company.interface";
+
 export interface IUser {
 	full_name: string;
 	email: string;
@@ -6,8 +8,8 @@ export interface IUser {
 	company_object_id: string;
 	role: string;
 	profile_picture: string;
+  company_details?: ICompany;
 }
-
 export interface User {
   id: number;
   name: string;
