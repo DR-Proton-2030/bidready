@@ -2,7 +2,7 @@ export const DASHBOARD_STATS = [
   {
     id: 1,
     title: "Total Projects",
-    value: "18",
+    value: "14",
     color: "blue",
     bgColor: "bg-blue-100",
     textColor: "text-blue-600",
@@ -10,7 +10,7 @@ export const DASHBOARD_STATS = [
   {
     id: 2,
     title: "Active Blueprints",
-    value: "42",
+    value: "6",
     color: "green",
     bgColor: "bg-green-100",
     textColor: "text-green-600",
@@ -18,7 +18,7 @@ export const DASHBOARD_STATS = [
   {
     id: 3,
     title: "AI Takeoffs Completed",
-    value: "27",
+    value: "7",
     color: "purple",
     bgColor: "bg-purple-100",
     textColor: "text-purple-600",
@@ -26,7 +26,7 @@ export const DASHBOARD_STATS = [
   {
     id: 4,
     title: "Pending Access Requests",
-    value: "5",
+    value: "2",
     color: "orange",
     bgColor: "bg-orange-100",
     textColor: "text-orange-600",
