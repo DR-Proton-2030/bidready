@@ -1,15 +1,15 @@
 "use client";
 import React, { useContext, useState } from "react";
 import { usePathname } from "next/navigation";
-import { 
-  Menu, 
-  Search, 
-  Bell, 
-  Settings, 
+import {
+  Menu,
+  Search,
+  Bell,
+  Settings,
   ChevronDown,
   User,
   LogOut,
-  HelpCircle
+  HelpCircle,
 } from "lucide-react";
 import { useLayout } from "@/contexts/layoutContext/LayoutContext";
 import AuthContext from "@/contexts/authContext/authContext";
@@ -25,17 +25,60 @@ const Navbar = () => {
 
   // Get page title from pathname
   const getPageTitle = (path: string) => {
-    const cleanPath = path.replace(/^\//, '').replace(/-/g, ' ');
-    return cleanPath.charAt(0).toUpperCase() + cleanPath.slice(1) || 'Dashboard';
+    const cleanPath = path.replace(/^\//, "").replace(/-/g, " ");
+    return (
+      cleanPath.charAt(0).toUpperCase() + cleanPath.slice(1) || "Dashboard"
+    );
   };
 
   const notifications = [
-    { id: 1, message: "New project 'BidReady Platform' created", time: "2 hours ago", unread: true },
-    { id: 2, message: "Blueprint 'User Authentication' updated", time: "4 hours ago", unread: true },
-    { id: 3, message: "New user 'John Doe' added to system", time: "6 hours ago", unread: false },
+    {
+      id: 1,
+      message: "New project 'Downtown Office Tower' created",
+      time: "2 hours ago",
+      unread: true,
+    },
+    {
+      id: 2,
+      message:
+        "Blueprint 'floor_plan_level1.pdf' uploaded to 'Downtown Office Tower'",
+      time: "3 hours ago",
+      unread: true,
+    },
+    {
+      id: 3,
+      message: "User 'Sarah Lee' added to project 'Sunrise Apartments'",
+      time: "5 hours ago",
+      unread: true,
+    },
+    {
+      id: 4,
+      message: "Blueprint 'concept_design.pdf' updated in 'Greenfield Mall'",
+      time: "1 day ago",
+      unread: false,
+    },
+    {
+      id: 5,
+      message: "Project 'Riverside Hospital' status changed to Active",
+      time: "2 days ago",
+      unread: false,
+    },
+    {
+      id: 6,
+      message: "User 'David Miller' removed from 'Sunrise Apartments'",
+      time: "3 days ago",
+      unread: false,
+    },
+    {
+      id: 7,
+      message:
+        "AI Takeoff completed for 'Downtown Office Tower' – 18,500 sq.ft detected",
+      time: "3 days ago",
+      unread: true,
+    },
   ];
 
-  const unreadCount = notifications.filter(n => n.unread).length;
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
     <nav className="bg-white border-b border-gray-200 fixed top-0 right-0 left-0 z-30 h-16">
@@ -49,7 +92,7 @@ const Navbar = () => {
             >
               <Menu className="w-5 h-5" />
             </button>
-            
+
             <div className="hidden sm:block">
               <h1 className="text-xl font-semibold text-gray-900">
                 {getPageTitle(pathname)}
@@ -73,11 +116,6 @@ const Navbar = () => {
 
           {/* Right side */}
           <div className="flex items-center space-x-4">
-            {/* Buy & Sell Button */}
-            <button className="hidden sm:inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200">
-              Buy & Sell
-            </button>
-
             {/* Search icon for mobile */}
             <button className="md:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200">
               <Search className="w-5 h-5" />
@@ -101,20 +139,26 @@ const Navbar = () => {
               {isNotificationOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                   <div className="px-4 py-2 border-b border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Notifications
+                    </h3>
                   </div>
                   <div className="max-h-64 overflow-y-auto">
                     {notifications.map((notification) => (
                       <div
                         key={notification.id}
                         className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
-                          notification.unread ? 'bg-blue-50' : ''
+                          notification.unread ? "bg-blue-50" : ""
                         }`}
                       >
                         <div className="flex items-start">
                           <div className="flex-1">
-                            <p className="text-sm text-gray-900">{notification.message}</p>
-                            <p className="text-xs text-gray-500 mt-1">{notification.time}</p>
+                            <p className="text-sm text-gray-900">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {notification.time}
+                            </p>
                           </div>
                           {notification.unread && (
                             <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
@@ -144,11 +188,19 @@ const Navbar = () => {
                 className="flex items-center space-x-3 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
               >
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <img src={user?.profile_picture} alt={user?.full_name} className="w-full h-full rounded-full object-cover" />
+                  <img
+                    src={user?.profile_picture}
+                    alt={user?.full_name}
+                    className="w-full h-full rounded-full object-cover"
+                  />
                 </div>
                 <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
-                  <p className="text-xs text-gray-500">{user?.company_details?.company_name}</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {user?.full_name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {user?.company_details?.company_name}
+                  </p>
                 </div>
                 <ChevronDown className="w-4 h-4" />
               </button>
@@ -157,10 +209,12 @@ const Navbar = () => {
               {isUserMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {user?.full_name}
+                    </p>
                     <p className="text-sm text-gray-500">{user?.email}</p>
                   </div>
-                  
+
                   <div className="py-2">
                     <a
                       href="#"
@@ -184,7 +238,7 @@ const Navbar = () => {
                       Help & Support
                     </a>
                   </div>
-                  
+
                   <div className="border-t border-gray-200 py-2">
                     <div
                       onClick={handleLogout}
@@ -200,7 +254,7 @@ const Navbar = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Click outside to close dropdowns */}
       {(isUserMenuOpen || isNotificationOpen) && (
         <div

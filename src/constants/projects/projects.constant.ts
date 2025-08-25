@@ -4,29 +4,38 @@ import { Project } from "@/@types/interface/project.interface";
 export const PROJECTS_DATA: Project[] = [
   {
     id: 1,
-    name: "BidReady Platform",
-    description: "Main bidding platform development",
+    name: "Downtown Office Tower",
+    description: "20-story commercial office building project",
     status: "Active",
     lastUpdated: "2 hours ago",
-    members: 5,
+    members: 6
   },
   {
     id: 2,
-    name: "Mobile App",
-    description: "iOS and Android mobile application",
+    name: "Sunrise Apartments",
+    description: "Residential apartment complex with 120 units",
     status: "In Progress",
     lastUpdated: "1 day ago",
-    members: 3,
+    members: 4
   },
   {
     id: 3,
-    name: "API Gateway",
-    description: "Backend API development and integration",
+    name: "Greenfield Mall",
+    description: "New retail shopping mall project",
     status: "Planning",
     lastUpdated: "3 days ago",
-    members: 4,
+    members: 8
+  },
+  {
+    id: 4,
+    name: "Riverside Hospital",
+    description: "Multi-specialty hospital with 500 beds",
+    status: "Active",
+    lastUpdated: "5 hours ago",
+    members: 10
   },
 ];
+
 
 export const PROJECT_STATUSES = ["All", "Active", "In Progress", "Planning"] as const;
 
