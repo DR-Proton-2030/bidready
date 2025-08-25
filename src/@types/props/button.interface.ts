@@ -4,7 +4,7 @@ export interface ButtonProps {
   text: string;
   className?: string;
   icon?: ReactNode;
-  onClick?: () => void;
+  onClick?: (event: React.FormEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   data?: any; // Optional data for specific button actions
   fileName?: string; // Default file name for downloads

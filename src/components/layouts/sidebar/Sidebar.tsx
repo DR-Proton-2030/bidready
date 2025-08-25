@@ -1,15 +1,19 @@
 "use client";
-import React from "react";
+import React, { useContext } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { sidebarItems } from "@/constants/sidebar/sidebarItem.constant";
 import { useLayout } from "@/contexts/layoutContext/LayoutContext";
 import CompanyLogo from "@/components/shared/companyLogo/CompanyLogo";
+import AuthContext from "@/contexts/authContext/authContext";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebar } = useLayout();
+  const { user } = useContext(AuthContext);
+
+  console.log("=== user ===>", user);
 
   return (
     <>
@@ -70,19 +74,19 @@ const Sidebar = () => {
             {!isSidebarCollapsed ? (
               <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 animate-fade-in">
                 <div className="w-10 h-10 sidebar-gradient rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">JD</span>
+                  <img src={user?.profile_picture} alt={user?.full_name} className="w-full h-full rounded-full object-cover" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">John Doe</p>
-                  <p className="text-xs text-gray-500">Premium User</p>
+                  <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
+                  <p className="text-xs text-gray-500">{user?.role}</p>
                 </div>
               </div>
             ) : (
               <div className="flex justify-center">
                 <div className="w-10 h-10 sidebar-gradient rounded-full flex items-center justify-center group">
-                  <span className="text-white text-sm font-medium">JD</span>
+                  <img src={user?.profile_picture} alt={user?.full_name} className="w-full h-full rounded-full object-cover" />
                   <div className="tooltip group-hover:opacity-100">
-                    John Doe
+                    {user?.full_name}
                   </div>
                 </div>
               </div>

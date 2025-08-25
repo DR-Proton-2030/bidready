@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { usePathname } from "next/navigation";
 import { 
   Menu, 
@@ -12,12 +12,14 @@ import {
   HelpCircle
 } from "lucide-react";
 import { useLayout } from "@/contexts/layoutContext/LayoutContext";
+import AuthContext from "@/contexts/authContext/authContext";
 
 const Navbar = () => {
   const pathname = usePathname();
   const { toggleSidebar } = useLayout();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const { user } = useContext(AuthContext);
 
   // Get page title from pathname
   const getPageTitle = (path: string) => {
@@ -140,11 +142,11 @@ const Navbar = () => {
                 className="flex items-center space-x-3 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
               >
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">JD</span>
+                  <img src={user?.profile_picture} alt={user?.full_name} className="w-full h-full rounded-full object-cover" />
                 </div>
                 <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium text-gray-900">John Doe</p>
-                  <p className="text-xs text-gray-500">Admin</p>
+                  <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
+                  <p className="text-xs text-gray-500">{user?.role}</p>
                 </div>
                 <ChevronDown className="w-4 h-4" />
               </button>
@@ -153,8 +155,8 @@ const Navbar = () => {
               {isUserMenuOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900">John Doe</p>
-                    <p className="text-sm text-gray-500">john.doe@bidready.com</p>
+                    <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
+                    <p className="text-sm text-gray-500">{user?.email}</p>
                   </div>
                   
                   <div className="py-2">

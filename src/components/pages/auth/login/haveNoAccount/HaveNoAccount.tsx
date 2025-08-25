@@ -1,3 +1,4 @@
+import Link from "next/link";
 import React from "react";
 
 const HaveNoAccount = () => {
@@ -8,9 +9,9 @@ const HaveNoAccount = () => {
         className="flex justify-start text-sm text-gray-600"
       >
         Have No Account?&nbsp;
-        <a href="#" className="text-link hover:underline">
+        <Link href="/signup" className="text-link hover:underline">
           Create an account
-        </a>
+        </Link>
       </div>
     </div>
   );

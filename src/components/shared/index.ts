@@ -8,3 +8,6 @@ export { default as UserTableRow } from './userTableRow/UserTableRow';
 export { default as PermissionCard } from './permissionCard/PermissionCard';
 export { default as AccessRequestCard } from './accessRequestCard/AccessRequestCard';
 export { default as RoleCard } from './roleCard/RoleCard';
+export { default as Stepper } from './stepper/Stepper';
+export { default as FileUpload } from './fileUpload/FileUpload';
+export { default as CompanyLogo } from './companyLogo/CompanyLogo';

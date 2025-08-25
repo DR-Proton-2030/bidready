@@ -2,11 +2,11 @@ import { IInput } from "@/@types/interface/input.interface";
 
 export const LoginInputList: IInput[] = [
     {
-        label: "Username",
-        type: "username",
+        label: "Email",
+        type: "email",
         placeHolder: "Enter your email",
-        id: "username",
-        name: "username"
+        id: "email",
+        name: "email"
     },
     {
         label: "Password",

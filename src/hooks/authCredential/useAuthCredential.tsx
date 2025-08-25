@@ -1,16 +1,17 @@
 import React, { useContext, useState } from "react";
 import { useRouter } from "next/navigation";
 import AuthContext from "@/contexts/authContext/authContext";
+import { api } from "@/utils/api";
 
 const useAuthCredential = () => {
   const { setUser } = useContext(AuthContext);
   const router = useRouter();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [loginCredential, setLoginCredential] = useState<{
-    username: string;
+    email: string;
     password: string;
   }>({
-    username: "",
+    email: "",
     password: "",
   });
 
@@ -28,11 +29,12 @@ const useAuthCredential = () => {
     event.preventDefault();
     try {
       setIsLoading(true);
-      // const result = await api.auth.loginUser(loginCredential);
-      // if (result) {
-      //   setUser(result);
-      //   router.push("/admin");
-      // }
+      const result = await api.auth.loginUser(loginCredential);
+      if (result) {
+        const { token, user } = result;
+        setUser(user);
+        router.push("/dashboard");
+      }
     } catch (error) {
       console.log(error);
     } finally {
