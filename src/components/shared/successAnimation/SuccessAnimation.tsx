@@ -10,7 +10,7 @@ const SuccessAnimation: React.FC<SuccessAnimationProps> = ({ show, onClose }) =>
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-white/10 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl p-8 max-w-md mx-4 text-center">
         <div className="relative mb-6">
           <div className="w-20 h-20 mx-auto bg-green-100 rounded-full flex items-center justify-center">

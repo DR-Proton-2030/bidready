@@ -7,6 +7,7 @@ import PrimaryButton from "@/components/shared/buttons/primaryButton/PrimaryButt
 import CompanyLogo from "@/components/shared/companyLogo/CompanyLogo";
 import SuccessAnimation from "@/components/shared/successAnimation/SuccessAnimation";
 import CompanyDetailsStep from "./steps/CompanyDetailsStep";
+import OtpVerificationModal from "@/components/shared/otpVerificationModal/OtpVerificationModal";
 import { useSignupFlow } from "@/hooks";
 
 const SignupForm: React.FC = () => {
@@ -38,6 +39,15 @@ const SignupForm: React.FC = () => {
     showSuccess,
     handleSubmit,
     handleSuccessClose,
+    
+    // OTP Verification
+    isOtpModalOpen,
+    isOtpVerifying,
+    otpError,
+    otpEmail,
+    closeOtpModal,
+    verifyOtp,
+    resendOtp,
   } = useSignupFlow();
 
   const renderStepContent = () => {
@@ -168,6 +178,17 @@ const SignupForm: React.FC = () => {
 
       {/* Success Animation */}
       <SuccessAnimation show={showSuccess} onClose={handleSuccessClose} />
+      
+      {/* OTP Verification Modal */}
+      <OtpVerificationModal
+        isOpen={isOtpModalOpen}
+        onClose={closeOtpModal}
+        onVerify={verifyOtp}
+        isLoading={isOtpVerifying}
+        email={otpEmail}
+        error={otpError}
+        onResendOtp={resendOtp}
+      />
     </div>
   );
 };

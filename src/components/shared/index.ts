@@ -11,3 +11,5 @@ export { default as RoleCard } from './roleCard/RoleCard';
 export { default as Stepper } from './stepper/Stepper';
 export { default as FileUpload } from './fileUpload/FileUpload';
 export { default as CompanyLogo } from './companyLogo/CompanyLogo';
+export { default as Modal } from './modal/Modal';
+export { default as OtpVerificationModal } from './otpVerificationModal/OtpVerificationModal';

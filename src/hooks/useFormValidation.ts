@@ -42,8 +42,8 @@ export const useFormValidation = () => {
 
   const validateStep = useCallback((step: number, formData: ISignupFormData): boolean => {
     const fieldsToValidate = step === 1 
-      ? ['full_name', 'email', 'emp_id', 'password', 'confirmPassword']
-      : ['company_name', 'website', 'role'];
+      ? ['full_name', 'email', 'password', 'confirmPassword']
+      : ['company_name', 'website'];
 
     const stepSchema: ValidationSchema = {};
     fieldsToValidate.forEach(field => {

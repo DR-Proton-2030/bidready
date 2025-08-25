@@ -4,6 +4,7 @@ import { useFormValidation } from "./useFormValidation";
 import { useFileUpload } from "./useFileUpload";
 import { useStepper } from "./useStepper";
 import { useSignup, UseSignupOptions } from "./useSignup";
+import { useOtpVerification } from "./useOtpVerification";
 
 const TOTAL_STEPS = 2;
 const STEP_NAMES = ["User Details", "Company Info"];
@@ -22,6 +23,34 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     isLastStep,
     resetStepper,
   } = useStepper(TOTAL_STEPS);
+  
+  // OTP verification hook
+  const {
+    isModalOpen: isOtpModalOpen,
+    isVerifying: isOtpVerifying,
+    otpError,
+    email: otpEmail,
+    openOtpModal,
+    closeOtpModal,
+    verifyOtp,
+    resendOtp,
+  } = useOtpVerification({
+    onSuccess: async (otp) => {
+      // After OTP verification, proceed with actual signup
+      console.log("OTP verified successfully:", otp);
+      const result = await submitSignup(formData, profileFile.file, companyFile.file);
+      if (!result.success) {
+        setSubmitError(result.error || "Signup failed after OTP verification");
+      }
+    },
+    onError: (error) => {
+      console.error("OTP verification failed:", error);
+    },
+    onResend: () => {
+      console.log("OTP resent to:", formData.email);
+    },
+  });
+
   const { isLoading, showSuccess, submitSignup, handleSuccessClose } = useSignup({
     ...options,
     onError: (error) => {
@@ -66,7 +95,7 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     }
   }, [currentStep, formData, validateStep, goToNextStep]);
 
-  // Handle form submission
+  // Handle form submission - now triggers OTP verification first
   const handleSubmit = useCallback(async (event?: React.FormEvent) => {
     if (event) {
       event.preventDefault();
@@ -76,9 +105,9 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
       return;
     }
     
-    const result = await submitSignup(formData, profileFile.file, companyFile.file);
-    return result;
-  }, [currentStep, formData, validateStep, submitSignup, profileFile.file, companyFile.file]);
+    // Open OTP modal instead of directly submitting
+    openOtpModal(formData.email);
+  }, [currentStep, formData, validateStep, openOtpModal]);
 
   // Reset entire form flow
   const resetAll = useCallback(() => {
@@ -114,6 +143,15 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     showSuccess,
     handleSubmit,
     handleSuccessClose,
+    
+    // OTP Verification
+    isOtpModalOpen,
+    isOtpVerifying,
+    otpError,
+    otpEmail,
+    closeOtpModal,
+    verifyOtp,
+    resendOtp,
     
     // Utilities
     resetAll,
