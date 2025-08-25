@@ -34,7 +34,7 @@ const Sidebar = () => {
               <Image
                 src={user?.company_details?.logo}
                 alt={`${user?.company_details?.company_name || "Company"} logo`}
-                width={150}
+                width={200}
                 height={10}
               />
             ) : (
