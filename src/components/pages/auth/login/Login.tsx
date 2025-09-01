@@ -6,7 +6,7 @@ import PrimaryButton from "@/components/shared/buttons/primaryButton/PrimaryButt
 import { LoginInputList } from "./LoginInputList";
 import useAuthCredential from "@/hooks/authCredential/useAuthCredential";
 import GoogleLogin from "@/components/shared/googleLogin/GoogleLogin";
-import ForgetPassword from "./forgetPassword/ForgetPassword";
+import ForgetPassword from "../forgetPassword/ForgetPassword";
 import HaveNoAccount from "./haveNoAccount/HaveNoAccount";
 
 const Login = () => {

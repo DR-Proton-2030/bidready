@@ -8,6 +8,7 @@ import {
   signupUser,
   verifyToken,
 } from "./auth/auth.api";
+import { changePassword } from "./auth/forgetPassword";
 import { createProject, getProjects } from "./project/project.api";
 
 export const api = {
@@ -20,6 +21,7 @@ export const api = {
     createUsers,
     getUsers,
     logoutUser,
+    changePassword
   },
   project: {
     createProject,

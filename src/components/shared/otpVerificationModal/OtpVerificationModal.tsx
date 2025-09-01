@@ -103,6 +103,7 @@ const OtpVerificationModal: React.FC<OtpVerificationModalProps> = ({
         setTimeout(() => onVerify(newOtp.join("")), 100);
       }
     }
+    console.log("Otp pasted",otp)
   };
 
   const handleVerify = () => {

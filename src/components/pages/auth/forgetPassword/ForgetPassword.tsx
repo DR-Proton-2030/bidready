@@ -5,10 +5,36 @@ import CommonInput from "@/components/shared/form/commonInput/CommonInput";
 import CompanyLogo from "@/components/shared/companyLogo/CompanyLogo";
 import PrimaryButton from "@/components/shared/buttons/primaryButton/PrimaryButton";
 import { OtpVerificationModal } from "@/components/shared";
+import { useOtpVerification } from "@/hooks/useOtpVerification";
+import { useRouter } from "next/navigation";
+
 
 const ForgetPassword = () => {
+  const router = useRouter();
   const [email, setEmail] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const {
+    isModalOpen,
+    isVerifying,
+    otpError,
+    openOtpModal,
+    closeOtpModal,
+    verifyOtp,
+    resendOtp,
+  } = useOtpVerification({
+    onSuccess: (otp) => {
+      console.log("✅ OTP verified successfully:", otp);
+      // 👉 Here you can now show the reset password form
+      router.push(`/reset-password?email=${email}`)
+    },
+    onError: (error) => {
+      console.error("❌ OTP verification failed:", error);
+    },
+    onResend: () => {
+      console.log("🔄 OTP resent to", email);
+    },
+  });
 
   const emailInput = {
     id: "email",
@@ -47,9 +73,7 @@ const ForgetPassword = () => {
 
           <PrimaryButton
             text="Find Your Account"
-            onClick={() => {
-              setIsModalOpen(true);
-            }}
+            onClick={() => openOtpModal(email)}
           />
         </form>
       </div>
@@ -57,8 +81,10 @@ const ForgetPassword = () => {
       {isModalOpen && (
         <OtpVerificationModal
           isOpen={isModalOpen}
-          onClose={() => {setIsModalOpen(false)}}
-          onVerify={(otp: string) => {console.log("OTP Entered",otp)}}
+          onClose={closeOtpModal}
+          onVerify={verifyOtp}
+          onResendOtp={resendOtp}
+          error={otpError}
           email={email}
         />
       )}

@@ -27,6 +27,8 @@ const useAuthCredential = () => {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    
     try {
       setIsLoading(true);
       const result = await api.auth.loginUser(loginCredential);
