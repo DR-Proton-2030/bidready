@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 interface CategoryFilterProps {
   categories: readonly string[];
@@ -9,7 +9,7 @@ interface CategoryFilterProps {
 const CategoryFilter: React.FC<CategoryFilterProps> = ({
   categories,
   activeCategory,
-  onCategoryChange
+  onCategoryChange,
 }) => {
   return (
     <div className="flex gap-2 mb-6">
@@ -17,9 +17,9 @@ const CategoryFilter: React.FC<CategoryFilterProps> = ({
         <button
           key={category}
           className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-            category === activeCategory 
-              ? "bg-primary text-white" 
-              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            category === activeCategory
+              ? "bg-primary text-white"
+              : "bg-white text-gray-700 border border-gray-200 hover:bg-gray-200"
           }`}
           onClick={() => onCategoryChange(category)}
         >

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { headers } from "@/config/config";
 import API from "./api";
 
@@ -18,6 +19,12 @@ export const get = async (
       return response.data;
     }
   } catch (error: any) {
+    // Log error details for debugging
+    console.error("API POST error:", {
+      message: error.message,
+      responseData: error.response?.data,
+      status: error.response?.status,
+    });
     throw new Error(error.response?.data?.message || "Something Went Wrong");
   }
 };

@@ -10,13 +10,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!token) {
-    if (process.env.NODE_ENV === "development") {
-      console.log("No token, redirecting to login...");
-    }
+  // if (!token) {
+  //   if (process.env.NODE_ENV === "development") {
+  //     console.log("No token, redirecting to login...");
+  //   }
 
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
+  //   return NextResponse.redirect(new URL("/login", req.url));
+  // }
 
   return NextResponse.next();
 }

@@ -20,13 +20,13 @@ const Sidebar = () => {
     <>
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-40 h-screen bg-white border-r border-gray-200 transition-all duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-  h-screen bg-white border-r border-gray-200 transition-all duration-300 ease-in-out lg:translate-x-0 ${
           isSidebarCollapsed
             ? "w-16 -translate-x-full lg:translate-x-0"
             : "w-64"
         }`}
       >
-        <div className="h-full flex flex-col custom-scrollbar overflow-y-auto">
+        <div className="h-full flex flex-col  custom-scrollbar overflow-y-auto">
           {/* Logo section */}
           {/* Logo Section */}
           <div className="p-6 border-b border-gray-100">

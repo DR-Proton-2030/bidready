@@ -1,72 +1,78 @@
-import React from 'react';
-import { FolderOpen, Calendar, Users } from 'lucide-react';
-import { Project } from '@/@types/interface/project.interface';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React from "react";
+import { motion } from "framer-motion";
+import {
+  Clock,
+  Calendar,
+  Users,
+  Link2,
+  ArrowUpLeft,
+  ArrowUpRight,
+  Folder,
+  FolderClosed,
+} from "lucide-react";
 
-interface ProjectCardProps extends Project {
-  onClick?: (id: number) => void;
-}
-
-const ProjectCard: React.FC<ProjectCardProps> = ({
-  id,
-  name,
-  description,
-  status,
-  lastUpdated,
-  members,
-  onClick
-}) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-green-100 text-green-800';
-      case 'In Progress':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Planning':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const handleClick = () => {
-    if (onClick) {
-      onClick(id);
-    }
-  };
-
+const EventCard: React.FC<any> = ({ name, description, status }) => {
   return (
-    <div 
-      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition cursor-pointer"
-      onClick={handleClick}
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <FolderOpen className="w-6 h-6 text-blue-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800">{name}</h3>
-            <span className={`inline-block px-2 py-1 text-xs rounded-full ${getStatusColor(status)}`}>
-              {status}
-            </span>
-          </div>
+    <motion.div className="bg-white rounded-2xl border border-gray-200 w-[33%] p-6 w-full max-w-md cursor-pointer">
+      {/* Top Section */}
+      <div className="flex justify-between items-center mb-4">
+        {/* Logo */}
+        <div className="w-12 h-12 border border-gray-300 rounded-xl overflow-hidden bg-gray-100 items-center justify-center flex">
+          <FolderClosed className="w-7 h-7 text-gray-500" />
+        </div>
+
+        {/* Time */}
+        <div className="flex items-center pr-2 gap-2 text-sm font-medium">
+          <span
+            className={`px-4 py-2 rounded-xl text-xs font-semibold
+      ${
+        status === "Active"
+          ? "bg-green-100 text-green-700"
+          : status === "In Progress"
+          ? "bg-yellow-100 text-yellow-700"
+          : "bg-gray-100 text-gray-700"
+      }`}
+          >
+            {status}
+          </span>
         </div>
       </div>
-      
-      <p className="text-gray-600 mb-4">{description}</p>
-      
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        <div className="flex items-center gap-1">
-          <Calendar className="w-4 h-4" />
-          {lastUpdated}
-        </div>
-        <div className="flex items-center gap-1">
-          <Users className="w-4 h-4" />
-          {members} members
-        </div>
+
+      {/* Title */}
+      <h3 className="text-gray-800 h-10 w-[90%] font-semibold text-md 2xl:text-lg leading-snug mb-2">
+        {name}
+      </h3>
+
+      {/* Description */}
+      <p className="text-gray-500 text-xs 2xl:text-sm mt-5 mb-4">
+        {description}
+      </p>
+
+      {/* Divider */}
+      <hr className="my-4 border-gray-200" />
+
+      {/* Bottom Section */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs 2xl:text-sm flex items-center gap-2 text-gray-600 font-medium">
+          <Calendar className="w-5 h-5" /> 12 March
+        </span>
+
+        <motion.button
+          whileHover={{
+            scale: 1.02,
+            backgroundColor: "#ed8c43ff",
+            color: "#fff",
+          }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-2 rounded-full border border-gray-200 transition"
+        >
+          View Details
+          <ArrowUpRight className="w-4 h-4" />
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
-export default ProjectCard;
+export default EventCard;

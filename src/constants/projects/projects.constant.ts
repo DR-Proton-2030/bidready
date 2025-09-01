@@ -1,43 +1,50 @@
 import { Project } from "@/@types/interface/project.interface";
 
-
 export const PROJECTS_DATA: Project[] = [
   {
-    id: 1,
-    name: "Downtown Office Tower",
-    description: "20-story commercial office building project",
-    status: "Active",
-    lastUpdated: "2 hours ago",
-    members: 6
-  },
-  {
-    id: 2,
-    name: "Sunrise Apartments",
-    description: "Residential apartment complex with 120 units",
-    status: "In Progress",
-    lastUpdated: "1 day ago",
-    members: 4
-  },
-  {
     id: 3,
-    name: "Greenfield Mall",
-    description: "New retail shopping mall project",
+    name: "Westfield Galleria Shopping & Entertainment Complex",
+    description:
+      "A large-scale retail destination featuring international brands, a multiplex, and dining spaces",
     status: "Planning",
     lastUpdated: "3 days ago",
-    members: 8
+    members: 8,
   },
   {
     id: 4,
-    name: "Riverside Hospital",
-    description: "Multi-specialty hospital with 500 beds",
+    name: "St. Mary’s Advanced Multi-Specialty Medical Center",
+    description:
+      "A 600-bed hospital with specialized departments and state-of-the-art emergency care facilities",
     status: "Active",
     lastUpdated: "5 hours ago",
-    members: 10
+    members: 10,
+  },
+  {
+    id: 5,
+    name: "Harbor Point International Business & Technology Park",
+    description:
+      "A world-class technology and business hub with coworking offices, innovation labs, and data centers",
+    status: "In Progress",
+    lastUpdated: "12 hours ago",
+    members: 7,
+  },
+  {
+    id: 6,
+    name: "Riverside Grand Convention & Cultural Center",
+    description:
+      "A modern convention facility with auditoriums, exhibition halls, and cultural event spaces",
+    status: "Planning",
+    lastUpdated: "4 days ago",
+    members: 5,
   },
 ];
 
-
-export const PROJECT_STATUSES = ["All", "Active", "In Progress", "Planning"] as const;
+export const PROJECT_STATUSES = [
+  "All",
+  "Active",
+  "In Progress",
+  "Planning",
+] as const;
 
 export const PROJECTS_TEXT = {
   pageTitle: "Projects",

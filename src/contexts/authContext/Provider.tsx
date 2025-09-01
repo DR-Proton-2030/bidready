@@ -17,9 +17,9 @@ const AuthContextProvider = ({ children }: ContextProviderProps) => {
     try {
       if (!isOnProtectedRoute) return;
       const response = await api.auth.verifyToken();
-      if(response){
+      if (response) {
         console.log("==>", response);
-        const {user} = response;
+        const { user } = response;
         dispatch({
           type: actions.SET_USER,
           payload: { ...state, user },
@@ -43,7 +43,7 @@ const AuthContextProvider = ({ children }: ContextProviderProps) => {
     fetchUser();
   }, [fetchUser]);
 
-   useEffect(() => {
+  useEffect(() => {
     if (typeof window !== "undefined") {
       setIsOnProtectedRoute(ProtectedRoutes.includes(window.location.pathname));
     }

@@ -8,6 +8,7 @@ import {
   signupUser,
   verifyToken,
 } from "./auth/auth.api";
+import { createProject } from "./project/project.api";
 
 export const api = {
   auth: {
@@ -18,6 +19,9 @@ export const api = {
     googleSignUp,
     createUsers,
     getUsers,
-    logoutUser
+    logoutUser,
+  },
+  project: {
+    createProject,
   },
 };
