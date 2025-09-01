@@ -1,8 +1,18 @@
+
+import { getProjectData } from "@/components/pages/projects/ProjectApi";
 import Projects from "@/components/pages/projects/Projects";
 import React from "react";
 
-const ProjectsPage = () => {
-  return <Projects />;
+const ProjectListPage = async ({ searchParams }: { searchParams?: Promise<any> }) => {
+
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const page = resolvedSearchParams.page ? parseInt(resolvedSearchParams.page, 10) : 1;
+  const data = await getProjectData(page);
+  return (
+    <div id="project-page">
+      <Projects {...data} />
+    </div>
+  );
 };
 
-export default ProjectsPage;
+export default ProjectListPage;

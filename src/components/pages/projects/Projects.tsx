@@ -8,8 +8,9 @@ import {
   PROJECTS_TEXT,
 } from "@/constants/projects/projects.constant";
 import { useRouter } from "next/navigation";
+import { IGetProjectResponse } from "@/@types/api/project/project.interface";
 
-const Projects = () => {
+const Projects: React.FC<IGetProjectResponse> = ({ data, pagination, total }) => {
   const {
     activeStatus,
     filteredProjects,
@@ -36,9 +37,9 @@ const Projects = () => {
         />
         {/* <hr className="my-4 border-gray-200" /> */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => (
+          {data.map((project) => (
             <ProjectCard
-              key={project.id}
+              key={project._id}
               {...project}
               onClick={handleProjectClick}
             />

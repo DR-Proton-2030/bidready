@@ -9,16 +9,12 @@ export const createProject = async (
   token?: string
 ): Promise<any> => {
   try {
-    let authToken = token;
-    if (!authToken && typeof window !== "undefined") {
-      authToken = localStorage.getItem("@token") || undefined;
-    }
-    if (!authToken) {
+    if (!token) {
       throw new Error("Token not found");
     }
     const response = await post(`/${initialRoute}/create-project`, payload, {
       ...headers,
-      Authorization: `Bearer ${authToken}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     });
     return response;
@@ -28,19 +24,11 @@ export const createProject = async (
   }
 };
 
-export const getProjects = async (filter: object = {}): Promise<any> => {
+export const getProjects = async (filter: object = {}, token ?:string): Promise<any> => {
   try {
-    const token = localStorage.getItem("@token");
-    if (!token) {
-      throw new Error("Token not found");
-    }
-    const { page = 1, limit = 10 } = filter as {
-      page?: number;
-      limit?: number;
-    };
     const response = await get(
       `/${initialRoute}/get-projects`,
-      { page, limit },
+      filter,
       token
     );
     return response;
