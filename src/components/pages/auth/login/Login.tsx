@@ -29,7 +29,18 @@ const Login = () => {
             objectValue={loginCredential}
             handleChange={handleChange}
           />
-          <ForgetPassword />
+          {/* <ForgetPassword /> */}
+          <div id="forget-password-container">
+            <div
+              id="forget-password"
+              className="flex justify-end text-sm text-gray-600"
+            >
+              <a href="/forget-password" className="text-primary">
+                Forgot Password?
+              </a>
+            </div>
+          </div>
+
           <HaveNoAccount />
           {isLoading ? (
             <div className="flex justify-center items-center">
