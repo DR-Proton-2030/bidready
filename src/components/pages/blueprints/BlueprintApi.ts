@@ -14,7 +14,7 @@ export const getBlueprintData = async (
 ): Promise<IGetBlueprintsResponse> => {
   try {
     const token = (await cookies()).get("token")?.value;
-    const response = await api.project.getProjects({ page }, token);
+    const response = await api.blueprint.getBlueprints({ page }, token);
 
     return response;
   } catch (error) {

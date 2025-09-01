@@ -1,122 +1,224 @@
 "use client";
 
 import React, { useState } from "react";
+import { useBlueprints } from "@/hooks/useBlueprints/useBlueprints";
 import { useRouter } from "next/navigation";
 
-const STATUS_OPTIONS = ["active", "completed", "on-hold", "in-progress"];
+const statusOptions = ["active", "completed", "on-hold", "in-progress"];
 
-const CreateBlueprintPage: React.FC = () => {
+export default function CreateBlueprintPage() {
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    version: "v1",
+    status: "active",
+    type: "",
+    project_object_id: "",
+  });
+  const [blueprintFile, setBlueprintFile] = useState<File | null>(null);
+  const [error, setError] = useState("");
+  const { handleNewBlueprint } = useBlueprints();
   const router = useRouter();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("");
-  const [status, setStatus] = useState(STATUS_OPTIONS[0]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files && e.target.files[0];
+    setBlueprintFile(f || null);
+  };
+
+  const handleStatusChange = (status: string) => {
+    setForm({ ...form, status });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    if (!title.trim()) return setError("Title is required");
-    setLoading(true);
-    try {
-      const payload = { title, description, category, status };
-      const res = await fetch("/api/blueprints", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok)
-        throw new Error(data?.message || "Failed to create blueprint");
-      // navigate back to blueprints list
-      router.push("/blueprints");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setError(msg || "Something went wrong");
-    } finally {
-      setLoading(false);
+    if (!form.name || !form.description || !form.project_object_id) {
+      setError("Name, description and project are required.");
+      return;
     }
+    setError("");
+    (async () => {
+      try {
+        const fd = new FormData();
+        fd.append("name", form.name);
+        fd.append("description", form.description);
+        fd.append("version", form.version || "v1");
+        fd.append("status", form.status);
+        fd.append("type", form.type || "");
+        fd.append("project_object_id", form.project_object_id);
+        if (blueprintFile) fd.append("blueprint_file", blueprintFile);
+
+        await handleNewBlueprint(fd);
+        // success - navigate to blueprints list
+        router.push("/blueprints");
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Failed to create blueprint";
+        setError(message);
+      }
+    })();
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-2xl font-semibold mb-4">Create Blueprint</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-12 gap-4 items-start">
-            <label className="col-span-3 text-sm text-gray-600">Title</label>
-            <div className="col-span-9">
+    <div className=" bg-white flex py-5 border-t border-gray-200 shadow-md rounded-xl w-full  px-6">
+      <div className="bg-white  w-[80%]">
+        <h2 className="px-6 pt-6 pb-3 text-3xl font-semibold ">
+          Create Blueprint
+        </h2>
+        <p className="px-6 pb-6 text-sm text-gray-500 border-b border-gray-200">
+          Enter the name of your blueprint. This will be your primary
+          identifier. Lorem ipsum dolor sit amet consectetur adipisicing elit.
+          Distinctio.
+        </p>
+        <form onSubmit={handleSubmit} className="divide-y divide-gray-100  ">
+          {/* Title */}
+          <div className="flex items-start justify-between px-6 py-6 gap-8">
+            <div className="flex-1">
+              <label className="block font-medium mb-1">Blueprint title</label>
+              <p className="text-sm text-gray-500">
+                Enter the name of your blueprint. This will be your primary
+                identifier.
+              </p>
+            </div>
+            <div className="flex-1">
               <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-                placeholder="Blueprint title"
+                name="name"
+                type="text"
+                value={form.name}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. Downtown Office"
+                required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-4 items-start">
-            <label className="col-span-3 text-sm text-gray-600">
-              Description
-            </label>
-            <div className="col-span-9">
+          {/* Description */}
+          <div className="flex items-start justify-between px-6 py-6 gap-8">
+            <div className="flex-1">
+              <label className="block font-medium mb-1">Description</label>
+              <p className="text-sm text-gray-500">
+                Provide a brief description of the blueprint.
+              </p>
+            </div>
+            <div className="flex-1">
               <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full border rounded px-3 py-2 h-28"
-                placeholder="A short description"
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. demo"
+                rows={3}
+                required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-4 items-start">
-            <label className="col-span-3 text-sm text-gray-600">Category</label>
-            <div className="col-span-9">
+          {/* Scope */}
+          <div className="flex items-start justify-between px-6 py-6 gap-8">
+            <div className="flex-1">
+              <label className="block font-medium mb-1">Scope</label>
+              <p className="text-sm text-gray-500">Define the scope.</p>
+            </div>
+            <div className="flex-1">
               <input
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full border rounded px-3 py-2"
-                placeholder="e.g. Electrical, Structural"
+                name="project_object_id"
+                type="text"
+                value={form.project_object_id}
+                onChange={handleChange}
+                className="w-full px-4 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g. 68b5d81b164cda2c73c45a08"
+                required
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-12 gap-4 items-start">
-            <label className="col-span-3 text-sm text-gray-600">Status</label>
-            <div className="col-span-9 flex gap-2">
-              {STATUS_OPTIONS.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setStatus(opt)}
-                  className={`px-3 py-1 rounded border ${
-                    status === opt
-                      ? "bg-sky-600 text-white"
-                      : "bg-white text-gray-700"
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
+          {/* Version & Type & File */}
+          <div className="flex items-start justify-between px-6 py-6 gap-8">
+            <div className="flex-1">
+              <label className="block font-medium mb-1">Version</label>
+              <p className="text-sm text-gray-500">Blueprint version.</p>
+            </div>
+            <div className="flex-1 grid grid-cols-3 gap-4">
+              <input
+                name="version"
+                type="text"
+                value={form.version}
+                onChange={handleChange}
+                className="col-span-1 w-full px-4 py-2 rounded border border-gray-200"
+                placeholder="v1"
+              />
+              <input
+                name="type"
+                type="text"
+                value={form.type}
+                onChange={handleChange}
+                className="col-span-1 w-full px-4 py-2 rounded border border-gray-200"
+                placeholder="floor_plan"
+              />
+              <input
+                name="blueprint_file"
+                type="file"
+                onChange={handleFileChange}
+                className="col-span-1"
+              />
             </div>
           </div>
 
-          {error && <div className="text-red-600">{error}</div>}
+          {/* Status (Badges) */}
+          <div className="flex items-start justify-between px-6 py-6 gap-8">
+            <div className="flex-1">
+              <label className="block font-medium mb-1">Status</label>
+              <p className="text-sm text-gray-500">
+                Select the current status.
+              </p>
+            </div>
+            <div className="flex-1">
+              <div className="flex flex-wrap gap-3">
+                {statusOptions.map((status) => {
+                  const isActive = form.status === status;
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => handleStatusChange(status)}
+                      className={`px-5 py-2 rounded-full font-medium text-sm transition 
+                        ${
+                          isActive
+                            ? "bg-primary text-white shadow-md"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-          <div className="flex justify-end">
+          {/* Error */}
+          {error && (
+            <div className="px-6 py-4 text-red-600 text-sm">{error}</div>
+          )}
+
+          {/* Submit Button */}
+          <div className="px-6 py-6">
             <button
               type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-sky-600 text-white rounded disabled:opacity-60"
+              className="px-6 py-3 bg-primary text-white rounded-lg
+               font-semibold hover:bg-black transition shadow-md"
             >
-              {loading ? "Creating..." : "Create Blueprint"}
+              Create Blueprint
             </button>
           </div>
         </form>
       </div>
     </div>
   );
-};
-
-export default CreateBlueprintPage;
+}
