@@ -9,6 +9,7 @@ import {
   verifyToken,
 } from "./auth/auth.api";
 import { createProject, getProjects } from "./project/project.api";
+import { createBlueprint, getBlueprints } from "./blueprint/blueprint.api";
 
 export const api = {
   auth: {
@@ -23,6 +24,10 @@ export const api = {
   },
   project: {
     createProject,
-    getProjects
+    getProjects,
+  },
+  blueprint: {
+    createBlueprint,
+    getBlueprints,
   },
 };

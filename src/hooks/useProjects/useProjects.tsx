@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Project } from "@/@types/interface/project.interface";
 import {
   PROJECTS_DATA,
   PROJECTS_TEXT,

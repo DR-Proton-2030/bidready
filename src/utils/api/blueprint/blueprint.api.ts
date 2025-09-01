@@ -2,9 +2,9 @@
 import { get, post } from "../apiMethod";
 import { headers } from "@/config/config";
 
-const initialRoute = "project";
+const initialRoute = "blueprint";
 
-export const createProject = async (
+export const createBlueprint = async (
   payload: object,
   token?: string
 ): Promise<any> => {
@@ -12,30 +12,32 @@ export const createProject = async (
     if (!token) {
       throw new Error("Token not found");
     }
-    const response = await post(`/${initialRoute}/create-project`, payload, {
+    const response = await post(`/${initialRoute}/create-blueprint`, payload, {
       ...headers,
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     });
     return response;
   } catch (error: any) {
-    console.log("===>error", error);
-    throw new Error(error.response?.data?.message || "Project creation failed");
+    console.log("===>blueprint error", error);
+    throw new Error(
+      error.response?.data?.message || "Blueprint creation failed"
+    );
   }
 };
 
-export const getProjects = async (
+export const getBlueprints = async (
   filter: object = {},
   token?: string
 ): Promise<any> => {
   try {
     const response = await get(
-      `/${initialRoute}/get-all-projects`,
+      `/${initialRoute}/get-all-blueprints`,
       filter,
       token
     );
     return response;
   } catch (error: any) {
-    throw new Error(error.response?.data?.message || "Project fetch failed");
+    throw new Error(error.response?.data?.message || "Blueprint fetch failed");
   }
 };
