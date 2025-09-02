@@ -1,31 +1,38 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { PageHeader, CategoryFilter, BlueprintCard } from '@/components/shared';
-import { useBlueprints } from '@/hooks/useBlueprints/useBlueprints';
-import { 
+import React from "react";
+import { useRouter } from "next/navigation";
+import { IGetBlueprintsResponse } from "@/components/pages/blueprints/BlueprintApi";
+import { PageHeader, CategoryFilter, BlueprintCard } from "@/components/shared";
+import { useBlueprints } from "@/hooks/useBlueprints/useBlueprints";
+import {
   BLUEPRINT_CATEGORIES,
-  BLUEPRINTS_TEXT 
-} from '@/constants/blueprints/blueprints.constant';
+  BLUEPRINTS_TEXT,
+} from "@/constants/blueprints/blueprints.constant";
 
-const Blueprints: React.FC = () => {
+type Props = {
+  initialData?: IGetBlueprintsResponse;
+};
+
+const Blueprints: React.FC<Props> = ({ initialData }) => {
+  const router = useRouter();
+
   const {
     activeCategory,
     filteredBlueprints,
     handleCategoryChange,
     handleDownload,
-    handleNewBlueprint,
-  } = useBlueprints();
+  } = useBlueprints({ initialData: initialData?.data });
 
   return (
     <div className="space-y-6">
-      <PageHeader 
+      <PageHeader
         title={BLUEPRINTS_TEXT.pageTitle}
         buttonText={BLUEPRINTS_TEXT.newBlueprintButton}
-        onButtonClick={handleNewBlueprint}
+        onButtonClick={() => router.push("/create-blueprint")}
       />
 
-      <CategoryFilter 
+      <CategoryFilter
         categories={BLUEPRINT_CATEGORIES}
         activeCategory={activeCategory}
         onCategoryChange={handleCategoryChange}

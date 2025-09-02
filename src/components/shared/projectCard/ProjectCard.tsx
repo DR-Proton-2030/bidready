@@ -12,7 +12,12 @@ import {
   FolderClosed,
 } from "lucide-react";
 
-const EventCard: React.FC<any> = ({ name, description, status }) => {
+const EventCard: React.FC<any> = ({
+  title,
+  description,
+  status,
+  createdAt,
+}) => {
   return (
     <motion.div className="bg-white rounded-2xl border border-gray-200 w-[33%] p-6 w-full max-w-md cursor-pointer">
       {/* Top Section */}
@@ -41,7 +46,7 @@ const EventCard: React.FC<any> = ({ name, description, status }) => {
 
       {/* Title */}
       <h3 className="text-gray-800 h-10 w-[90%] font-semibold text-md 2xl:text-lg leading-snug mb-2">
-        {name}
+        {title}
       </h3>
 
       {/* Description */}
@@ -55,7 +60,7 @@ const EventCard: React.FC<any> = ({ name, description, status }) => {
       {/* Bottom Section */}
       <div className="flex items-center justify-between">
         <span className="text-xs 2xl:text-sm flex items-center gap-2 text-gray-600 font-medium">
-          <Calendar className="w-5 h-5" /> 12 March
+          <Calendar className="w-5 h-5" /> {createdAt}
         </span>
 
         <motion.button

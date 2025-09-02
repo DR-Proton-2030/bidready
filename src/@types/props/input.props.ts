@@ -9,4 +9,5 @@ export interface IInputProps {
   handleChange: (
     event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => void;
+  placeholder? : string;
 }
