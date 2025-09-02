@@ -6,6 +6,7 @@ import PrimaryButton from "@/components/shared/buttons/primaryButton/PrimaryButt
 import { useRouter, useSearchParams } from "next/navigation";
 import PasswordInput from "@/components/shared/form/passwordInput/PasswordInput";
 import { api } from "@/utils/api";
+import { toast } from "react-toastify";
 const ResetPasswordForm = () => {
   const searchParams = useSearchParams();
   const email = searchParams.get("email");
@@ -47,8 +48,9 @@ const ResetPasswordForm = () => {
       const payload = { userId:email, newPassword:password };
       setIsLoading(true);
       const result = await api.auth.changePassword(payload);
+      console.log("result====>",result);
       if (result) {
-        alert("Password Changed");
+        toast.success("Password Changed Successfully");
         router.push("/login");
       }
     } catch (err) {

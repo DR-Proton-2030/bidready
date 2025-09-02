@@ -10,9 +10,10 @@ export const changePassword = async (payload: Payload) => {
     const response = await patch(endpoint, payload); 
     if (response) {
       const { message, result, token } = response; 
-      if (message === MESSAGE.patch.succ) {
-        return { result, token };
-      }
+      // if (message === MESSAGE.patch.succ) {
+      //   return { result, token };
+      // }
+      return {result,token};
     }
     throw new Error();
   } catch (error) {
