@@ -13,6 +13,8 @@ import {
   Redo2,
   SlidersHorizontal,
   Search,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 
 const ToolbarDivider = () => (
@@ -22,12 +24,35 @@ const ToolbarDivider = () => (
 interface LeftToolbarProps {
   activeTool: string;
   setTool: (t: string) => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
 }
 
-const LeftToolbar: React.FC<LeftToolbarProps> = ({ activeTool, setTool }) => {
+const LeftToolbar: React.FC<LeftToolbarProps> = ({
+  activeTool,
+  setTool,
+  onUndo,
+  onRedo,
+  onZoomIn,
+  onZoomOut,
+}) => {
   return (
     <aside className="flex-shrink-0 flex flex-col items-center w-20 py-4 bg-white border-r border-gray-200">
       <div className="flex flex-col items-center space-y-2">
+        <ToolButton
+          icon={ZoomIn}
+          label="zoom-in"
+          activeTool={activeTool}
+          onClick={() => onZoomIn && onZoomIn()}
+        />
+        <ToolButton
+          icon={ZoomOut}
+          label="zoom-out"
+          activeTool={activeTool}
+          onClick={() => onZoomOut && onZoomOut()}
+        />
         <ToolButton
           icon={MousePointer}
           label="select"
@@ -72,8 +97,8 @@ const LeftToolbar: React.FC<LeftToolbarProps> = ({ activeTool, setTool }) => {
           onClick={() => setTool("markup")}
         />
         <ToolbarDivider />
-        <ToolButton icon={Undo2} label="Undo" />
-        <ToolButton icon={Redo2} label="Redo" />
+        <ToolButton icon={Undo2} label="Undo" onClick={onUndo} />
+        <ToolButton icon={Redo2} label="Redo" onClick={onRedo} />
         <ToolButton
           icon={SlidersHorizontal}
           label="adjust"
