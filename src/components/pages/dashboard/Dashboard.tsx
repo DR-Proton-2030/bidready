@@ -20,7 +20,7 @@ import {
 
 const Dashboard: React.FC = () => {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-16 pt-10">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {DASHBOARD_STATS.map((stat) => (

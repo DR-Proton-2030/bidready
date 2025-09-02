@@ -1,20 +1,23 @@
-"use client"
-import React from 'react';
-import { FileText, Clock, Download } from 'lucide-react';
-import { BluePrint } from '@/@types/interface/blueprint.interface';
-import { formatDate } from '@/utils/commonFunction/formatDate';
-
+"use client";
+import React from "react";
+import { FileText, Clock, Download } from "lucide-react";
+import { BluePrint } from "@/@types/interface/blueprint.interface";
+import { formatDate } from "@/utils/commonFunction/formatDate";
+import Link from "next/link";
 
 const BlueprintCard: React.FC<BluePrint> = ({
   _id,
   name,
   description,
   type,
-  version,updatedAt
+  version,
+  updatedAt,
 }) => {
-
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition">
+    <Link
+      href={`/blueprints/${_id}`}
+      className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition"
+    >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-green-100 rounded-lg">
@@ -27,16 +30,16 @@ const BlueprintCard: React.FC<BluePrint> = ({
             </span>
           </div>
         </div>
-        <button 
+        <button
           className="p-2 text-gray-400 hover:text-gray-600 transition"
           aria-label={`Download ${name}`}
         >
           <Download className="w-4 h-4" />
         </button>
       </div>
-      
+
       <p className="text-gray-600 mb-4">{description}</p>
-      
+
       <div className="flex items-center justify-between text-sm text-gray-500">
         <div className="flex items-center gap-1">
           <Clock className="w-4 h-4" />
@@ -44,7 +47,7 @@ const BlueprintCard: React.FC<BluePrint> = ({
         </div>
         <span className="font-medium">{version}</span>
       </div>
-    </div>
+    </Link>
   );
 };
 

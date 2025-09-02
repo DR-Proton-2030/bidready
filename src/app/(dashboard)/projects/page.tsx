@@ -15,7 +15,7 @@ const ProjectListPage = async ({
     : 1;
   const data = await getProjectData(page);
   return (
-    <div id="project-page">
+    <div id="project-page p">
       <Projects {...data} />
     </div>
   );

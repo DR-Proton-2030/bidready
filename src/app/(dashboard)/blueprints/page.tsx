@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import Blueprints from "@/components/pages/blueprints/Blueprints";
 import React from "react";
 import { getBlueprintData } from "@/components/pages/blueprints/BlueprintApi";

@@ -20,7 +20,7 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
       >
         <Navbar />
         <main className=" h-[92vh]">
-          <div className="p-4 lg:px-16 lg:py-8">
+          <div className="">
             <div className="animate-fade-in">{children}</div>
           </div>
         </main>

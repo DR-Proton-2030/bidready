@@ -9,7 +9,11 @@ import {
 } from "@/constants/projects/projects.constant";
 import { IGetProjectResponse } from "@/@types/api/project/project.interface";
 
-const Projects: React.FC<IGetProjectResponse> = ({ data, pagination, total }) => {
+const Projects: React.FC<IGetProjectResponse> = ({
+  data,
+  pagination,
+  total,
+}) => {
   const {
     activeStatus,
     filteredProjects,
@@ -17,7 +21,7 @@ const Projects: React.FC<IGetProjectResponse> = ({ data, pagination, total }) =>
     handleNewProject,
   } = useProjects();
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-16 pt-10">
       <PageHeader
         title={PROJECTS_TEXT.pageTitle}
         buttonText={PROJECTS_TEXT.newProjectButton}
