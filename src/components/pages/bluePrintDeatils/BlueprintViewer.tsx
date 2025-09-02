@@ -26,7 +26,7 @@ const BlueprintViewer: React.FC<ViewerProps> = ({
 
   return (
     <div
-      className="flex-1 overflow-hidden bg-gray-100 relative"
+      className="flex-1 overflow-hidden bg-gray-100 relative z-10"
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}

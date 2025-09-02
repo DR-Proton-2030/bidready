@@ -3,17 +3,28 @@
 import React, { useState } from "react";
 import { useBlueprints } from "@/hooks/useBlueprints/useBlueprints";
 import { useRouter } from "next/navigation";
+import Header from "@/components/pages/createBlueprint/Header";
+import TitleField from "@/components/pages/createBlueprint/TitleField";
+import DescriptionField from "@/components/pages/createBlueprint/DescriptionField";
+import ScopeField from "@/components/pages/createBlueprint/ScopeField";
+import VersionTypeFileRow from "@/components/pages/createBlueprint/VersionTypeFileRow";
+import StatusBadges from "@/components/pages/createBlueprint/StatusBadges";
+import ErrorMessage from "@/components/pages/createBlueprint/ErrorMessage";
 
 const statusOptions = ["active", "completed", "on-hold", "in-progress"];
 
-export default function CreateBlueprintPage() {
+export default function CreateBlueprintPage({
+  initialProjectId = "",
+}: {
+  initialProjectId?: string;
+}) {
   const [form, setForm] = useState({
     name: "",
     description: "",
     version: "v1",
     status: "active",
     type: "",
-    project_object_id: "",
+    project_object_id: initialProjectId || "",
   });
   const [blueprintFile, setBlueprintFile] = useState<File | null>(null);
   const [error, setError] = useState("");
@@ -29,6 +40,10 @@ export default function CreateBlueprintPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files && e.target.files[0];
     setBlueprintFile(f || null);
+  };
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleStatusChange = (status: string) => {
@@ -65,158 +80,40 @@ export default function CreateBlueprintPage() {
   };
 
   return (
-    <div className=" bg-white flex py-5 border-t border-gray-200 shadow-md rounded-xl w-full  px-6">
+    <div className=" bg-white  flex py-5 h-[87vh] w-full  px-6">
       <div className="bg-white  w-[80%]">
-        <h2 className="px-6 pt-6 pb-3 text-3xl font-semibold ">
-          Create Blueprint
-        </h2>
-        <p className="px-6 pb-6 text-sm text-gray-500 border-b border-gray-200">
-          Enter the name of your blueprint. This will be your primary
-          identifier. Lorem ipsum dolor sit amet consectetur adipisicing elit.
-          Distinctio.
-        </p>
         <form onSubmit={handleSubmit} className="divide-y divide-gray-100  ">
-          {/* Title */}
-          <div className="flex items-start justify-between px-6 py-6 gap-8">
-            <div className="flex-1">
-              <label className="block font-medium mb-1">Blueprint title</label>
-              <p className="text-sm text-gray-500">
-                Enter the name of your blueprint. This will be your primary
-                identifier.
-              </p>
-            </div>
-            <div className="flex-1">
-              <input
-                name="name"
-                type="text"
-                value={form.name}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. Downtown Office"
-                required
-              />
-            </div>
-          </div>
+          <Header
+            description={
+              "Enter the name of your blueprint. This will be your primary identifier. Lorem ipsum dolor sit amet consectetur adipisicing elit. Distinctio."
+            }
+          />
 
-          {/* Description */}
-          <div className="flex items-start justify-between px-6 py-6 gap-8">
-            <div className="flex-1">
-              <label className="block font-medium mb-1">Description</label>
-              <p className="text-sm text-gray-500">
-                Provide a brief description of the blueprint.
-              </p>
-            </div>
-            <div className="flex-1">
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. demo"
-                rows={3}
-                required
-              />
-            </div>
-          </div>
+          <TitleField value={form.name} onChange={handleChange} />
 
-          {/* Scope */}
-          <div className="flex items-start justify-between px-6 py-6 gap-8">
-            <div className="flex-1">
-              <label className="block font-medium mb-1">Scope</label>
-              <p className="text-sm text-gray-500">Define the scope.</p>
-            </div>
-            <div className="flex-1">
-              <input
-                name="project_object_id"
-                type="text"
-                value={form.project_object_id}
-                onChange={handleChange}
-                className="w-full px-4 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. 68b5d81b164cda2c73c45a08"
-                required
-              />
-            </div>
-          </div>
+          <DescriptionField
+            value={form.description}
+            onChange={handleTextareaChange}
+          />
 
-          {/* Version & Type & File */}
-          <div className="flex items-start justify-between px-6 py-6 gap-8">
-            <div className="flex-1">
-              <label className="block font-medium mb-1">Version</label>
-              <p className="text-sm text-gray-500">Blueprint version.</p>
-            </div>
-            <div className="flex-1 grid grid-cols-3 gap-4">
-              <input
-                name="version"
-                type="text"
-                value={form.version}
-                onChange={handleChange}
-                className="col-span-1 w-full px-4 py-2 rounded border border-gray-200"
-                placeholder="v1"
-              />
-              <input
-                name="type"
-                type="text"
-                value={form.type}
-                onChange={handleChange}
-                className="col-span-1 w-full px-4 py-2 rounded border border-gray-200"
-                placeholder="floor_plan"
-              />
-              <input
-                name="blueprint_file"
-                type="file"
-                onChange={handleFileChange}
-                className="col-span-1"
-              />
-            </div>
-          </div>
+          <ScopeField value={form.project_object_id} onChange={handleChange} />
 
-          {/* Status (Badges) */}
-          <div className="flex items-start justify-between px-6 py-6 gap-8">
-            <div className="flex-1">
-              <label className="block font-medium mb-1">Status</label>
-              <p className="text-sm text-gray-500">
-                Select the current status.
-              </p>
-            </div>
-            <div className="flex-1">
-              <div className="flex flex-wrap gap-3">
-                {statusOptions.map((status) => {
-                  const isActive = form.status === status;
-                  return (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => handleStatusChange(status)}
-                      className={`px-5 py-2 rounded-full font-medium text-sm transition 
-                        ${
-                          isActive
-                            ? "bg-primary text-white shadow-md"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <VersionTypeFileRow
+            version={form.version}
+            type={form.type}
+            onChange={handleChange}
+            onFileChange={handleFileChange}
+          />
 
-          {/* Error */}
-          {error && (
-            <div className="px-6 py-4 text-red-600 text-sm">{error}</div>
-          )}
+          <StatusBadges
+            options={statusOptions}
+            active={form.status}
+            onChange={handleStatusChange}
+          />
 
-          {/* Submit Button */}
-          <div className="px-6 py-6">
-            <button
-              type="submit"
-              className="px-6 py-3 bg-primary text-white rounded-lg
-               font-semibold hover:bg-black transition shadow-md"
-            >
-              Create Blueprint
-            </button>
-          </div>
+          <ErrorMessage message={error} />
+
+          {/* Submit handled at top header */}
         </form>
       </div>
     </div>

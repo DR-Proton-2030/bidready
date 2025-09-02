@@ -13,11 +13,11 @@ export const createProject = async (
     if (!token) {
       throw new Error("Token not found");
     }
-    const response = await post(`/${initialRoute}/create-project`, payload, {
-      ...headers,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    });
+    const response = await post(
+      `/${initialRoute}/create-project`,
+      payload,
+      token
+    );
     return response;
   } catch (error: any) {
     console.log("===>error", error);
@@ -51,7 +51,7 @@ export const getProjectDetails = async (
       {},
       token
     );
-    if(response){
+    if (response) {
       return response.data;
     }
     throw new Error();

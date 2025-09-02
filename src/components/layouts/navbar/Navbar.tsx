@@ -1,5 +1,6 @@
 "use client";
 import React, { useContext, useState } from "react";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Menu,
@@ -26,10 +27,12 @@ const Navbar = () => {
 
   // Get page title from pathname
   const getPageTitle = (path: string) => {
-    const cleanPath = path.replace(/^\//, "").replace(/-/g, " ");
-    return (
-      cleanPath.charAt(0).toUpperCase() + cleanPath.slice(1) || "Dashboard"
-    );
+    if (!path) return "Dashboard";
+    const segments = path.split("/").filter(Boolean);
+    if (segments.length === 0) return "Dashboard";
+    // Use only the first segment (e.g., 'blueprints' from '/blueprints/...')
+    const first = decodeURIComponent(segments[0]).replace(/-/g, " ");
+    return first.charAt(0).toUpperCase() + first.slice(1);
   };
 
   const notifications = [
@@ -176,12 +179,18 @@ const Navbar = () => {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center space-x-3 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <img
-                    src={user?.profile_picture}
-                    alt={user?.full_name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">
+                  {user?.profile_picture ? (
+                    <Image
+                      src={user.profile_picture}
+                      alt={user?.full_name || "avatar"}
+                      width={32}
+                      height={32}
+                      className="rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8" />
+                  )}
                 </div>
                 <div className="hidden sm:block text-left">
                   <p className="text-sm font-medium text-gray-900">

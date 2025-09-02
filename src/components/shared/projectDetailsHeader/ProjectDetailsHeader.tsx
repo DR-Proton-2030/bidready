@@ -7,12 +7,12 @@ interface ProjectDetailsHeaderProps {
   onBackClick: () => void;
 }
 
-const ProjectDetailsHeader: React.FC<ProjectDetailsHeaderProps> = ({ 
-  project, 
-  onBackClick 
+const ProjectDetailsHeader: React.FC<ProjectDetailsHeaderProps> = ({
+  project,
+  onBackClick,
 }) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-6 pt-4">
       <div className="flex items-center gap-4 mb-4">
         <button
           onClick={onBackClick}
@@ -21,8 +21,10 @@ const ProjectDetailsHeader: React.FC<ProjectDetailsHeaderProps> = ({
           <ArrowLeft className="w-5 h-5 text-gray-600" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
-          <p className="text-sm text-gray-500 mt-1">Project ID: {project._id?.slice(-8)}</p>
+          <h1 className="text-xl font-bold text-gray-900">{project.title}</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Project ID: {project._id?.slice(-8)}
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <span

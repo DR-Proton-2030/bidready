@@ -2,41 +2,46 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Calendar, 
-  User, 
-  FileText, 
+import {
+  Calendar,
+  User,
+  FileText,
   Download,
   Grid3X3,
-  List
+  List,
+  Plus,
 } from "lucide-react";
 import { formatDate } from "@/utils/commonFunction/formatDate";
-import { 
-  ProjectDetailsHeader, 
-  ProjectInfoCard, 
-  BlueprintsList
+import {
+  ProjectDetailsHeader,
+  ProjectInfoCard,
+  BlueprintsList,
 } from "@/components/shared";
 import { IProjectDetailsResponse } from "@/@types/api/project/project.interface";
+import Link from "next/link";
 
 interface ProjectDetailsProps {
   projectData: IProjectDetailsResponse;
   projectId: string;
 }
 
-const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectData, projectId }) => {
+const ProjectDetails: React.FC<ProjectDetailsProps> = ({
+  projectData,
+  projectId,
+}) => {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  
+
   // Extract project and blueprints from the API response
   const project = projectData;
   // Transform BluePrint[] to Blueprint[] format expected by the component
-  const blueprints = (projectData.blueprint_list || []).map(bp => ({
+  const blueprints = (projectData.blueprint_list || []).map((bp) => ({
     id: bp.name, // Use name as ID since BluePrint doesn't have id
     title: bp.name,
     category: bp.type,
     fileSize: "2.5 MB", // Default size since not in BluePrint interface
     downloadCount: 0, // Default count since not in BluePrint interface
-    createdAt: new Date() // Default date since not in BluePrint interface
+    createdAt: new Date(), // Default date since not in BluePrint interface
   }));
 
   const handleBackClick = () => {
@@ -45,16 +50,15 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectData, projectId 
 
   const handleDownloadBlueprint = (blueprintId: string) => {
     // TODO: Implement actual download functionality
-    console.log(`Downloading blueprint ${blueprintId} for project ${projectId}`);
+    console.log(
+      `Downloading blueprint ${blueprintId} for project ${projectId}`
+    );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-16 pt-10">
       {/* Header */}
-      <ProjectDetailsHeader 
-        project={project} 
-        onBackClick={handleBackClick}
-      />
+      <ProjectDetailsHeader project={project} onBackClick={handleBackClick} />
 
       {/* Project Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -90,20 +94,31 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectData, projectId 
 
       {/* Project Description */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-3">Project Description</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">
+          Project Description
+        </h2>
         <p className="text-gray-600 leading-relaxed">{project.description}</p>
       </div>
 
       {/* Blueprints Section */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900">Project Blueprints</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Project Blueprints
+          </h2>
           <div className="flex items-center gap-2">
+            <Link
+              href={`/projects/${projectId}/blueprints/create`}
+              className="bg-primary cursor-pointer flex gap-2 items-center text-white pl-3 pr-5 py-2 rounded-lg font-medium"
+            >
+              <Plus className="w-5 h-5" />
+              Create New Blueprint
+            </Link>
             <button
               onClick={() => setViewMode("grid")}
               className={`p-2 rounded-lg transition-colors ${
-                viewMode === "grid" 
-                  ? "bg-primary text-white" 
+                viewMode === "grid"
+                  ? "bg-primary text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -112,8 +127,8 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectData, projectId 
             <button
               onClick={() => setViewMode("list")}
               className={`p-2 rounded-lg transition-colors ${
-                viewMode === "list" 
-                  ? "bg-primary text-white" 
+                viewMode === "list"
+                  ? "bg-primary text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
@@ -122,7 +137,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectData, projectId 
           </div>
         </div>
 
-        <BlueprintsList 
+        <BlueprintsList
           blueprints={blueprints}
           viewMode={viewMode}
           projectId={projectId}
