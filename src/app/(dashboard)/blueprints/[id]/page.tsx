@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { BlueprintDetails } from "@/components/pages/bluePrintDeatils/BlurPrintDetails";
+import BlueprintDetails from "@/components/pages/bluePrintDeatils/BlurPrintDetails";
 import React from "react";
 
 interface BlueprintDetailsPageProps {
