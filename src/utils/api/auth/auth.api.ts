@@ -6,10 +6,7 @@ import { headers } from "@/config/config";
 const initialRoute = "auth";
 export const signupUser = async (payload: FormData): Promise<any> => {
   try {
-    const response = await post(`/${initialRoute}/signup`, payload, {
-      ...headers,
-      "Content-Type": "multipart/form-data",
-    });
+    const response = await post(`/${initialRoute}/signup`, payload);
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "Signup failed");
@@ -36,6 +33,7 @@ export const verifyToken = async (): Promise<any> => {
     );
   }
 };
+
 
 export const getOtp = async (payload: Payload) => {
   try {

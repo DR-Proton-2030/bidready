@@ -29,15 +29,47 @@ export const get = async (
   }
 };
 
+// export const post = async (
+//   endPoint: string,
+//   payload: object,
+//   headersdata: object = headers
+// ): Promise<any> => {
+//   try {
+//     const response = await API.post<any>(endPoint, payload, {
+//       headers: headersdata,
+//     });
+//     return response.data;
+//   } catch (error: any) {
+//     throw new Error(error.response?.data?.message || "Something Went Wrong");
+//   }
+// };
+
 export const post = async (
   endPoint: string,
-  payload: object,
-  headersdata: object = headers
+  payload: object | FormData,
+  token?: string
 ): Promise<any> => {
   try {
-    const response = await API.post<any>(endPoint, payload, {
-      headers: headersdata,
-    });
+    let config: any = {};
+
+    if (token) {
+      config.headers = { Authorization: `Bearer ${token}` };
+    }
+
+    // If FormData, override headers
+    if (payload instanceof FormData) {
+      config.headers = {
+        ...config.headers,
+        "Content-Type": "multipart/form-data",
+      };
+    } else {
+      config.headers = {
+        ...config.headers,
+        "Content-Type": "application/json",
+      };
+    }
+
+    const response = await API.post<any>(endPoint, payload, config);
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "Something Went Wrong");

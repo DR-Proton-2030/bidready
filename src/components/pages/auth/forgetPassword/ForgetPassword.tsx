@@ -23,6 +23,7 @@ const ForgetPassword = () => {
     verifyOtp,
     resendOtp,
   } = useOtpVerification({
+     type: "password-change",
     onSuccess: (otp) => {
       console.log("✅ OTP verified successfully:", otp);
       // 👉 Here you can now show the reset password form

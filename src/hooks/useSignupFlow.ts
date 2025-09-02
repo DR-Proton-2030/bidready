@@ -35,6 +35,7 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     verifyOtp,
     resendOtp,
   } = useOtpVerification({
+     type: "signup",
     onSuccess: async (otp) => {
       // After OTP verification, proceed with actual signup
       console.log("OTP verified successfully:", otp);

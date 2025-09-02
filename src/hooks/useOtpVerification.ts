@@ -1,6 +1,8 @@
+import { api } from "@/utils/api";
 import { useState, useCallback } from "react";
 
 export interface UseOtpVerificationOptions {
+  type: "signup" | "password-change"; 
   onSuccess?: (otp: string) => void;
   onError?: (error: string) => void;
   onResend?: () => void;
@@ -11,12 +13,26 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [otpError, setOtpError] = useState<string>("");
   const [email, setEmail] = useState<string>("");
+  const [serverOtp, setServerOtp] = useState<string>(""); // store OTP from backend
+  const [userId, setUserId] = useState<string>("");
 
-  const openOtpModal = useCallback((userEmail: string) => {
-    setEmail(userEmail);
-    setIsModalOpen(true);
-    setOtpError("");
-  }, []);
+  // Step 1: Open modal and request OTP
+  const openOtpModal = useCallback(async (userEmail: string) => {
+    try {
+      setEmail(userEmail);
+      setOtpError("");
+      setIsModalOpen(true);
+
+      // call backend to generate OTP
+      const { otp, userId } = await api.auth.getOtp({ email: userEmail ,  type: options?.type, });
+      setServerOtp(otp);   // save server otp in state
+      setUserId(userId);
+      console.log("Generated OTP:", otp);
+    } catch (error: any) {
+      setOtpError(error?.message || "Failed to generate OTP");
+      options?.onError?.(error?.message);
+    }
+  }, [options]);
 
   const closeOtpModal = useCallback(() => {
     setIsModalOpen(false);
@@ -24,42 +40,44 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
     setIsVerifying(false);
   }, []);
 
-  const verifyOtp = useCallback(async (otp: string) => {
-    setIsVerifying(true);
-    setOtpError("");
+  // Step 2: Verify entered OTP
+  const verifyOtp = useCallback(
+    async (enteredOtp: string) => {
+      setIsVerifying(true);
+      setOtpError("");
 
-    try {
-      // For now, we'll use a simple check for "1234"
-      // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
-
-      if (otp === "1234") {
-        setIsModalOpen(false);
-        options?.onSuccess?.(otp);
-      } else {
-        setOtpError("Invalid OTP. Please try again.");
+      try {
+        // ✅ Compare with the OTP from state
+        if (enteredOtp === serverOtp) {
+          setIsModalOpen(false);
+          options?.onSuccess?.(enteredOtp);
+        } else {
+          setOtpError("Invalid OTP. Please try again.");
+        }
+      } catch (error: any) {
+        const errorMessage =
+          error?.message || "Verification failed. Please try again.";
+        setOtpError(errorMessage);
+        options?.onError?.(errorMessage);
+      } finally {
+        setIsVerifying(false);
       }
-    } catch (error: any) {
-      const errorMessage = error?.message || "Verification failed. Please try again.";
-      setOtpError(errorMessage);
-      options?.onError?.(errorMessage);
-    } finally {
-      setIsVerifying(false);
-    }
-  }, [options]);
+    },
+    [serverOtp, options, email]
+  );
 
+  // Step 3: Resend OTP
   const resendOtp = useCallback(async () => {
     try {
-      // TODO: Replace with actual API call to resend OTP
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const { otp, userId } = await api.auth.getOtp({ email ,   type: options?.type });
+      setServerOtp(otp);
+      setUserId(userId);
       setOtpError("");
       options?.onResend?.();
-      
-      // For demo purposes, show a temporary success message
-      console.log("OTP resent successfully to", email);
+      console.log("Resent OTP:", otp);
     } catch (error: any) {
-      const errorMessage = error?.message || "Failed to resend OTP. Please try again.";
+      const errorMessage =
+        error?.message || "Failed to resend OTP. Please try again.";
       setOtpError(errorMessage);
       options?.onError?.(errorMessage);
     }
@@ -70,6 +88,7 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
     isVerifying,
     otpError,
     email,
+    userId,
     openOtpModal,
     closeOtpModal,
     verifyOtp,
