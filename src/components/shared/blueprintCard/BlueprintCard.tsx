@@ -1,25 +1,17 @@
+"use client"
 import React from 'react';
 import { FileText, Clock, Download } from 'lucide-react';
-import { Blueprint } from '@/@types/interface/blueprint.interface';
+import { BluePrint } from '@/@types/interface/blueprint.interface';
+import { formatDate } from '@/utils/commonFunction/formatDate';
 
-interface BlueprintCardProps extends Blueprint {
-  onDownload?: (id: number) => void;
-}
 
-const BlueprintCard: React.FC<BlueprintCardProps> = ({
-  id,
+const BlueprintCard: React.FC<BluePrint> = ({
+  _id,
   name,
   description,
-  category,
-  lastModified,
-  version,
-  onDownload
+  type,
+  version,updatedAt
 }) => {
-  const handleDownload = () => {
-    if (onDownload) {
-      onDownload(id);
-    }
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition">
@@ -31,13 +23,12 @@ const BlueprintCard: React.FC<BlueprintCardProps> = ({
           <div>
             <h3 className="text-lg font-semibold text-gray-800">{name}</h3>
             <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-              {category}
+              {type}
             </span>
           </div>
         </div>
         <button 
           className="p-2 text-gray-400 hover:text-gray-600 transition"
-          onClick={handleDownload}
           aria-label={`Download ${name}`}
         >
           <Download className="w-4 h-4" />
@@ -49,7 +40,7 @@ const BlueprintCard: React.FC<BlueprintCardProps> = ({
       <div className="flex items-center justify-between text-sm text-gray-500">
         <div className="flex items-center gap-1">
           <Clock className="w-4 h-4" />
-          {lastModified}
+          {updatedAt ? formatDate(updatedAt) : "N/A"}
         </div>
         <span className="font-medium">{version}</span>
       </div>

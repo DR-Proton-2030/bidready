@@ -48,17 +48,11 @@ export const useProjects = () => {
     }
   };
 
-  const handleProjectClick = (id: number) => {
-    console.log(`Opening project with id: ${id}`);
-    // Add navigation or modal logic here
-  };
-
   return {
     activeStatus,
     filteredProjects,
     handleStatusChange,
     handleNewProject,
     createProjectServer,
-    handleProjectClick,
   };
 };

@@ -2,7 +2,7 @@
 import { get, post } from "../apiMethod";
 import { headers } from "@/config/config";
 
-const initialRoute = "blueprint";
+const initialRoute = "blueprints";
 
 export const createBlueprint = async (
   payload: object,
@@ -31,6 +31,7 @@ export const getBlueprints = async (
   token?: string
 ): Promise<any> => {
   try {
+    console.log("===blueprints token", token);
     const response = await get(
       `/${initialRoute}/get-all-blueprints`,
       filter,
@@ -38,6 +39,7 @@ export const getBlueprints = async (
     );
     return response;
   } catch (error: any) {
+    console.log("===error", error);
     throw new Error(error.response?.data?.message || "Blueprint fetch failed");
   }
 };

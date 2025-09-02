@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { IProjectDetailsResponse } from "@/@types/api/project/project.interface";
 import { get, post } from "../apiMethod";
 import { headers } from "@/config/config";
 
@@ -35,6 +36,25 @@ export const getProjects = async (
       token
     );
     return response;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Project fetch failed");
+  }
+};
+
+export const getProjectDetails = async (
+  projectId: string,
+  token?: string
+): Promise<IProjectDetailsResponse> => {
+  try {
+    const response = await get(
+      `/${initialRoute}/get-project-details/${projectId}`,
+      {},
+      token
+    );
+    if(response){
+      return response.data;
+    }
+    throw new Error();
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "Project fetch failed");
   }

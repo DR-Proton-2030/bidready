@@ -13,3 +13,8 @@ export { default as FileUpload } from './fileUpload/FileUpload';
 export { default as CompanyLogo } from './companyLogo/CompanyLogo';
 export { default as Modal } from './modal/Modal';
 export { default as OtpVerificationModal } from './otpVerificationModal/OtpVerificationModal';
+export { default as ProjectDetailsHeader } from './projectDetailsHeader/ProjectDetailsHeader';
+export { default as ProjectInfoCard } from './projectInfoCard/ProjectInfoCard';
+export { default as BlueprintsList } from './blueprintsList/BlueprintsList';
+export { default as LoadingSpinner } from './loadingSpinner/LoadingSpinner';
+export { default as ProjectDetailsSkeleton } from './projectDetailsSkeleton/ProjectDetailsSkeleton';

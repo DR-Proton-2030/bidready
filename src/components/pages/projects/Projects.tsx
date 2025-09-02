@@ -7,7 +7,6 @@ import {
   PROJECT_STATUSES,
   PROJECTS_TEXT,
 } from "@/constants/projects/projects.constant";
-import { useRouter } from "next/navigation";
 import { IGetProjectResponse } from "@/@types/api/project/project.interface";
 
 const Projects: React.FC<IGetProjectResponse> = ({ data, pagination, total }) => {
@@ -16,18 +15,13 @@ const Projects: React.FC<IGetProjectResponse> = ({ data, pagination, total }) =>
     filteredProjects,
     handleStatusChange,
     handleNewProject,
-    handleProjectClick,
   } = useProjects();
-  const router = useRouter();
-  const handleClick = () => {
-    router.push("/create-project");
-  };
   return (
     <div className="space-y-6">
       <PageHeader
         title={PROJECTS_TEXT.pageTitle}
         buttonText={PROJECTS_TEXT.newProjectButton}
-        onButtonClick={handleClick}
+        link="/create-project"
       />
       <div className="bl">
         <CategoryFilter
@@ -41,7 +35,7 @@ const Projects: React.FC<IGetProjectResponse> = ({ data, pagination, total }) =>
             <ProjectCard
               key={project._id}
               {...project}
-              onClick={handleProjectClick}
+              created_by_details={project.created_by_details}
             />
           ))}
         </div>

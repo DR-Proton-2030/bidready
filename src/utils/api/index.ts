@@ -9,7 +9,7 @@ import {
   verifyToken,
 } from "./auth/auth.api";
 import { changePassword } from "./auth/forgetPassword";
-import { createProject, getProjects } from "./project/project.api";
+import { createProject, getProjectDetails, getProjects } from "./project/project.api";
 import { createBlueprint, getBlueprints } from "./blueprint/blueprint.api";
 
 export const api = {
@@ -27,6 +27,7 @@ export const api = {
   project: {
     createProject,
     getProjects,
+    getProjectDetails
   },
   blueprint: {
     createBlueprint,

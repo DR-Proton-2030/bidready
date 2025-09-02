@@ -6,7 +6,6 @@ import axios, {
   InternalAxiosRequestConfig,
   AxiosError,
 } from "axios";
-import { toast } from "react-toastify";
 
 const API: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL,
@@ -27,7 +26,15 @@ API.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError<ApiErrorResponse>) => {
     const message = error.response?.data?.message || "Something went wrong!";
-    toast.error(message);
+    
+    // Only show toast in client-side environment
+    if (typeof window !== 'undefined') {
+      // Dynamic import to avoid SSR issues
+      import('react-toastify').then(({ toast }) => {
+        toast.error(message);
+      });
+    }
+    
     console.error("API Error:", message);
     return Promise.reject(error);
   }

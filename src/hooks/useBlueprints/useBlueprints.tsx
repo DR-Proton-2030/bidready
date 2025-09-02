@@ -2,14 +2,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Blueprint } from "@/@types/interface/blueprint.interface";
 import {
   BLUEPRINTS_DATA,
   BLUEPRINTS_TEXT,
 } from "@/constants/blueprints/blueprints.constant";
+import { BluePrint } from "@/@types/interface/blueprint.interface";
 
 type UseBlueprintsOptions = {
-  initialData?: Blueprint[];
+  initialData?: BluePrint[];
 };
 
 export const useBlueprints = ({ initialData }: UseBlueprintsOptions = {}) => {
@@ -17,13 +17,13 @@ export const useBlueprints = ({ initialData }: UseBlueprintsOptions = {}) => {
     BLUEPRINTS_TEXT.allCategory
   );
 
-  const source =
-    initialData && initialData.length ? initialData : BLUEPRINTS_DATA;
+  const source = initialData;
 
   const filteredBlueprints = useMemo(() => {
+    if (!source) return [];
     return activeCategory === BLUEPRINTS_TEXT.allCategory
       ? source
-      : source.filter((blueprint) => blueprint.category === activeCategory);
+      : source.filter((blueprint) => blueprint.type === activeCategory);
   }, [activeCategory, source]);
 
   const handleCategoryChange = (category: string) => {

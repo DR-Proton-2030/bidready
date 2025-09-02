@@ -30,7 +30,7 @@ const AuthContextProvider = ({ children }: ContextProviderProps) => {
     }
   }, [isOnProtectedRoute]);
 
-  const setUser = useCallback((user: IUser) => {
+  const setUser = useCallback((user: IUser | null) => {
     dispatch({ type: actions.SET_USER, payload: { ...state, user } });
   }, []);
 
@@ -45,9 +45,15 @@ const AuthContextProvider = ({ children }: ContextProviderProps) => {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setIsOnProtectedRoute(ProtectedRoutes.includes(window.location.pathname));
+      const currentPath = window.location.pathname.split("/")[1];
+      setIsOnProtectedRoute(
+        ProtectedRoutes.some((route) => currentPath.startsWith(route.replace("/", "")))
+      );
+      console.log("path is", window.location.pathname);
     }
   }, []);
+
+  console.log("Is on Protected Route:", isOnProtectedRoute);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

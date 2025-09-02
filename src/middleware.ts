@@ -30,5 +30,6 @@ export const config = {
     "/users/:path*",
     "/blueprints/:path*",
     "/access-management/:path*",
+    "/project-details/:path*"
   ],
 };
