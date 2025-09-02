@@ -78,7 +78,7 @@ export const BlueprintDetails = () => {
       onClick={onClick}
       className={`flex items-center justify-center w-12 h-12 rounded-lg transition-colors ${
         activeTool === label
-          ? "bg-primary text-white"
+          ? "bg-blue-500 text-white"
           : "bg-gray-100 text-gray-600 hover:bg-gray-200"
       }`}
       title={label.charAt(0).toUpperCase() + label.slice(1)}
@@ -88,9 +88,9 @@ export const BlueprintDetails = () => {
   );
 
   return (
-    <div className="flex h-[89vh] bg-gray-50 font-sans">
-      {/* Left Vertical Toolbar - Updated with all new icons and grouping */}
-      <aside className="flex flex-col items-center w-20 py-4 bg-white border-r border-gray-200">
+    <div className="flex h-[89vh] bg-gray-50 font-sans overflow-hidden">
+      {/* Left Vertical Toolbar */}
+      <aside className="flex-shrink-0 flex flex-col items-center w-20 py-4 bg-white border-r border-gray-200">
         <div className="flex flex-col items-center space-y-2">
           {/* Group 1 */}
           <ToolButton
@@ -129,9 +129,7 @@ export const BlueprintDetails = () => {
             activeTool={tool}
             onClick={() => setTool("measure")}
           />
-
           <ToolbarDivider />
-
           {/* Group 2 */}
           <ToolButton
             icon={Pencil}
@@ -139,9 +137,7 @@ export const BlueprintDetails = () => {
             activeTool={tool}
             onClick={() => setTool("markup")}
           />
-
           <ToolbarDivider />
-
           {/* Group 3 */}
           <ToolButton icon={Undo2} label="Undo" />
           <ToolButton icon={Redo2} label="Redo" />
@@ -163,10 +159,10 @@ export const BlueprintDetails = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col">
         {/* Top Bar */}
-        <header className="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
+        <header className="flex-shrink-0 flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
           <div className="flex items-center space-x-4">
             <h1 className="text-xl font-semibold text-gray-800">My Project</h1>
-            <div className="flex items-center space-x-2 text-sm text-gray-500">
+            <div className="flex items-center space-x-2 text-sm text-gray-500 cursor-pointer">
               <File className="w-4 h-4" />
               <span>First Floor Plan</span>
               <ChevronDown className="w-4 h-4" />
@@ -211,14 +207,14 @@ export const BlueprintDetails = () => {
         </div>
       </main>
 
-      {/* Right Collapsible Panel */}
+      {/* Right Collapsible Panel - CORRECTED BEHAVIOR */}
       <aside
-        className={`w-80 bg-white border-l border-gray-200 transition-transform duration-300 ease-in-out ${
-          isRightPanelOpen ? "translate-x-0" : "translate-x-full"
+        className={`flex-shrink-0 bg-white border-l border-gray-200 transition-all duration-300 ease-in-out overflow-hidden ${
+          isRightPanelOpen ? "w-80" : "w-0 border-l-0"
         }`}
       >
-        <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+        <div className="w-80 flex flex-col h-full">
+          <div className="flex-shrink-0 flex items-center justify-between h-16 px-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-800">Quantities</h2>
             <div className="flex space-x-2">
               <button className="p-2 text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200">
