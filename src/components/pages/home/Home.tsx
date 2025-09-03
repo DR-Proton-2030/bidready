@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Sidebar from '../sidebar/Sidebar';
 
 export default function Home() {
   const calculateTimeLeft = () => {

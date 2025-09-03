@@ -79,6 +79,17 @@ const Sidebar = () => {
             })}
           </nav>
 
+          <div className="w-full bg-white px-4 py-3 border-t border-gray-100">
+            <div className="flex flex-col items-center justify-center text-center">
+              <p className="text-sm italic text-gray-500 font-normal">
+                Powered by
+              </p>
+              <div className="mt-1 w-28">
+                <CompanyLogo />
+              </div>
+            </div>
+          </div>
+
           {/* User section */}
           <div className="p-4 border-t border-gray-200">
             {!isSidebarCollapsed ? (
