@@ -1,3 +1,4 @@
+// utils/api.ts
 import { ApiErrorResponse } from "@/@types/api/apiError.interface";
 import { headers } from "@/config/config";
 import axios, {
@@ -13,9 +14,15 @@ const API: AxiosInstance = axios.create({
   withCredentials: true, // Enables cookies
 });
 
-// 🔹 Request interceptor (Add headers like Authorization if needed)
+// 🔹 Request interceptor (Add Authorization header)
 API.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("@token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
     return config;
   },
   (error: AxiosError) => Promise.reject(error)
@@ -26,15 +33,13 @@ API.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError<ApiErrorResponse>) => {
     const message = error.response?.data?.message || "Something went wrong!";
-    
-    // Only show toast in client-side environment
-    if (typeof window !== 'undefined') {
-      // Dynamic import to avoid SSR issues
-      import('react-toastify').then(({ toast }) => {
+
+    if (typeof window !== "undefined") {
+      import("react-toastify").then(({ toast }) => {
         toast.error(message);
       });
     }
-    
+
     console.error("API Error:", message);
     return Promise.reject(error);
   }

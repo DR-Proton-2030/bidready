@@ -1,7 +1,6 @@
 import { assets } from "@/assets";
 import Image from "next/image";
 import React from "react";
-import { useGoogleLogin } from "@react-oauth/google";
 
 const GoogleLogin = ({login}: any) => {
   return (

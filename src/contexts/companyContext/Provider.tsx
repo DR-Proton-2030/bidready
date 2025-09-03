@@ -11,6 +11,7 @@ const initialState: Store = {
   company: null
 };
 
+
 const CompanyContextProvider = ({ children }: ContextProviderProps) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
