@@ -24,7 +24,7 @@ const Login = () => {
   const { loginCredential, handleChange, handleSubmit, isLoading } =
     useAuthCredential();
 
-  const handleLogin = useGoogleLogin({
+  const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (response) => {
       console.log("Google Token Response:", response);
 
@@ -41,16 +41,16 @@ const Login = () => {
           }
         );
         console.log(res);
-        const signupPayload = {
+        const payload = {
           user_details: {
             email: res.data.email,
             password: res.data.sub,
           },
         };
-        const signUpRes = await api.auth.googleSignUp(signupPayload);
+        const response = await api.auth.googleLogin(payload);
 
-        if (signUpRes?.token) {
-          const { user, company, token, isNew } = signUpRes;
+        if (response?.token) {
+          const { user, company, token, isNew } = response;
 
           localStorage.setItem("@token", token);
 
@@ -105,15 +105,15 @@ const Login = () => {
               <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
             </div>
           ) : (
-            <PrimaryButton text="Login" className="" />
+            <PrimaryButton text="Login" className="mb-4" />
           )}
         </form>
 
         {/* Google Login Button */}
-        <div className="text-center text-gray-500 text-sm my-4">
+        {/* <div className="text-center text-gray-500 text-sm my-4">
           Or sign up with Google
-        </div>
-        <GoogleLogin login={handleLogin} />
+        </div> */}
+        <GoogleLogin handleGoogleLogin={handleGoogleLogin} />
       </div>
     </div>
   );

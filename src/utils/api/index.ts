@@ -2,14 +2,18 @@ import {
   createUsers,
   getOtp,
   getUsers,
-  googleSignUp,
+  googleLogin,
   loginUser,
   logoutUser,
   signupUser,
   verifyToken,
 } from "./auth/auth.api";
 import { changePassword } from "./auth/forgetPassword";
-import { createProject, getProjectDetails, getProjects } from "./project/project.api";
+import {
+  createProject,
+  getProjectDetails,
+  getProjects,
+} from "./project/project.api";
 import { createBlueprint, getBlueprints } from "./blueprint/blueprint.api";
 
 export const api = {
@@ -18,16 +22,16 @@ export const api = {
     loginUser,
     verifyToken,
     getOtp,
-    googleSignUp,
+    googleLogin,
     createUsers,
     getUsers,
     logoutUser,
-    changePassword
+    changePassword,
   },
   project: {
     createProject,
     getProjects,
-    getProjectDetails
+    getProjectDetails,
   },
   blueprint: {
     createBlueprint,
