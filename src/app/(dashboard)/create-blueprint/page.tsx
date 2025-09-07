@@ -27,6 +27,9 @@ export default function CreateBlueprintPage({
     project_object_id: initialProjectId || "",
   });
   const [blueprintFile, setBlueprintFile] = useState<File | null>(null);
+  const [processedImages, setProcessedImages] = useState<
+    Array<{ blob: Blob; name: string }>
+  >([]);
   const [error, setError] = useState("");
   const { handleNewBlueprint } = useBlueprints();
   const router = useRouter();
@@ -50,6 +53,12 @@ export default function CreateBlueprintPage({
     setForm({ ...form, status });
   };
 
+  const handleImagesProcessed = (
+    images: Array<{ blob: Blob; name: string }>
+  ) => {
+    setProcessedImages(images);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.description || !form.project_object_id) {
@@ -66,7 +75,23 @@ export default function CreateBlueprintPage({
         fd.append("status", form.status);
         fd.append("type", form.type || "");
         fd.append("project_object_id", form.project_object_id);
-        if (blueprintFile) fd.append("blueprint_file", blueprintFile);
+
+        // Add the original file for backward compatibility
+        if (blueprintFile) {
+          fd.append("blueprint_file", blueprintFile);
+        }
+
+        // Add processed images as an array
+        if (processedImages.length > 0) {
+          processedImages.forEach((image) => {
+            fd.append(`blueprint_images`, image.blob, image.name);
+          });
+
+          // Add metadata about the images
+          fd.append("image_count", processedImages.length.toString());
+          const imageNames = processedImages.map((img) => img.name);
+          fd.append("image_names", JSON.stringify(imageNames));
+        }
 
         await handleNewBlueprint(fd);
         // success - navigate to blueprints list
@@ -95,7 +120,11 @@ export default function CreateBlueprintPage({
             value={form.description}
             onChange={handleTextareaChange}
           />
-
+          <StatusBadges
+            options={statusOptions}
+            active={form.status}
+            onChange={handleStatusChange}
+          />
           <ScopeField value={form.project_object_id} onChange={handleChange} />
 
           <VersionTypeFileRow
@@ -103,12 +132,7 @@ export default function CreateBlueprintPage({
             type={form.type}
             onChange={handleChange}
             onFileChange={handleFileChange}
-          />
-
-          <StatusBadges
-            options={statusOptions}
-            active={form.status}
-            onChange={handleStatusChange}
+            onImagesProcessed={handleImagesProcessed}
           />
 
           <ErrorMessage message={error} />

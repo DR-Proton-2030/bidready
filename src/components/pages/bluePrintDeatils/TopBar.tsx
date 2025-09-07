@@ -1,19 +1,26 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import React from "react";
 import { File, ChevronDown, Share2, PanelLeft } from "lucide-react";
 
 interface TopBarProps {
   onToggleRightPanel: () => void;
+  blueprintDetails?: any;
 }
 
-const TopBar: React.FC<TopBarProps> = ({ onToggleRightPanel }) => {
+const TopBar: React.FC<TopBarProps> = ({
+  onToggleRightPanel,
+  blueprintDetails,
+}) => {
   return (
     <header className="flex-shrink-0 flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
       <div className="flex items-center space-x-4">
-        <h1 className="text-xl font-semibold text-gray-800">My Project</h1>
+        <h1 className="text-xl font-semibold text-gray-800">
+          {blueprintDetails?.name || "Untitled Blueprint"}
+        </h1>
         <div className="flex items-center space-x-2 text-sm text-gray-500 cursor-pointer">
           <File className="w-4 h-4" />
-          <span>First Floor Plan</span>
+          <span>{blueprintDetails?.type || "No type"}</span>
           <ChevronDown className="w-4 h-4" />
         </div>
       </div>

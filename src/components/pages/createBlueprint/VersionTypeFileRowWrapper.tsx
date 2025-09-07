@@ -8,7 +8,6 @@ interface Props {
   type: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onImagesProcessed?: (images: Array<{ blob: Blob; name: string }>) => void;
 }
 
 const VersionTypeFileRow: React.FC<Props> = (props) => {
@@ -44,9 +43,7 @@ const VersionTypeFileRow: React.FC<Props> = (props) => {
           </div>
 
           <div>
-            <label className="block font-medium mb-1 mt-4">
-              Upload Blueprint Files
-            </label>
+            <label className="block font-medium mb-1">Blueprint Files</label>
             <p className="text-sm text-gray-500 mb-4">
               Loading file upload component...
             </p>

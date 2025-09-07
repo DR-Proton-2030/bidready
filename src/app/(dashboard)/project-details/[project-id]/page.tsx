@@ -4,12 +4,11 @@ import { ProjectDetails } from "@/components/pages/projectDetails";
 import { ProjectDetailsSkeleton } from "@/components/shared";
 import { api } from "@/utils/api";
 import { cookies } from "next/headers";
-import MainLayout from "@/components/layouts/MainLayout";
 
 interface ProjectDetailsPageProps {
-  params: {
+  params: Promise<{
     "project-id": string;
-  };
+  }>;
 }
 
 async function getProjectDetails(projectId: string) {
@@ -37,7 +36,8 @@ async function getProjectDetails(projectId: string) {
 const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = async ({
   params,
 }) => {
-  const projectId = params["project-id"];
+  const resolvedParams = await params;
+  const projectId = resolvedParams["project-id"];
 
   if (!projectId) {
     notFound();
@@ -49,6 +49,7 @@ const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = async ({
     notFound();
   }
 
+  console.log("==>projectDetails", projectDetails);
   return (
     <Suspense fallback={<ProjectDetailsSkeleton />}>
       <ProjectDetails projectData={projectDetails} projectId={projectId} />

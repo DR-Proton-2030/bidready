@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
       "upload.wikimedia.org",
       "cdn.shopify.com",
     ], // ✅ allow S3, Wikimedia and Shopify CDN images
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
 };
 

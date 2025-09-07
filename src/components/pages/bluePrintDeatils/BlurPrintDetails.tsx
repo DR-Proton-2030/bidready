@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import React, { useState } from "react";
 import LeftToolbar from "./LeftToolbar";
@@ -5,7 +6,7 @@ import TopBar from "./TopBar";
 import BlueprintViewer from "./BlueprintViewer";
 import RightPanel from "./RightPanel";
 
-const BlueprintDetails = () => {
+const BlueprintDetails = ({ blueprintDetails }: any) => {
   const [tool, setTool] = useState("select");
   const [scale, setScale] = useState(0.8);
   const [dragging, setDragging] = useState(false);
@@ -106,7 +107,10 @@ const BlueprintDetails = () => {
         onZoomOut={handleZoomOut}
       />
       <main className="flex-1 flex flex-col">
-        <TopBar onToggleRightPanel={() => setIsRightPanelOpen((s) => !s)} />
+        <TopBar
+          onToggleRightPanel={() => setIsRightPanelOpen((s) => !s)}
+          blueprintDetails={blueprintDetails}
+        />
         <BlueprintViewer
           tool={tool}
           scale={scale}
