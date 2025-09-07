@@ -2,10 +2,13 @@ import { assets } from "@/assets";
 import Image from "next/image";
 import React from "react";
 
-const GoogleLogin = () => {
+type IGoogleLoginProps = {
+  handleGoogleLogin : () => void;
+}
+const GoogleLogin : React.FC<IGoogleLoginProps>= ({handleGoogleLogin}) => {
   return (
     <div id="google-button-component">
-    <button id="google-button" className="w-full align-middle-items bg-white text-black py-2 rounded-md transition border hover:bg-gray-50">
+    <button id="google-button" className="w-full align-middle-items bg-white text-black py-2 rounded-md transition border hover:bg-gray-50" onClick={handleGoogleLogin}>
       <Image
         src={assets.icon.google}
         alt="Google"
