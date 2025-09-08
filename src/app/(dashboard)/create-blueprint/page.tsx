@@ -77,25 +77,20 @@ export default function CreateBlueprintPage({
         fd.append("project_object_id", form.project_object_id);
 
         // Add the original file for backward compatibility
-        if (blueprintFile) {
-          fd.append("blueprint_file", blueprintFile);
-        }
+        // if (blueprintFile) {
+        //   fd.append("blueprint_file", blueprintFile);
+        // }
 
         // Add processed images as an array
         if (processedImages.length > 0) {
           processedImages.forEach((image) => {
-            fd.append(`blueprint_images`, image.blob, image.name);
+            fd.append(`blueprint_file`, image.blob, image.name);
           });
-
-          // Add metadata about the images
-          fd.append("image_count", processedImages.length.toString());
-          const imageNames = processedImages.map((img) => img.name);
-          fd.append("image_names", JSON.stringify(imageNames));
         }
-
+        console.log("======>payload", processedImages);
         await handleNewBlueprint(fd);
         // success - navigate to blueprints list
-        router.push("/blueprints");
+        // router.push("/blueprints");
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : "Failed to create blueprint";

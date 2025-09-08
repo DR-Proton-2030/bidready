@@ -120,6 +120,7 @@ const BlueprintDetails = ({ blueprintDetails }: any) => {
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onWheel={handleWheel}
+          images={blueprintDetails?.file_url}
         />
       </main>
       <RightPanel isOpen={isRightPanelOpen} />

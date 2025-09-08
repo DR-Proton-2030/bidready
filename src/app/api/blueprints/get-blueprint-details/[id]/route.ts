@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const EXTERNAL_URL_BASE =
-  "http://localhost:8989/api/v1/blueprints/get-blueprint-details";
+const EXTERNAL_URL_BASE = `${process.env.NEXT_PUBLIC_BASE_URL}/api/v1/blueprints/get-blueprint-details`;
 
 export async function GET(
   req: Request,

@@ -18,7 +18,13 @@ export interface UseFileProcessorState {
 }
 
 export interface UseFileProcessorReturn extends UseFileProcessorState {
-  processNewFile: (file: File) => Promise<void>;
+  processNewFile: (
+    file: File
+  ) => Promise<{
+    images: ProcessedImage[];
+    blobs: Blob[];
+    names: string[];
+  } | null>;
   removeImage: (imageId: string) => void;
   clearAll: () => void;
   getFormDataForImages: () => { blobs: Blob[]; names: string[] };
@@ -50,7 +56,7 @@ export const useFileProcessor = (
           ...prev,
           error: "File processing is only available on the client side",
         }));
-        return;
+        return null;
       }
       // Reset state and start processing
       setState((prev) => ({
@@ -83,6 +89,7 @@ export const useFileProcessor = (
         // Process file
         const result: FileProcessingResult = await processFile(file);
 
+        // Update state with the processed images
         setState((prev) => ({
           ...prev,
           processedImages: result.images,
@@ -91,6 +98,10 @@ export const useFileProcessor = (
           isProcessing: false,
           error: null,
         }));
+
+        // Convert images to blobs/names so caller can use them immediately
+        const { blobs, names } = convertImagesToFormData(result.images);
+        return { images: result.images, blobs, names };
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Failed to process file";
@@ -102,6 +113,7 @@ export const useFileProcessor = (
           fileType: null,
           totalPages: undefined,
         }));
+        return null;
       }
     },
     [maxFileSizeMB, isClient]

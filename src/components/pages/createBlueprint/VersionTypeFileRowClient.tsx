@@ -33,7 +33,6 @@ const VersionTypeFileRowClient: React.FC<Props> = ({
     processNewFile,
     removeImage,
     clearAll,
-    getFormDataForImages,
   } = useFileProcessor();
 
   const handleFileUpload = async (file: File | null) => {
@@ -48,16 +47,15 @@ const VersionTypeFileRowClient: React.FC<Props> = ({
       onFileChange(fakeEvent);
 
       try {
-        await processNewFile(file);
-
-        // Notify parent component about processed images
-        if (onImagesProcessed) {
-          const { blobs, names } = getFormDataForImages();
-          const imageData = blobs.map((blob, index) => ({
+        const ret = await processNewFile(file);
+        if (ret && onImagesProcessed) {
+          const imageData = ret.blobs.map((blob, index) => ({
             blob,
-            name: names[index],
+            name: ret.names[index],
           }));
+          // update parent immediately
           onImagesProcessed(imageData);
+          console.log("=====>processedImages (returned)", imageData);
         }
       } catch (err) {
         console.error("Error processing file:", err);
@@ -69,7 +67,6 @@ const VersionTypeFileRowClient: React.FC<Props> = ({
     <div className="px-6 py-6">
       <div className="flex items-start justify-between gap-8 mb-6">
         <div className="flex-1">
-          <label className="block font-medium mb-1">Version & Type</label>
           <p className="text-sm text-gray-500">Blueprint version and type.</p>
         </div>
         <div className="flex-1 grid grid-cols-2 gap-4">

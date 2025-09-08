@@ -13,7 +13,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthContextProvider>
         <CompanyContextProvider>
           <GoogleOAuthProvider
-            clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}
+            clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "ss"}
           >
             {children}
           </GoogleOAuthProvider>

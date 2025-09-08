@@ -43,7 +43,7 @@ const BlueprintDetailsPage: React.FC<BlueprintDetailsPageProps> = async ({
   }
 
   const blueprintDetails = await getBlueprintDetails(blueprintId);
-
+  console.log("======>blueprintDetails", blueprintDetails);
   if (!blueprintDetails) {
     notFound();
   }

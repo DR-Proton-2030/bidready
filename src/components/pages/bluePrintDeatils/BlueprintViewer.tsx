@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import React from "react";
 import Image from "next/image";
@@ -5,6 +6,7 @@ import Image from "next/image";
 interface ViewerProps {
   tool: string;
   scale: number;
+  images: any;
   position: { x: number; y: number };
   annotations?: { type: string; points: Array<{ x: number; y: number }> }[];
   onMouseDown: (e: React.MouseEvent) => void;
@@ -22,6 +24,7 @@ const BlueprintViewer: React.FC<ViewerProps> = ({
   onMouseMove,
   onMouseUp,
   onWheel,
+  images,
 }) => {
   const src =
     "https://cdn.shopify.com/s/files/1/0387/9521/files/House_Plans.jpg?9601269751775392317";
