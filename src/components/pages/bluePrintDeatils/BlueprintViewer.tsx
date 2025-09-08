@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 
 interface ViewerProps {
@@ -26,12 +26,69 @@ const BlueprintViewer: React.FC<ViewerProps> = ({
   onWheel,
   images,
 }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageSrcs, setImageSrcs] = useState<string[]>([]);
+
+  // Build an array of image src strings. Support string URLs, objects with
+  // a `url` field, or objects with a `blob` (Blob) field. For blobs we create
+  // object URLs and revoke them on cleanup.
+  useEffect(() => {
+    if (!images) {
+      setImageSrcs([]);
+      return;
+    }
+
+    const createdUrls: string[] = [];
+    const srcs: string[] = [];
+
+    if (Array.isArray(images)) {
+      images.forEach((it: any) => {
+        if (!it) return;
+        if (typeof it === "string") {
+          srcs.push(it);
+        } else if (typeof it === "object") {
+          if (it.url && typeof it.url === "string") {
+            srcs.push(it.url);
+          } else if (it.blob instanceof Blob) {
+            const url = URL.createObjectURL(it.blob);
+            createdUrls.push(url);
+            srcs.push(url);
+          } else if (it.path && typeof it.path === "string") {
+            // sometimes server returns { path: '/uploads/...'}
+            srcs.push(it.path);
+          }
+        }
+      });
+    } else if (typeof images === "string") {
+      srcs.push(images);
+    }
+
+    setImageSrcs(srcs);
+    setCurrentIndex(0);
+
+    return () => {
+      // revoke any object URLs we created
+      createdUrls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [images]);
+
+  const total = imageSrcs.length;
+
+  const prev = () => {
+    setCurrentIndex((i) => (total === 0 ? 0 : (i - 1 + total) % total));
+  };
+
+  const next = () => {
+    setCurrentIndex((i) => (total === 0 ? 0 : (i + 1) % total));
+  };
+
   const src =
+    imageSrcs[currentIndex] ||
     "https://cdn.shopify.com/s/files/1/0387/9521/files/House_Plans.jpg?9601269751775392317";
 
   return (
     <div
-      className="flex-1 overflow-hidden bg-gray-100 relative z-10"
+      className="flex-1 overflow-hidden bg-gray-100 relative z-10 "
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
@@ -47,7 +104,39 @@ const BlueprintViewer: React.FC<ViewerProps> = ({
         }
         className="absolute"
       >
-        <Image src={src} alt="Blueprint" width={1200} height={800} priority />
+        <div className="relative">
+          <Image
+            src={src}
+            alt={`Blueprint ${currentIndex + 1}`}
+            width={1200}
+            height={500}
+            priority
+          />
+
+          {total > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={prev}
+                aria-label="Previous image"
+                className="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 rounded-full p-2 shadow"
+              >
+                ◀
+              </button>
+              <button
+                type="button"
+                onClick={next}
+                aria-label="Next image"
+                className="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 rounded-full p-2 shadow"
+              >
+                ▶
+              </button>
+              <div className="absolute right-3 bottom-3 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                {currentIndex + 1} / {total}
+              </div>
+            </>
+          )}
+        </div>
         {/* SVG overlay to render annotations */}
         <svg
           width={1200}
