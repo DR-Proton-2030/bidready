@@ -4,11 +4,13 @@ import React from "react";
 interface Props {
   title?: string;
   description?: React.ReactNode;
+  button: boolean;
 }
 
 const Header: React.FC<Props> = ({
   title = "Create Blueprint",
   description,
+  button,
 }) => {
   return (
     <div className="flex items-start justify-between px-6 pt-6 pb-6 gap-8 border-b border-gray-200">
@@ -18,14 +20,16 @@ const Header: React.FC<Props> = ({
           <p className="text-sm text-gray-500 mt-1">{description}</p>
         )}
       </div>
-      <div className="flex-shrink-0">
-        <button
-          type="submit"
-          className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-black transition shadow-md"
-        >
-          Create Blueprint
-        </button>
-      </div>
+      {button && (
+        <div className="flex-shrink-0">
+          <button
+            type="submit"
+            className="px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-black transition shadow-md"
+          >
+            Create Blueprint
+          </button>
+        </div>
+      )}
     </div>
   );
 };

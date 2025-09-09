@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { useBlueprints } from "@/hooks/useBlueprints/useBlueprints";
-import { useRouter } from "next/navigation";
 import Header from "@/components/pages/createBlueprint/Header";
 import TitleField from "@/components/pages/createBlueprint/TitleField";
 import DescriptionField from "@/components/pages/createBlueprint/DescriptionField";
@@ -10,14 +9,31 @@ import ScopeField from "@/components/pages/createBlueprint/ScopeField";
 import VersionTypeFileRow from "@/components/pages/createBlueprint/VersionTypeFileRow";
 import StatusBadges from "@/components/pages/createBlueprint/StatusBadges";
 import ErrorMessage from "@/components/pages/createBlueprint/ErrorMessage";
+import CreateBlueprintStepper from "@/components/pages/createBlueprint/CreateBlueprintStepper";
+import ImagePreviewStep from "@/components/pages/createBlueprint/ImagePreviewStep";
+import { useFileProcessor } from "@/hooks/useFileProcessor";
 
 const statusOptions = ["active", "completed", "on-hold", "in-progress"];
+
+const steps = [
+  {
+    id: 1,
+    title: "Upload Files",
+    description: "Upload blueprint images or PDF files",
+  },
+  {
+    id: 2,
+    title: "Preview Images",
+    description: "Review and confirm processed images",
+  },
+];
 
 export default function CreateBlueprintPage({
   initialProjectId = "",
 }: {
   initialProjectId?: string;
 }) {
+  const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -26,13 +42,12 @@ export default function CreateBlueprintPage({
     type: "",
     project_object_id: initialProjectId || "",
   });
-  const [blueprintFile, setBlueprintFile] = useState<File | null>(null);
-  const [processedImages, setProcessedImages] = useState<
-    Array<{ blob: Blob; name: string }>
-  >([]);
   const [error, setError] = useState("");
   const { handleNewBlueprint } = useBlueprints();
-  const router = useRouter();
+
+  // Use the file processor hook for image processing and state
+  const { processedImages: hookProcessedImages, error: fileError } =
+    useFileProcessor();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -41,8 +56,8 @@ export default function CreateBlueprintPage({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files && e.target.files[0];
-    setBlueprintFile(f || null);
+    // This function is kept for compatibility but file handling is now done in the stepper
+    console.log("File selected:", e.target.files?.[0]?.name);
   };
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -53,16 +68,14 @@ export default function CreateBlueprintPage({
     setForm({ ...form, status });
   };
 
-  const handleImagesProcessed = (
-    images: Array<{ blob: Blob; name: string }>
-  ) => {
-    setProcessedImages(images);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name || !form.description || !form.project_object_id) {
       setError("Name, description and project are required.");
+      return;
+    }
+    if (hookProcessedImages.length === 0) {
+      setError("Please upload at least one image or PDF file.");
       return;
     }
     setError("");
@@ -76,18 +89,24 @@ export default function CreateBlueprintPage({
         fd.append("type", form.type || "");
         fd.append("project_object_id", form.project_object_id);
 
-        // Add the original file for backward compatibility
-        // if (blueprintFile) {
-        //   fd.append("blueprint_file", blueprintFile);
-        // }
+        // Add processed images. Convert from hook's ProcessedImage to blobs
+        if (hookProcessedImages.length > 0) {
+          // For now, create blobs from the dataUrls in hookProcessedImages
+          const imageBlobs = await Promise.all(
+            hookProcessedImages.map(async (img) => {
+              const response = await fetch(img.dataUrl);
+              const blob = await response.blob();
+              return { blob, name: img.name };
+            })
+          );
 
-        // Add processed images as an array
-        if (processedImages.length > 0) {
-          processedImages.forEach((image) => {
-            fd.append(`blueprint_file`, image.blob, image.name);
-          });
+          // Backend expects single file (compatible with multer maxCount: 1)
+          const firstImage = imageBlobs[0];
+          fd.append("blueprint_file", firstImage.blob, firstImage.name);
+          fd.append("blueprint_files_count", String(imageBlobs.length));
         }
-        console.log("======>payload", processedImages);
+
+        console.log("======>payload", hookProcessedImages);
         await handleNewBlueprint(fd);
         // success - navigate to blueprints list
         // router.push("/blueprints");
@@ -100,40 +119,69 @@ export default function CreateBlueprintPage({
   };
 
   return (
-    <div className=" bg-white  flex py-5 h-[87vh] w-full  px-6">
-      <div className="bg-white  w-[80%]">
-        <form onSubmit={handleSubmit} className="divide-y divide-gray-100  ">
-          <Header
-            description={
-              "Enter the name of your blueprint. This will be your primary identifier. Lorem ipsum dolor sit amet consectetur adipisicing elit. Distinctio."
-            }
-          />
+    <div className="bg-white flex py-5 h-[87vh] w-full px-6">
+      <div className="bg-white w-[80%]">
+        <CreateBlueprintStepper
+          steps={steps}
+          currentStep={currentStep}
+          onStepChange={setCurrentStep}
+          canProceed={currentStep === 1 ? hookProcessedImages.length > 0 : true}
+        >
+          <form onSubmit={handleSubmit} className="divide-y divide-gray-100">
+            {currentStep === 1 && (
+              <div className="space-y-6">
+                <Header
+                  button={false}
+                  description={
+                    "Enter the name of your blueprint. This will be your primary identifier. Lorem ipsum dolor sit amet consectetur adipisicing elit. Distinctio."
+                  }
+                />
 
-          <TitleField value={form.name} onChange={handleChange} />
+                <TitleField value={form.name} onChange={handleChange} />
 
-          <DescriptionField
-            value={form.description}
-            onChange={handleTextareaChange}
-          />
-          <StatusBadges
-            options={statusOptions}
-            active={form.status}
-            onChange={handleStatusChange}
-          />
-          <ScopeField value={form.project_object_id} onChange={handleChange} />
+                <DescriptionField
+                  value={form.description}
+                  onChange={handleTextareaChange}
+                />
 
-          <VersionTypeFileRow
-            version={form.version}
-            type={form.type}
-            onChange={handleChange}
-            onFileChange={handleFileChange}
-            onImagesProcessed={handleImagesProcessed}
-          />
+                <StatusBadges
+                  options={statusOptions}
+                  active={form.status}
+                  onChange={handleStatusChange}
+                />
 
-          <ErrorMessage message={error} />
+                <ScopeField
+                  value={form.project_object_id}
+                  onChange={handleChange}
+                />
 
-          {/* Submit handled at top header */}
-        </form>
+                {(error || fileError) && (
+                  <ErrorMessage message={error || fileError || ""} />
+                )}
+              </div>
+            )}
+
+            {currentStep === 2 && (
+              <div className="space-y-6">
+                <Header
+                  button={true}
+                  description={
+                    "Review the processed images before creating your blueprint. You can remove individual images or go back to upload different files."
+                  }
+                />
+
+                <VersionTypeFileRow
+                  version={form.version}
+                  type={form.type}
+                  onChange={handleChange}
+                  onFileChange={handleFileChange}
+                />
+
+                {error && <ErrorMessage message={error} />}
+              </div>
+            )}
+          </form>
+        </CreateBlueprintStepper>
       </div>
     </div>
   );
