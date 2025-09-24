@@ -50,7 +50,7 @@ export const post = async (
   token?: string
 ): Promise<any> => {
   try {
-    let config: any = {};
+    const config: any = {};
 
     if (token) {
       config.headers = { Authorization: `Bearer ${token}` };

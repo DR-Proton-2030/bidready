@@ -11,6 +11,7 @@ import StatusBadges from "@/components/pages/createBlueprint/StatusBadges";
 import ErrorMessage from "@/components/pages/createBlueprint/ErrorMessage";
 import CreateBlueprintStepper from "@/components/pages/createBlueprint/CreateBlueprintStepper";
 import ImagePreviewStep from "@/components/pages/createBlueprint/ImagePreviewStep";
+import EnhancedFileUpload from "@/components/shared/fileUpload/EnhancedFileUpload";
 import { useFileProcessor } from "@/hooks/useFileProcessor";
 
 const statusOptions = ["active", "completed", "on-hold", "in-progress"];
@@ -45,9 +46,17 @@ export default function CreateBlueprintPage({
   const [error, setError] = useState("");
   const { handleNewBlueprint } = useBlueprints();
 
-  // Use the file processor hook for image processing and state
-  const { processedImages: hookProcessedImages, error: fileError } =
-    useFileProcessor();
+  // Use a single file processor hook for the entire component
+  const {
+    processedImages: hookProcessedImages,
+    error: fileError,
+    processNewFile,
+    removeImage,
+    clearAll,
+    isProcessing,
+    fileType,
+    totalPages,
+  } = useFileProcessor();
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -56,8 +65,22 @@ export default function CreateBlueprintPage({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // This function is kept for compatibility but file handling is now done in the stepper
-    console.log("File selected:", e.target.files?.[0]?.name);
+    const file = e.target.files?.[0] || null;
+    if (file) {
+      processNewFile(file);
+      console.log("File selected for processing:", file.name);
+    }
+  };
+
+  const handleFileUpload = async (file: File | null) => {
+    if (file) {
+      try {
+        await processNewFile(file);
+        console.log("File processed successfully:", file.name);
+      } catch (error) {
+        console.error("Error processing file:", error);
+      }
+    }
   };
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -154,10 +177,6 @@ export default function CreateBlueprintPage({
                   value={form.project_object_id}
                   onChange={handleChange}
                 />
-
-                {(error || fileError) && (
-                  <ErrorMessage message={error || fileError || ""} />
-                )}
               </div>
             )}
 
