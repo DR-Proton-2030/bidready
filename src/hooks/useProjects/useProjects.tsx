@@ -1,10 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import {
-  PROJECTS_DATA,
-  PROJECTS_TEXT,
-} from "@/constants/projects/projects.constant";
+import { PROJECTS_DATA } from "@/constants/projects/projects.constant";
 
 export const useProjects = () => {
   const [activeStatus, setActiveStatus] = useState<string>("All");

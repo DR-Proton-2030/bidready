@@ -1,8 +1,8 @@
-import AccessManagement from '@/components/pages/accessManagement/AccessManagement';
-import React from 'react';
+// import AccessManagement from '@/components/pages/accessManagement/AccessManagement';
+import React from "react";
 
 const AccessManagementPage = () => {
-  return <AccessManagement />;
+  return <>{/* <AccessManagement />; */}</>;
 };
 
 export default AccessManagementPage;

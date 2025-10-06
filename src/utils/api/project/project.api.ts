@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { IProjectDetailsResponse } from "@/@types/api/project/project.interface";
 import { get, post } from "../apiMethod";
-import { headers } from "@/config/config";
 
 const initialRoute = "project";
 

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const token = req.cookies.get("token")?.value;
   const { pathname } = req.nextUrl;
 
   // Allow login page to be accessible without a token
@@ -30,6 +29,6 @@ export const config = {
     "/users/:path*",
     "/blueprints/:path*",
     "/access-management/:path*",
-    "/project-details/:path*"
+    "/project-details/:path*",
   ],
 };

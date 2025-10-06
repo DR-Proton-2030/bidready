@@ -1,16 +1,15 @@
-'use client';
+"use client";
 
-import { useState, useMemo } from 'react';
-import { User } from '@/@types/interface/user.interface';
-import { USERS_DATA, USERS_TEXT } from '@/constants/users/users.constant';
+import { useState, useMemo } from "react";
+import { USERS_DATA } from "@/constants/users/users.constant";
 
 export const useUsers = () => {
   const [activeRole, setActiveRole] = useState<string>("All");
 
   const filteredUsers = useMemo(() => {
-    return activeRole === "All" 
-      ? USERS_DATA 
-      : USERS_DATA.filter(user => user.role === activeRole);
+    return activeRole === "All"
+      ? USERS_DATA
+      : USERS_DATA.filter((user) => user.role === activeRole);
   }, [activeRole]);
 
   const handleRoleChange = (role: string) => {
@@ -18,7 +17,7 @@ export const useUsers = () => {
   };
 
   const handleAddUser = () => {
-    console.log('Adding new user...');
+    console.log("Adding new user...");
     // Add actual user creation logic here
   };
 

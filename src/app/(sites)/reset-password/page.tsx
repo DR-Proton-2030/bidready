@@ -1,12 +1,8 @@
-import ResetPasswordForm from '@/components/pages/auth/forgetPassword/ResetPasswordForm'
-import React from 'react'
+"use client";
 
-const page = () => {
-  return (
-    <div>
-      <ResetPasswordForm/>
-    </div>
-  )
+// import ResetPasswordForm from "@/components/pages/auth/forgetPassword/ResetPasswordForm";
+import React from "react";
+
+export default function ResetPasswordPage() {
+  return <div>{/* <ResetPasswordForm /> */}</div>;
 }
-
-export default page

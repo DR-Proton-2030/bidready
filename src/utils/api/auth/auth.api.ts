@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Payload } from "@/@types/api/api.types";
 import { get, post } from "../apiMethod";
-import { headers } from "@/config/config";
 
 const initialRoute = "auth";
 export const signupUser = async (payload: FormData): Promise<any> => {
@@ -33,7 +32,6 @@ export const verifyToken = async (): Promise<any> => {
     );
   }
 };
-
 
 export const getOtp = async (payload: Payload) => {
   try {
