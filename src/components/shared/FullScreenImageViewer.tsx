@@ -55,6 +55,10 @@ export default function FullScreenImageViewer({
     width: 0,
     height: 0,
   });
+  const [displayDimensions, setDisplayDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
   const [showDetections, setShowDetections] = useState(true);
 
   const currentImage = images[currentIndex];
