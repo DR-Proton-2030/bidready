@@ -98,22 +98,20 @@ export default function BlueprintProcessingPage() {
       console.log("Sending request to detection API...");
 
       // API endpoint for detection
-      const apiResponse = await axios.post(
-        "http://localhost:5050/api/detect",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const apiResponse = await fetch("http://localhost:5050/api/detect", {
+        method: "POST",
+        body: formData,
+      });
+
       console.log("API Response status:", apiResponse.status);
 
-      if (!apiResponse) {
-        throw new Error(`API request failed with status: ${apiResponse}`);
+      if (!apiResponse.ok) {
+        throw new Error(
+          `API request failed with status: ${apiResponse.status}`
+        );
       }
 
-      const result = await apiResponse;
+      const result = await apiResponse.json();
       console.log("Detection result:", result);
 
       // Store detection results

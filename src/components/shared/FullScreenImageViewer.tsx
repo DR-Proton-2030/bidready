@@ -17,6 +17,17 @@ interface Image {
   pageNumber?: number;
 }
 
+interface Detection {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  class?: string;
+  confidence?: number;
+  color: string;
+  id: string;
+}
+
 interface FullScreenImageViewerProps {
   images: Image[];
   initialIndex?: number;
@@ -40,6 +51,11 @@ export default function FullScreenImageViewer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [imageDimensions, setImageDimensions] = useState({
+    width: 0,
+    height: 0,
+  });
+  const [showDetections, setShowDetections] = useState(true);
 
   const currentImage = images[currentIndex];
 
@@ -161,6 +177,48 @@ export default function FullScreenImageViewer({
     setIsDragging(false);
   };
 
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setImageDimensions({
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+    });
+  };
+
+  const getDetectionBoxes = (): Detection[] => {
+    if (!detectionResults?.predictions || !showDetections) return [];
+
+    return detectionResults.predictions.map(
+      (detection: any, index: number): Detection => {
+        // Generate a color based on the detection class or index
+        const colors = [
+          "#ff6b6b",
+          "#4ecdc4",
+          "#45b7d1",
+          "#96ceb4",
+          "#ffeaa7",
+          "#dda0dd",
+          "#98d8c8",
+          "#f7dc6f",
+          "#bb8fce",
+          "#85c1e9",
+        ];
+        const color = colors[index % colors.length];
+
+        return {
+          x: detection.x || 0,
+          y: detection.y || 0,
+          width: detection.width || 0,
+          height: detection.height || 0,
+          class: detection.class,
+          confidence: detection.confidence,
+          color,
+          id: `detection-${index}`,
+        };
+      }
+    );
+  };
+
   if (!isOpen || !currentImage) return null;
 
   return (
@@ -214,6 +272,20 @@ export default function FullScreenImageViewer({
               Reset
             </button>
 
+            {detectionResults?.predictions && (
+              <button
+                onClick={() => setShowDetections(!showDetections)}
+                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                  showDetections
+                    ? "bg-green-600 bg-opacity-80 text-white"
+                    : "hover:bg-white hover:bg-opacity-20"
+                }`}
+                title="Toggle Detection Overlay"
+              >
+                {showDetections ? "Hide" : "Show"} Detections
+              </button>
+            )}
+
             <button
               onClick={onClose}
               className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
@@ -248,29 +320,98 @@ export default function FullScreenImageViewer({
 
       {/* Image Container */}
       <div
-        className="flex-1 flex items-center justify-center p-16 cursor-move"
+        className="flex-1 flex items-center justify-center p-16 cursor-move relative"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={currentImage.path}
-          alt={currentImage.name}
-          className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
-          style={{
-            transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
-              imagePosition.x / zoom
-            }px, ${imagePosition.y / zoom}px)`,
-            cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
-          }}
-          onError={(e) => {
-            e.currentTarget.src =
-              "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
-          }}
-          draggable={false}
-        />
+        <div className="relative">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={currentImage.path}
+            alt={currentImage.name}
+            className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
+            style={{
+              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
+                imagePosition.x / zoom
+              }px, ${imagePosition.y / zoom}px)`,
+              cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
+            }}
+            onLoad={handleImageLoad}
+            onError={(e) => {
+              e.currentTarget.src =
+                "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
+            }}
+            draggable={false}
+          />
+
+          {/* Detection Overlay */}
+          {detectionResults?.predictions &&
+            showDetections &&
+            imageDimensions.width > 0 && (
+              <svg
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
+                    imagePosition.x / zoom
+                  }px, ${imagePosition.y / zoom}px)`,
+                }}
+                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+                preserveAspectRatio="xMidYMid meet"
+              >
+                {getDetectionBoxes().map((detection) => (
+                  <g key={detection.id}>
+                    {/* Bounding box rectangle */}
+                    <rect
+                      x={detection.x}
+                      y={detection.y}
+                      width={detection.width}
+                      height={detection.height}
+                      fill="none"
+                      stroke={detection.color}
+                      strokeWidth="3"
+                      strokeOpacity="0.8"
+                    />
+                    {/* Semi-transparent fill */}
+                    <rect
+                      x={detection.x}
+                      y={detection.y}
+                      width={detection.width}
+                      height={detection.height}
+                      fill={detection.color}
+                      fillOpacity="0.1"
+                    />
+                    {/* Class label background */}
+                    <rect
+                      x={detection.x}
+                      y={detection.y - 25}
+                      width={Math.max(
+                        (detection.class?.length || 7) * 8 + 20,
+                        60
+                      )}
+                      height="25"
+                      fill={detection.color}
+                      fillOpacity="0.9"
+                    />
+                    {/* Class label text */}
+                    <text
+                      x={detection.x + 5}
+                      y={detection.y - 8}
+                      fill="white"
+                      fontSize="14"
+                      fontWeight="bold"
+                      fontFamily="Arial, sans-serif"
+                    >
+                      {detection.class || "Unknown"}
+                    </text>
+                  </g>
+                ))}
+              </svg>
+            )}
+        </div>
       </div>
 
       {/* Image Counter */}
