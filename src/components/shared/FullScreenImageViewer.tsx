@@ -51,6 +51,7 @@ export default function FullScreenImageViewer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  console.log("=========>detectionResults", detectionResults);
   const [imageDimensions, setImageDimensions] = useState({
     width: 0,
     height: 0,
@@ -201,16 +202,16 @@ export default function FullScreenImageViewer({
       (detection: any, index: number): Detection => {
         // Generate a color based on the detection class or index
         const colors = [
-          "#ff6b6b",
-          "#4ecdc4",
+          "#ff5858ff",
+          "#3ed1c8ff",
           "#45b7d1",
-          "#96ceb4",
-          "#ffeaa7",
-          "#dda0dd",
-          "#98d8c8",
-          "#f7dc6f",
-          "#bb8fce",
-          "#85c1e9",
+          "#59dc9fff",
+          "#f9d869ff",
+          "#d85fd8ff",
+          "#66d8bbff",
+          "#f6d450ff",
+          "#a953ceff",
+          "#5dafe6ff",
         ];
         const color = colors[index % colors.length];
 
@@ -228,21 +229,47 @@ export default function FullScreenImageViewer({
     );
   };
 
+  const getClassCounts = (): { [key: string]: number } => {
+    if (!detectionResults?.predictions) return {};
+
+    const counts: { [key: string]: number } = {};
+    detectionResults.predictions.forEach((detection: any) => {
+      const className = detection.class || "Unknown";
+      counts[className] = (counts[className] || 0) + 1;
+    });
+
+    return counts;
+  };
+
+  const getClassSummary = (): string => {
+    const counts = getClassCounts();
+    const summaryParts = Object.entries(counts).map(
+      ([className, count]) => `${className} ${count}`
+    );
+    return summaryParts.join(", ");
+  };
+
   if (!isOpen || !currentImage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black bg-opacity-95 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 bg-gray-100 bg-opacity-95 flex items-center justify-center">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-black bg-opacity-50 p-4">
-        <div className="flex justify-between items-center text-white">
+      <div className="absolute top-0 left-0 right-0 z-10 bg-gray-200 bg-opacity-50 p-4">
+        <div className="flex justify-between items-center text-black">
           <div>
             <h3 className="text-lg font-medium truncate max-w-md">
               {currentImage.name}
             </h3>
-            <p className="text-sm text-gray-300">
+            <p className="text-sm text-gray-900">
               {currentIndex + 1} of {images.length}
               {currentImage.pageNumber && ` • Page ${currentImage.pageNumber}`}
             </p>
+            {detectionResults?.predictions &&
+              detectionResults.predictions.length > 0 && (
+                <p className="text-xs text-blue-800 mt-1">
+                  🔍 {getClassSummary()}
+                </p>
+              )}
           </div>
 
           {/* Controls */}
@@ -450,7 +477,7 @@ export default function FullScreenImageViewer({
       )}
 
       {/* Instructions */}
-      <div className="absolute bottom-4 right-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
+      <div className="absolute bottom-4 left-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
         <p className="text-xs text-gray-300 space-y-1">
           <span className="block">Use arrow keys or buttons to navigate</span>
           <span className="block">
@@ -462,8 +489,43 @@ export default function FullScreenImageViewer({
 
       {/* Detection Results Panel */}
       {detectionResults && (
-        <div className="absolute top-20 right-4 z-10 bg-black bg-opacity-75 text-white rounded-lg p-4 max-w-sm max-h-96 overflow-y-auto">
+        <div className="absolute w-80 top-20 right-4 z-10 bg-black bg-opacity-75 text-white rounded-lg p-4 max-w-sm h-screen overflow-y-auto">
           <h4 className="text-lg font-medium mb-3">Detection Results</h4>
+
+          {/* Class Summary */}
+          {detectionResults.predictions &&
+            detectionResults.predictions.length > 0 && (
+              <div className="mb-4 p-3 bg-blue-600 bg-opacity-50 rounded-lg">
+                <h5 className="text-sm font-medium mb-2">Summary:</h5>
+                <p className="text-sm text-blue-100">{getClassSummary()}</p>
+                <p className="text-xs text-blue-200 mt-1">
+                  Total: {detectionResults.predictions.length} detection
+                  {detectionResults.predictions.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+            )}
+
+          {/* Class Breakdown */}
+          {detectionResults.predictions &&
+            detectionResults.predictions.length > 0 && (
+              <div className="mb-4">
+                <h5 className="text-sm font-medium mb-2">Class Breakdown:</h5>
+                <div className="space-y-1">
+                  {Object.entries(getClassCounts()).map(
+                    ([className, count]) => (
+                      <div
+                        key={className}
+                        className="flex justify-between text-sm bg-gray-500  bg-opacity-10 rounded px-2 py-1"
+                      >
+                        <span className="capitalize">{className}</span>
+                        <span className="font-medium">{count}</span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
           <div className="space-y-2 text-sm">
             {detectionResults.detections &&
             detectionResults.detections.length > 0 ? (
