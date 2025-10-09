@@ -70,6 +70,11 @@ export default function FullScreenImageViewer({
     setImagePosition({ x: 0, y: 0 });
   }, [currentIndex]);
 
+  // Update currentIndex when initialIndex changes
+  useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex]);
+
   // Call API when current image changes or viewer opens
   useEffect(() => {
     if (isOpen && currentImage && onImageChange) {
