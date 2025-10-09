@@ -12,6 +12,7 @@ import {
   Grid3x3,
 } from "lucide-react";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
+import axios from "axios";
 
 interface ProcessedImage {
   id: string;
@@ -42,6 +43,8 @@ export default function BlueprintProcessingPage() {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"fullscreen" | "grid">("fullscreen");
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectionResults, setDetectionResults] = useState<any>(null);
 
   useEffect(() => {
     if (!jobId) return;
@@ -73,6 +76,66 @@ export default function BlueprintProcessingPage() {
 
     pollJobStatus();
   }, [jobId]);
+
+  // API call function for image detection
+  const detectImageWithAPI = async (image: ProcessedImage) => {
+    try {
+      console.log("Detecting image with API:", image.name);
+      setIsDetecting(true);
+      setError(null);
+
+      // Convert image URL to File object
+      const response = await fetch(image.path);
+      const blob = await response.blob();
+      const file = new File([blob], image.name, { type: blob.type });
+
+      console.log("Created file object:", file.name, file.type, file.size);
+
+      // Create FormData and send to API
+      const formData = new FormData();
+      formData.append("image", file);
+
+      console.log("Sending request to detection API...");
+
+      // API endpoint for detection
+      const apiResponse = await axios.post(
+        "http://localhost:5050/api/detect",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      console.log("API Response status:", apiResponse.status);
+
+      if (!apiResponse) {
+        throw new Error(`API request failed with status: ${apiResponse}`);
+      }
+
+      const result = await apiResponse;
+      console.log("Detection result:", result);
+
+      // Store detection results
+      setDetectionResults(result);
+
+      // Open the modal after getting results
+      setViewerOpen(true);
+    } catch (error) {
+      console.error("Error detecting image:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to detect image"
+      );
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  const handleViewDetection = () => {
+    if (jobStatus && jobStatus.processedImages[selectedImageIndex]) {
+      detectImageWithAPI(jobStatus.processedImages[selectedImageIndex]);
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -264,14 +327,25 @@ export default function BlueprintProcessingPage() {
 
                 {viewMode === "fullscreen" && (
                   <button
-                    onClick={() => {
-                      setSelectedImageIndex(0);
-                      setViewerOpen(true);
-                    }}
-                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    onClick={handleViewDetection}
+                    disabled={isDetecting}
+                    className={`inline-flex items-center px-4 py-2 rounded-md ${
+                      isDetecting
+                        ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                        : "bg-blue-600 text-white hover:bg-blue-700"
+                    }`}
                   >
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Images
+                    {isDetecting ? (
+                      <>
+                        <Clock className="w-4 h-4 mr-2 animate-spin" />
+                        Detecting...
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Detection
+                      </>
+                    )}
                   </button>
                 )}
               </div>
@@ -487,7 +561,11 @@ export default function BlueprintProcessingPage() {
         images={jobStatus.processedImages}
         initialIndex={selectedImageIndex}
         isOpen={viewerOpen}
-        onClose={() => setViewerOpen(false)}
+        onClose={() => {
+          setViewerOpen(false);
+          setDetectionResults(null); // Clear detection results when closing
+        }}
+        detectionResults={detectionResults}
       />
     </div>
   );

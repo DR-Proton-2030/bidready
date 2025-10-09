@@ -22,6 +22,8 @@ interface FullScreenImageViewerProps {
   initialIndex?: number;
   isOpen: boolean;
   onClose: () => void;
+  onImageChange?: (image: Image, index: number) => void;
+  detectionResults?: any;
 }
 
 export default function FullScreenImageViewer({
@@ -29,6 +31,8 @@ export default function FullScreenImageViewer({
   initialIndex = 0,
   isOpen,
   onClose,
+  onImageChange,
+  detectionResults,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
@@ -45,6 +49,19 @@ export default function FullScreenImageViewer({
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
   }, [currentIndex]);
+
+  // Call API when current image changes or viewer opens
+  useEffect(() => {
+    if (isOpen && currentImage && onImageChange) {
+      console.log(
+        "=====> Calling API for image:",
+        currentImage.name,
+        "at index:",
+        currentIndex
+      );
+      onImageChange(currentImage, currentIndex);
+    }
+  }, [currentIndex, isOpen]); // Removed currentImage and onImageChange from dependencies to avoid infinite loops
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -285,6 +302,51 @@ export default function FullScreenImageViewer({
           {zoom > 1 && <span className="block">Drag to pan when zoomed</span>}
         </p>
       </div>
+
+      {/* Detection Results Panel */}
+      {detectionResults && (
+        <div className="absolute top-20 right-4 z-10 bg-black bg-opacity-75 text-white rounded-lg p-4 max-w-sm max-h-96 overflow-y-auto">
+          <h4 className="text-lg font-medium mb-3">Detection Results</h4>
+          <div className="space-y-2 text-sm">
+            {detectionResults.detections &&
+            detectionResults.detections.length > 0 ? (
+              detectionResults.detections.map(
+                (detection: any, index: number) => (
+                  <div
+                    key={index}
+                    className="bg-white bg-opacity-10 rounded p-2"
+                  >
+                    <p>
+                      <strong>Class:</strong> {detection.class || "Unknown"}
+                    </p>
+                    <p>
+                      <strong>Confidence:</strong>{" "}
+                      {(detection.confidence * 100).toFixed(1)}%
+                    </p>
+                    {detection.bbox && (
+                      <p>
+                        <strong>Position:</strong> x:{detection.bbox[0]}, y:
+                        {detection.bbox[1]}
+                      </p>
+                    )}
+                  </div>
+                )
+              )
+            ) : (
+              <p className="text-gray-300">No detections found</p>
+            )}
+          </div>
+          <div className="mt-3 pt-2 border-t border-gray-600 text-xs text-gray-300">
+            <p>
+              <strong>Processing Time:</strong>{" "}
+              {detectionResults.processing_time || "N/A"}
+            </p>
+            <p>
+              <strong>Model:</strong> {detectionResults.model || "N/A"}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

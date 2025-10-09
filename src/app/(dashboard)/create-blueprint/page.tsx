@@ -9,7 +9,15 @@ import DescriptionField from "@/components/pages/createBlueprint/DescriptionFiel
 import ScopeField from "@/components/pages/createBlueprint/ScopeField";
 import StatusBadges from "@/components/pages/createBlueprint/StatusBadges";
 import ErrorMessage from "@/components/pages/createBlueprint/ErrorMessage";
-import { Upload, FileImage, ArrowRight, Loader2 } from "lucide-react";
+import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
+import {
+  Upload,
+  FileImage,
+  ArrowRight,
+  Loader2,
+  Eye,
+  Clock,
+} from "lucide-react";
 
 interface ProcessedImage {
   id: string;
@@ -38,6 +46,10 @@ export default function CreateBlueprintPage({
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
+  const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
+  const [fullScreenIndex, setFullScreenIndex] = useState(0);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [detectionResults, setDetectionResults] = useState<any>(null);
   const { handleNewBlueprint } = useBlueprints();
 
   // Check if we have processed images from URL params (coming from processing page)
@@ -65,6 +77,68 @@ export default function CreateBlueprintPage({
 
   const handleStatusChange = (status: string) => {
     setForm({ ...form, status });
+  };
+
+  // API call function for image detection
+  const detectImageWithAPI = async (image: ProcessedImage) => {
+    try {
+      console.log("Detecting image with API:", image.name);
+      setIsDetecting(true);
+      setError("");
+
+      // Convert image URL to File object
+      const response = await fetch(image.path);
+      const blob = await response.blob();
+      const file = new File([blob], image.name, { type: blob.type });
+
+      console.log("Created file object:", file.name, file.type, file.size);
+
+      // Create FormData and send to API
+      const formData = new FormData();
+      formData.append("image", file);
+
+      console.log("Sending request to detection API...");
+
+      // API endpoint for detection
+      const apiResponse = await fetch("http://localhost:5050/api/detect", {
+        method: "POST",
+        body: formData,
+      });
+
+      console.log("API Response status:", apiResponse.status);
+
+      if (!apiResponse.ok) {
+        throw new Error(
+          `API request failed with status: ${apiResponse.status}`
+        );
+      }
+
+      const result = await apiResponse.json();
+      console.log("Detection result:", result);
+
+      // Store detection results
+      setDetectionResults(result);
+
+      // Open the modal after getting results
+      setIsFullScreenOpen(true);
+    } catch (error) {
+      console.error("Error detecting image:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to detect image"
+      );
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  const handleImageClick = (index: number) => {
+    setFullScreenIndex(index);
+    setIsFullScreenOpen(true);
+  };
+
+  const handleImageChange = (image: ProcessedImage, index: number) => {
+    console.log("Image changed to:", image.name, "at index:", index);
+    detectImageWithAPI(image);
   };
 
   const handleFileUpload = async (files: FileList) => {
@@ -297,10 +371,11 @@ export default function CreateBlueprintPage({
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {processedImages.map((image) => (
+                {processedImages.map((image, index) => (
                   <div
                     key={image.id}
-                    className="border border-gray-200 rounded-lg overflow-hidden"
+                    className="border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => handleImageClick(index)}
                   >
                     <div className="aspect-video bg-gray-100 flex items-center justify-center">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -379,6 +454,29 @@ export default function CreateBlueprintPage({
           </div>
         </form>
       </div>
+
+      {/* Loading overlay for image detection */}
+      {isDetecting && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
+          <div className="bg-white rounded-lg p-6 flex flex-col items-center space-y-4">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <p className="text-gray-700">Detecting image...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Full Screen Image Viewer */}
+      <FullScreenImageViewer
+        images={processedImages}
+        initialIndex={fullScreenIndex}
+        isOpen={isFullScreenOpen}
+        onClose={() => {
+          setIsFullScreenOpen(false);
+          setDetectionResults(null); // Clear detection results when closing
+        }}
+        onImageChange={handleImageChange}
+        detectionResults={detectionResults}
+      />
     </div>
   );
 }
