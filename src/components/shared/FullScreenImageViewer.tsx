@@ -359,60 +359,67 @@ export default function FullScreenImageViewer({
                 style={{
                   width: "100%",
                   height: "100%",
-                  transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
-                    imagePosition.x / zoom
-                  }px, ${imagePosition.y / zoom}px)`,
+                  transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
                 }}
                 viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
                 preserveAspectRatio="xMidYMid meet"
               >
-                {getDetectionBoxes().map((detection) => (
-                  <g key={detection.id}>
-                    {/* Bounding box rectangle */}
-                    <rect
-                      x={detection.x}
-                      y={detection.y}
-                      width={detection.width}
-                      height={detection.height}
-                      fill="none"
-                      stroke={detection.color}
-                      strokeWidth="3"
-                      strokeOpacity="0.8"
-                    />
-                    {/* Semi-transparent fill */}
-                    <rect
-                      x={detection.x}
-                      y={detection.y}
-                      width={detection.width}
-                      height={detection.height}
-                      fill={detection.color}
-                      fillOpacity="0.1"
-                    />
-                    {/* Class label background */}
-                    <rect
-                      x={detection.x}
-                      y={detection.y - 25}
-                      width={Math.max(
-                        (detection.class?.length || 7) * 8 + 20,
-                        60
-                      )}
-                      height="25"
-                      fill={detection.color}
-                      fillOpacity="0.9"
-                    />
-                    {/* Class label text */}
-                    <text
-                      x={detection.x + 5}
-                      y={detection.y - 8}
-                      fill="white"
-                      fontSize="14"
-                      fontWeight="bold"
-                      fontFamily="Arial, sans-serif"
-                    >
-                      {detection.class || "Unknown"}
-                    </text>
-                  </g>
-                ))}
+                {getDetectionBoxes().map((detection) => {
+                  // proportional x-axis shift based on width
+                  const shiftRatio =
+                    Math.log2(detection.width * 20000000000000000000000000000) /
+                    200; // non-linear smooth scaling
+                  const xShift = detection.width * shiftRatio;
+                  const yShift = detection.height * shiftRatio;
+
+                  return (
+                    <g key={detection.id}>
+                      {/* Bounding box rectangle */}
+                      <rect
+                        x={detection.x - xShift}
+                        y={detection.y - yShift}
+                        width={detection.width}
+                        height={detection.height}
+                        fill="none"
+                        stroke={detection.color}
+                        strokeWidth="3"
+                        strokeOpacity="0.8"
+                      />
+                      <rect
+                        x={detection.x - xShift}
+                        y={detection.y - yShift}
+                        width={detection.width}
+                        height={detection.height}
+                        fill={detection.color}
+                        fillOpacity="0.1"
+                      />
+                      {/* Label background */}
+                      <rect
+                        x={detection.x - xShift * 0.2}
+                        y={detection.y + yShift - 12}
+                        width={Math.max(
+                          (detection.class?.length || 7) * 8 + 20,
+                          60
+                        )}
+                        height="25"
+                        fill={detection.color}
+                        fillOpacity="0.9"
+                      />
+
+                      {/* Label text */}
+                      <text
+                        x={detection.x - xShift * 0.2}
+                        y={detection.y + yShift + 5}
+                        fill="white"
+                        fontSize="14"
+                        fontWeight="bold"
+                        fontFamily="Arial, sans-serif"
+                      >
+                        {detection.class || "Unknown"}
+                      </text>
+                    </g>
+                  );
+                })}
               </svg>
             )}
         </div>
