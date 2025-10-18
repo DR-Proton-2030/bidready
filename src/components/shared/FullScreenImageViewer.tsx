@@ -62,6 +62,7 @@ export default function FullScreenImageViewer({
   });
   const [showDetections, setShowDetections] = useState(true);
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const currentImage = images[currentIndex];
 
@@ -272,9 +273,9 @@ export default function FullScreenImageViewer({
   if (!isOpen || !currentImage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-100 bg-opacity-95 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-gray-200 bg-opacity-50 p-4">
+      <div className="absolute top-0 left-0 right-0 z-50 bg-gray-200 bg-opacity-50 p-4">
         <div className="flex justify-between items-center text-black">
           <div>
             <h3 className="text-lg font-medium truncate max-w-md">
@@ -284,12 +285,7 @@ export default function FullScreenImageViewer({
               {currentIndex + 1} of {images.length}
               {currentImage.pageNumber && ` • Page ${currentImage.pageNumber}`}
             </p>
-            {detectionResults?.predictions &&
-              detectionResults.predictions.length > 0 && (
-                <p className="text-xs text-blue-800 mt-1">
-                  🔍 {getClassSummary()}
-                </p>
-              )}
+           
           </div>
 
           {/* Controls */}
@@ -327,8 +323,7 @@ export default function FullScreenImageViewer({
             >
               Reset
             </button>
-
-            {detectionResults?.predictions && (
+  {/* {detectionResults?.predictions && (
               <button
                 onClick={() => setShowDetections(!showDetections)}
                 className={`px-3 py-1 text-sm rounded-lg transition-colors ${
@@ -340,7 +335,17 @@ export default function FullScreenImageViewer({
               >
                 {showDetections ? "Hide" : "Show"} Detections
               </button>
-            )}
+            )} */}
+            {/* Toggle classes/sidebar button */}
+            <button
+              onClick={() => setSidebarOpen((s) => !s)}
+              className="px-3 py-1 text-sm hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              title="Toggle classes sidebar"
+            >
+              {sidebarOpen ? "Hide classes" : "Show classes"}
+            </button>
+
+          
 
             <button
               onClick={onClose}
@@ -507,31 +512,29 @@ export default function FullScreenImageViewer({
         </p>
       </div>
 
-      {/* Detection Results Panel */}
-      {detectionResults && (
-        <div className="absolute w-80 top-20 right-4 z-10 bg-black bg-opacity-75 text-white rounded-lg p-4 max-w-sm h-screen overflow-y-auto">
-          <h4 className="text-lg font-medium mb-3">Detection Results</h4>
+      {/* Detection Results Panel (collapsible sidebar) */}
+      {detectionResults && sidebarOpen && (
+        <div className="absolute w-86 top-10 right-0 z-10  bg-gray-200 bg-opacity-75 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto">
+          <h4 className="text-lg font-medium mb-3 pt-10">Detection Results</h4>
 
           {/* Class Summary */}
-          {detectionResults.predictions &&
+          {/* {detectionResults.predictions &&
             detectionResults.predictions.length > 0 && (
-              <div className="mb-4 p-3 bg-blue-600 bg-opacity-50 rounded-lg">
+              <div className="mb-4 p-3 bg-white border border-gray-300 bg-opacity-50 rounded-lg">
                 <h5 className="text-sm font-medium mb-2">Summary:</h5>
-                <p className="text-sm text-blue-100">{getClassSummary()}</p>
-                <p className="text-xs text-blue-200 mt-1">
+                <p className="text-sm text-gray-900">{getClassSummary()}</p>
+                <p className="text-xs text-gray-900 mt-1">
                   Total: {detectionResults.predictions.length} detection
                   {detectionResults.predictions.length !== 1 ? "s" : ""}
                 </p>
               </div>
-            )}
+            )} */}
 
           {/* Class Breakdown */}
           {detectionResults.predictions &&
             detectionResults.predictions.length > 0 && (
               <div className="mb-4">
-                <h5 className="text-sm font-medium mb-2">
-                  Class Breakdown (click to filter):
-                </h5>
+               
                 <div className="space-y-1">
                   {Object.entries(getClassCounts()).map(
                     ([className, count]) => {
@@ -540,10 +543,11 @@ export default function FullScreenImageViewer({
                         <button
                           key={className}
                           onClick={() => toggleClassSelection(className)}
-                          className={`w-full flex justify-between text-sm rounded px-2 py-1 transition-colors cursor-pointer hover:bg-opacity-30 ${
+                          className={`w-full flex mt-2 justify-between text-lg rounded px-4 py-2 transition-colors
+                             cursor-pointer hover:bg-opacity-30 ${
                             isSelected
-                              ? "bg-blue-500 bg-opacity-40 border border-blue-400"
-                              : "bg-gray-500 bg-opacity-10 hover:bg-gray-400"
+                              ? "bg-blue-500 text-white bg-opacity-40 border border-blue-400"
+                              : "bg-white bg-opacity-10 hover:bg-blue-200"
                           }`}
                         >
                           <span className="capitalize">{className}</span>
@@ -556,7 +560,7 @@ export default function FullScreenImageViewer({
                 {selectedClasses.size > 0 && (
                   <button
                     onClick={() => setSelectedClasses(new Set())}
-                    className="mt-2 text-xs text-blue-300 hover:text-blue-200 underline"
+                    className="mt-2 text-xs text-gray-800 hover:text-blue-800 underline"
                   >
                     Clear filter (show all)
                   </button>
@@ -564,44 +568,8 @@ export default function FullScreenImageViewer({
               </div>
             )}
 
-          <div className="space-y-2 text-sm">
-            {detectionResults.detections &&
-            detectionResults.detections.length > 0 ? (
-              detectionResults.detections.map(
-                (detection: any, index: number) => (
-                  <div
-                    key={index}
-                    className="bg-white bg-opacity-10 rounded p-2"
-                  >
-                    <p>
-                      <strong>Class:</strong> {detection.class || "Unknown"}
-                    </p>
-                    <p>
-                      <strong>Confidence:</strong>{" "}
-                      {(detection.confidence * 100).toFixed(1)}%
-                    </p>
-                    {detection.bbox && (
-                      <p>
-                        <strong>Position:</strong> x:{detection.bbox[0]}, y:
-                        {detection.bbox[1]}
-                      </p>
-                    )}
-                  </div>
-                )
-              )
-            ) : (
-              <p className="text-gray-300">No detections found</p>
-            )}
-          </div>
-          <div className="mt-3 pt-2 border-t border-gray-600 text-xs text-gray-300">
-            <p>
-              <strong>Processing Time:</strong>{" "}
-              {detectionResults.processing_time || "N/A"}
-            </p>
-            <p>
-              <strong>Model:</strong> {detectionResults.model || "N/A"}
-            </p>
-          </div>
+      
+        
         </div>
       )}
     </div>
