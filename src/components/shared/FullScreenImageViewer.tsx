@@ -61,6 +61,7 @@ export default function FullScreenImageViewer({
     height: 0,
   });
   const [showDetections, setShowDetections] = useState(true);
+  const [selectedClasses, setSelectedClasses] = useState<Set<string>>(new Set());
 
   const currentImage = images[currentIndex];
 
@@ -69,6 +70,7 @@ export default function FullScreenImageViewer({
     setZoom(1);
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
+    setSelectedClasses(new Set()); // Reset class filter on image change
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
@@ -198,7 +200,7 @@ export default function FullScreenImageViewer({
   const getDetectionBoxes = (): Detection[] => {
     if (!detectionResults?.predictions || !showDetections) return [];
 
-    return detectionResults.predictions.map(
+    const allBoxes = detectionResults.predictions.map(
       (detection: any, index: number): Detection => {
         // Generate a color based on the detection class or index
         const colors = [
@@ -227,6 +229,12 @@ export default function FullScreenImageViewer({
         };
       }
     );
+
+    // Filter by selected classes if any are selected
+    if (selectedClasses.size === 0) {
+      return allBoxes; // Show all if none selected
+    }
+    return allBoxes.filter((box: Detection) => selectedClasses.has(box.class || "Unknown"));
   };
 
   const getClassCounts = (): { [key: string]: number } => {
@@ -247,6 +255,18 @@ export default function FullScreenImageViewer({
       ([className, count]) => `${className} ${count}`
     );
     return summaryParts.join(", ");
+  };
+
+  const toggleClassSelection = (className: string) => {
+    setSelectedClasses((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(className)) {
+        newSet.delete(className);
+      } else {
+        newSet.add(className);
+      }
+      return newSet;
+    });
   };
 
   if (!isOpen || !currentImage) return null;
@@ -509,20 +529,38 @@ export default function FullScreenImageViewer({
           {detectionResults.predictions &&
             detectionResults.predictions.length > 0 && (
               <div className="mb-4">
-                <h5 className="text-sm font-medium mb-2">Class Breakdown:</h5>
+                <h5 className="text-sm font-medium mb-2">
+                  Class Breakdown (click to filter):
+                </h5>
                 <div className="space-y-1">
                   {Object.entries(getClassCounts()).map(
-                    ([className, count]) => (
-                      <div
-                        key={className}
-                        className="flex justify-between text-sm bg-gray-500  bg-opacity-10 rounded px-2 py-1"
-                      >
-                        <span className="capitalize">{className}</span>
-                        <span className="font-medium">{count}</span>
-                      </div>
-                    )
+                    ([className, count]) => {
+                      const isSelected = selectedClasses.has(className);
+                      return (
+                        <button
+                          key={className}
+                          onClick={() => toggleClassSelection(className)}
+                          className={`w-full flex justify-between text-sm rounded px-2 py-1 transition-colors cursor-pointer hover:bg-opacity-30 ${
+                            isSelected
+                              ? "bg-blue-500 bg-opacity-40 border border-blue-400"
+                              : "bg-gray-500 bg-opacity-10 hover:bg-gray-400"
+                          }`}
+                        >
+                          <span className="capitalize">{className}</span>
+                          <span className="font-medium">{count}</span>
+                        </button>
+                      );
+                    }
                   )}
                 </div>
+                {selectedClasses.size > 0 && (
+                  <button
+                    onClick={() => setSelectedClasses(new Set())}
+                    className="mt-2 text-xs text-blue-300 hover:text-blue-200 underline"
+                  >
+                    Clear filter (show all)
+                  </button>
+                )}
               </div>
             )}
 

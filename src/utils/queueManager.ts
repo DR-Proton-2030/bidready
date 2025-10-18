@@ -65,6 +65,41 @@ class QueueManager {
     }
   }
 
+  // Remove a processed image from a job and optionally delete the file on disk
+  async deleteImage(jobId: string, imagePath: string): Promise<boolean> {
+    const job = this.jobs.get(jobId);
+    if (!job) return false;
+
+    const idx = job.processedImages.findIndex((i) => i.path === imagePath || i.path.endsWith(encodeURIComponent(imagePath)));
+    if (idx === -1) return false;
+
+    const removed = job.processedImages.splice(idx, 1);
+    // update progress counts
+    job.progress.processed = Math.max(0, (job.progress.processed || 0) - 1);
+    this.jobs.set(jobId, job);
+
+    try {
+      // Try to remove the physical file under uploads/<jobId> if the stored path matches that pattern
+      // path stored in processedImages is like `/api/blueprints/serve-image/${job.id}/${encodeURIComponent(fileName)}`
+      const prefix = `/api/blueprints/serve-image/${jobId}/`;
+      if (imagePath.startsWith(prefix)) {
+        const encodedName = imagePath.slice(prefix.length);
+        const fileName = decodeURIComponent(encodedName);
+        const fsPath = join(process.cwd(), "uploads", jobId, fileName);
+        // delete file if exists
+        try {
+          await (await import("fs/promises")).unlink(fsPath);
+        } catch (e) {
+          // ignore if file missing
+        }
+      }
+    } catch (e) {
+      // ignore file deletion errors but keep the job updated
+    }
+
+    return true;
+  }
+
   private async processNext(): Promise<void> {
     if (this.isProcessing || this.processingQueue.length === 0) {
       return;

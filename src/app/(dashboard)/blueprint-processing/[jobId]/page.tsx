@@ -10,6 +10,7 @@ import {
   ArrowLeft,
   Eye,
   Grid3x3,
+  Trash2,
 } from "lucide-react";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import axios from "axios";
@@ -44,6 +45,7 @@ export default function BlueprintProcessingPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"fullscreen" | "grid">("fullscreen");
   const [isDetecting, setIsDetecting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [detectionResults, setDetectionResults] = useState<any>(null);
 
   useEffect(() => {
@@ -132,6 +134,38 @@ export default function BlueprintProcessingPage() {
   const handleViewDetection = () => {
     if (jobStatus && jobStatus.processedImages[selectedImageIndex]) {
       detectImageWithAPI(jobStatus.processedImages[selectedImageIndex]);
+    }
+  };
+
+  const handleDeleteImage = async (image: ProcessedImage, index: number) => {
+    if (!jobStatus) return;
+    const jobIdLocal = jobId;
+
+    // optimistic update
+    const prev = jobStatus.processedImages.slice();
+    const newImages = prev.filter((i) => i.id !== image.id);
+    setJobStatus({ ...jobStatus, processedImages: newImages, progress: { ...jobStatus.progress, processed: Math.max(0, jobStatus.progress.processed - 1) } });
+
+    setIsDeleting(image.id);
+    try {
+      const resp = await fetch(`/api/blueprints/delete-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: jobIdLocal, imagePath: image.path }),
+      });
+
+      if (!resp.ok) {
+        throw new Error("Failed to delete image");
+      }
+
+      // success — nothing else to do since optimistic update already applied
+    } catch (err) {
+      // rollback
+      setJobStatus({ ...jobStatus, processedImages: prev, progress: { ...jobStatus.progress, processed: prev.length } });
+      console.error("Failed to delete image:", err);
+      setError(err instanceof Error ? err.message : "Failed to delete image");
+    } finally {
+      setIsDeleting(null);
     }
   };
 
@@ -460,6 +494,18 @@ export default function BlueprintProcessingPage() {
                             "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPk5BPC90ZXh0Pjwvc3ZnPg==";
                         }}
                       />
+                      <div className="absolute top-0 right-0 p-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteImage(image, index);
+                          }}
+                          className="bg-white rounded-full p-1 shadow"
+                          title="Delete image"
+                        >
+                          <Trash2 className="w-3 h-3 text-red-600" />
+                        </button>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -504,6 +550,18 @@ export default function BlueprintProcessingPage() {
                     setViewerOpen(true);
                   }}
                 >
+                  <div className="absolute top-2 right-2 z-10">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteImage(image, index);
+                      }}
+                      className="p-1 bg-white rounded-full shadow hover:bg-red-50"
+                      title="Delete image"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-600" />
+                    </button>
+                  </div>
                   <div className="aspect-video bg-gray-100 flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
