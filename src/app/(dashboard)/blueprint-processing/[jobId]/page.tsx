@@ -10,6 +10,8 @@ import {
   ArrowLeft,
   Eye,
   Grid3x3,
+  Trash2,
+  X,
 } from "lucide-react";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import axios from "axios";
@@ -45,6 +47,13 @@ export default function BlueprintProcessingPage() {
   const [viewMode, setViewMode] = useState<"fullscreen" | "grid">("fullscreen");
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionResults, setDetectionResults] = useState<any>(null);
+  const [removedImages, setRemovedImages] = useState<Set<string>>(new Set());
+
+  // Filter out removed images
+  const filteredImages =
+    jobStatus?.processedImages.filter(
+      (image) => !removedImages.has(image.id)
+    ) || [];
 
   useEffect(() => {
     if (!jobId) return;
@@ -130,9 +139,43 @@ export default function BlueprintProcessingPage() {
   };
 
   const handleViewDetection = () => {
-    if (jobStatus && jobStatus.processedImages[selectedImageIndex]) {
-      detectImageWithAPI(jobStatus.processedImages[selectedImageIndex]);
+    if (filteredImages[selectedImageIndex]) {
+      detectImageWithAPI(filteredImages[selectedImageIndex]);
     }
+  };
+
+  const handleRemoveImage = (imageId: string, event?: React.MouseEvent) => {
+    // Prevent event bubbling if called from within a clickable element
+    if (event) {
+      event.stopPropagation();
+    }
+
+    // Add image ID to removed set
+    setRemovedImages((prev) => new Set([...prev, imageId]));
+
+    // Adjust selected index if necessary
+    const imageIndex = filteredImages.findIndex((img) => img.id === imageId);
+    if (imageIndex !== -1) {
+      if (selectedImageIndex >= imageIndex && selectedImageIndex > 0) {
+        setSelectedImageIndex((prev) => prev - 1);
+      } else if (filteredImages.length === 1) {
+        // If this is the last image, reset to 0
+        setSelectedImageIndex(0);
+      }
+    }
+
+    // Clear detection results if we removed the currently displayed image
+    if (filteredImages[selectedImageIndex]?.id === imageId) {
+      setDetectionResults(null);
+    }
+  };
+
+  const handleRestoreImage = (imageId: string) => {
+    setRemovedImages((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(imageId);
+      return newSet;
+    });
   };
 
   const getStatusIcon = (status: string) => {
@@ -165,11 +208,9 @@ export default function BlueprintProcessingPage() {
   };
 
   const handleContinueToForm = () => {
-    if (jobStatus && jobStatus.processedImages.length > 0) {
-      // Pass the processed images data to the blueprint creation form
-      const imageData = encodeURIComponent(
-        JSON.stringify(jobStatus.processedImages)
-      );
+    if (filteredImages.length > 0) {
+      // Pass the filtered images data to the blueprint creation form
+      const imageData = encodeURIComponent(JSON.stringify(filteredImages));
       router.push(
         `/create-blueprint?processedImages=${imageData}&jobId=${jobId}`
       );
@@ -296,11 +337,19 @@ export default function BlueprintProcessingPage() {
         {/* Processed Images */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Processed Images ({jobStatus.processedImages.length})
-            </h2>
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Processed Images ({filteredImages.length})
+              </h2>
+              {removedImages.size > 0 && (
+                <p className="text-sm text-gray-500">
+                  {removedImages.size} image
+                  {removedImages.size !== 1 ? "s" : ""} removed
+                </p>
+              )}
+            </div>
 
-            {jobStatus.processedImages.length > 0 && (
+            {filteredImages.length > 0 && (
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() =>
@@ -350,13 +399,15 @@ export default function BlueprintProcessingPage() {
             )}
           </div>
 
-          {jobStatus.processedImages.length === 0 ? (
+          {filteredImages.length === 0 ? (
             <div className="text-center py-8">
               <FileImage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
                 {jobStatus.status === "processing" ||
                 jobStatus.status === "pending"
                   ? "Processing files... Images will appear here as they are processed."
+                  : removedImages.size > 0
+                  ? "All images have been removed. Use the restore section below to bring them back."
                   : "No images have been processed yet."}
               </p>
             </div>
@@ -364,24 +415,24 @@ export default function BlueprintProcessingPage() {
             /* Full Screen Mode - Show large preview with navigation hint */
             <div className="space-y-4">
               <div className="aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden">
-                {jobStatus.processedImages[selectedImageIndex] ? (
+                {filteredImages[selectedImageIndex] ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={jobStatus.processedImages[selectedImageIndex].path}
-                      alt={jobStatus.processedImages[selectedImageIndex].name}
+                      src={filteredImages[selectedImageIndex].path}
+                      alt={filteredImages[selectedImageIndex].name}
                       className="max-w-full max-h-full object-contain cursor-pointer"
                       onClick={() => setViewerOpen(true)}
                       onLoad={() =>
                         console.log(
                           "Image loaded successfully:",
-                          jobStatus.processedImages[selectedImageIndex].path
+                          filteredImages[selectedImageIndex].path
                         )
                       }
                       onError={(e) => {
                         console.error(
                           "Image failed to load:",
-                          jobStatus.processedImages[selectedImageIndex].path
+                          filteredImages[selectedImageIndex].path
                         );
                         // Create a fallback inline SVG
                         const fallbackSvg = `data:image/svg+xml;base64,${btoa(`
@@ -391,13 +442,27 @@ export default function BlueprintProcessingPage() {
                               Image Loading Error
                             </text>
                             <text x="50%" y="60%" font-family="Arial" font-size="12" fill="#7f1d1d" text-anchor="middle" dominant-baseline="middle">
-                              ${jobStatus.processedImages[selectedImageIndex].name}
+                              ${filteredImages[selectedImageIndex].name}
                             </text>
                           </svg>
                         `)}`;
                         e.currentTarget.src = fallbackSvg;
                       }}
                     />
+
+                    {/* Remove button overlay */}
+                    <button
+                      onClick={(e) =>
+                        handleRemoveImage(
+                          filteredImages[selectedImageIndex].id,
+                          e
+                        )
+                      }
+                      className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg"
+                      title="Remove this image"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
 
                     {/* Click overlay */}
                     <div className="absolute inset-0 hover:bg-black/40 bg-opacity-0 hover:bg-opacity-10 transition-all flex items-center justify-center">
@@ -421,46 +486,65 @@ export default function BlueprintProcessingPage() {
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="font-medium text-gray-900">
-                    {jobStatus.processedImages[selectedImageIndex]?.name}
+                    {filteredImages[selectedImageIndex]?.name}
                   </h3>
-                  {jobStatus.processedImages[selectedImageIndex]
-                    ?.pageNumber && (
+                  {filteredImages[selectedImageIndex]?.pageNumber && (
                     <p className="text-sm text-gray-500">
-                      Page{" "}
-                      {jobStatus.processedImages[selectedImageIndex].pageNumber}
+                      Page {filteredImages[selectedImageIndex].pageNumber}
                     </p>
                   )}
                 </div>
 
-                <div className="text-sm text-gray-500">
-                  {selectedImageIndex + 1} of {jobStatus.processedImages.length}
+                <div className="flex items-center space-x-4">
+                  <div className="text-sm text-gray-500">
+                    {selectedImageIndex + 1} of {filteredImages.length}
+                  </div>
+                  {filteredImages[selectedImageIndex] && (
+                    <button
+                      onClick={() =>
+                        handleRemoveImage(filteredImages[selectedImageIndex].id)
+                      }
+                      className="inline-flex items-center px-3 py-1 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
 
               {/* Thumbnail navigation */}
-              {jobStatus.processedImages.length > 1 && (
+              {filteredImages.length > 1 && (
                 <div className="flex space-x-2 overflow-x-auto pb-2">
-                  {jobStatus.processedImages.map((image, index) => (
-                    <button
-                      key={image.id}
-                      onClick={() => setSelectedImageIndex(index)}
-                      className={`flex-shrink-0 w-16 h-16 rounded border-2 overflow-hidden ${
-                        index === selectedImageIndex
-                          ? "border-blue-500"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={image.path}
-                        alt={image.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPk5BPC90ZXh0Pjwvc3ZnPg==";
-                        }}
-                      />
-                    </button>
+                  {filteredImages.map((image, index) => (
+                    <div key={image.id} className="relative flex-shrink-0">
+                      <button
+                        onClick={() => setSelectedImageIndex(index)}
+                        className={`w-16 h-16 rounded border-2 overflow-hidden ${
+                          index === selectedImageIndex
+                            ? "border-blue-500"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={image.path}
+                          alt={image.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPk5BPC90ZXh0Pjwvc3ZnPg==";
+                          }}
+                        />
+                      </button>
+                      <button
+                        onClick={(e) => handleRemoveImage(image.id, e)}
+                        className="absolute -top-1 -right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg"
+                        title="Remove this image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -478,11 +562,13 @@ export default function BlueprintProcessingPage() {
                       </p>
                       <p>
                         <strong>Image Path:</strong>{" "}
-                        {jobStatus.processedImages[selectedImageIndex]?.path}
+                        {filteredImages[selectedImageIndex]?.path}
                       </p>
                       <p>
-                        <strong>Total Images:</strong>{" "}
-                        {jobStatus.processedImages.length}
+                        <strong>Total Images:</strong> {filteredImages.length}
+                      </p>
+                      <p>
+                        <strong>Removed Images:</strong> {removedImages.size}
                       </p>
                       <p>
                         <strong>Job Status:</strong> {jobStatus.status}
@@ -495,16 +581,18 @@ export default function BlueprintProcessingPage() {
           ) : (
             /* Grid Mode - Original small boxes */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {jobStatus.processedImages.map((image, index) => (
+              {filteredImages.map((image, index) => (
                 <div
                   key={image.id}
-                  className="border border-gray-200 rounded-lg overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => {
-                    setSelectedImageIndex(index);
-                    setViewerOpen(true);
-                  }}
+                  className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
                 >
-                  <div className="aspect-video bg-gray-100 flex items-center justify-center">
+                  <div
+                    className="aspect-video bg-gray-100 flex items-center justify-center cursor-pointer"
+                    onClick={() => {
+                      setSelectedImageIndex(index);
+                      setViewerOpen(true);
+                    }}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={image.path}
@@ -516,21 +604,107 @@ export default function BlueprintProcessingPage() {
                       }}
                     />
                   </div>
+
+                  {/* Remove button - appears on hover */}
+                  <button
+                    onClick={(e) => handleRemoveImage(image.id, e)}
+                    className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                    title="Remove this image"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+
                   <div className="p-3">
-                    <h3 className="font-medium text-gray-900 text-sm truncate">
-                      {image.name}
-                    </h3>
-                    {image.pageNumber && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Page {image.pageNumber}
-                      </p>
-                    )}
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 text-sm truncate">
+                          {image.name}
+                        </h3>
+                        {image.pageNumber && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Page {image.pageNumber}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => handleRemoveImage(image.id, e)}
+                        className="ml-2 p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Remove this image"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+
+        {/* Removed Images Section */}
+        {removedImages.size > 0 && (
+          <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 mt-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Removed Images ({removedImages.size})
+              </h2>
+              <button
+                onClick={() => {
+                  // Restore all images
+                  setRemovedImages(new Set());
+                }}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Restore All
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {jobStatus?.processedImages
+                .filter((image) => removedImages.has(image.id))
+                .map((image) => (
+                  <div
+                    key={image.id}
+                    className="border border-gray-300 rounded-lg overflow-hidden bg-white opacity-75 hover:opacity-100 transition-opacity"
+                  >
+                    <div className="aspect-video bg-gray-100 flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image.path}
+                        alt={image.name}
+                        className="max-w-full max-h-full object-contain"
+                        onError={(e) => {
+                          e.currentTarget.src =
+                            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
+                        }}
+                      />
+                    </div>
+                    <div className="p-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-700 text-sm truncate">
+                            {image.name}
+                          </h3>
+                          {image.pageNumber && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Page {image.pageNumber}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleRestoreImage(image.id)}
+                          className="ml-2 px-2 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                          title="Restore this image"
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="mt-6 flex justify-between">
@@ -542,21 +716,20 @@ export default function BlueprintProcessingPage() {
             Back to Upload
           </button>
 
-          {jobStatus.status === "completed" &&
-            jobStatus.processedImages.length > 0 && (
-              <button
-                onClick={handleContinueToForm}
-                className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Continue to Blueprint Form
-              </button>
-            )}
+          {jobStatus.status === "completed" && filteredImages.length > 0 && (
+            <button
+              onClick={handleContinueToForm}
+              className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Continue to Blueprint Form
+            </button>
+          )}
         </div>
       </div>
 
       {/* Full Screen Image Viewer */}
       <FullScreenImageViewer
-        images={jobStatus.processedImages}
+        images={filteredImages}
         initialIndex={selectedImageIndex}
         isOpen={viewerOpen}
         onClose={() => {
