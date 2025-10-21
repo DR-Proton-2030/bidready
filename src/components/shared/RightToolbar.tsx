@@ -118,10 +118,13 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
         />
         <ToolButton
           icon={SquareDashedMousePointer}
-          label="area"
+          label="annotate"
           activeTool={activeTool}
-          onClick={() => setTool("area")}
-          tooltip="Area Select"
+          onClick={() => {
+            setTool("annotate");
+            onAnnotate?.();
+          }}
+          tooltip="Annotate Objects"
         />
         <ToolButton
           icon={Copy}

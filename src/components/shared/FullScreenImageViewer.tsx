@@ -81,6 +81,13 @@ export default function FullScreenImageViewer({
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [newClassName, setNewClassName] = useState("");
   const [customClasses, setCustomClasses] = useState<string[]>([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [startPoint, setStartPoint] = useState({ x: 0, y: 0 });
+  const [currentBox, setCurrentBox] = useState<any>(null);
+  const [userAnnotations, setUserAnnotations] = useState<Detection[]>([]);
+  const [showClassSelector, setShowClassSelector] = useState(false);
+  const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
+  const [selectedAnnotationClass, setSelectedAnnotationClass] = useState("");
 
   const currentImage = images[currentIndex];
 
@@ -128,6 +135,11 @@ export default function FullScreenImageViewer({
     setImagePosition({ x: 0, y: 0 });
     setSelectedClasses(new Set()); // Reset class filter on image change
     setSearchTerm(""); // Reset search term on image change
+    setUserAnnotations([]); // Clear user annotations on image change
+    setIsDrawing(false);
+    setCurrentBox(null);
+    setShowClassSelector(false);
+    setPendingAnnotation(null);
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
@@ -224,7 +236,29 @@ export default function FullScreenImageViewer({
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom > 1) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (activeTool === "annotate") {
+      const imageRect = e.currentTarget.getBoundingClientRect();
+
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+
+        const x = (e.clientX - imageRect.left) * scaleX;
+        const y = (e.clientY - imageRect.top) * scaleY;
+
+        setIsDrawing(true);
+        setStartPoint({ x, y });
+        setCurrentBox({
+          x,
+          y,
+          width: 0,
+          height: 0,
+        });
+      }
+    } else if (zoom > 1) {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - imagePosition.x,
@@ -234,7 +268,24 @@ export default function FullScreenImageViewer({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging && zoom > 1) {
+    if (activeTool === "annotate" && isDrawing) {
+      const imageRect = e.currentTarget.getBoundingClientRect();
+
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+
+        const currentX = (e.clientX - imageRect.left) * scaleX;
+        const currentY = (e.clientY - imageRect.top) * scaleY;
+
+        setCurrentBox({
+          x: Math.min(startPoint.x, currentX),
+          y: Math.min(startPoint.y, currentY),
+          width: Math.abs(currentX - startPoint.x),
+          height: Math.abs(currentY - startPoint.y),
+        });
+      }
+    } else if (isDragging && zoom > 1) {
       setImagePosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y,
@@ -243,7 +294,17 @@ export default function FullScreenImageViewer({
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    if (activeTool === "annotate" && isDrawing && currentBox) {
+      // Only create annotation if box has meaningful size
+      if (currentBox.width > 10 && currentBox.height > 10) {
+        setPendingAnnotation(currentBox);
+        setShowClassSelector(true);
+      }
+      setIsDrawing(false);
+      setCurrentBox(null);
+    } else {
+      setIsDragging(false);
+    }
   };
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -285,11 +346,19 @@ export default function FullScreenImageViewer({
   };
 
   const getClassCounts = (): { [key: string]: number } => {
-    if (!detectionResults?.predictions) return {};
-
     const counts: { [key: string]: number } = {};
-    detectionResults.predictions.forEach((detection: any) => {
-      const className = detection.class || "Unknown";
+
+    // Count original detections
+    if (detectionResults?.predictions) {
+      detectionResults.predictions.forEach((detection: any) => {
+        const className = detection.class || "Unknown";
+        counts[className] = (counts[className] || 0) + 1;
+      });
+    }
+
+    // Count user annotations
+    userAnnotations.forEach((annotation) => {
+      const className = annotation.class || "Unknown";
       counts[className] = (counts[className] || 0) + 1;
     });
 
@@ -342,6 +411,68 @@ export default function FullScreenImageViewer({
       setNewClassName("");
       setShowAddClassModal(false);
     }
+  };
+
+  // Get all available classes (detected + custom)
+  const getAllAvailableClasses = () => {
+    const detectedClasses = Object.keys(getClassCounts());
+    return [...new Set([...detectedClasses, ...customClasses])];
+  };
+
+  // Handle annotation class assignment
+  const handleAssignClass = (className: string) => {
+    if (pendingAnnotation) {
+      const newAnnotation: Detection = {
+        ...pendingAnnotation,
+        class: className,
+        confidence: 1.0,
+        color: getColorForClass(className),
+        id: `user-annotation-${Date.now()}`,
+      };
+
+      setUserAnnotations((prev) => [...prev, newAnnotation]);
+      setPendingAnnotation(null);
+      setShowClassSelector(false);
+      setSelectedAnnotationClass("");
+    }
+  };
+
+  // Handle creating new class for annotation
+  const handleCreateNewClassForAnnotation = () => {
+    if (selectedAnnotationClass.trim() && pendingAnnotation) {
+      // Add to custom classes if not already there
+      if (!customClasses.includes(selectedAnnotationClass.trim())) {
+        setCustomClasses((prev) => [...prev, selectedAnnotationClass.trim()]);
+      }
+
+      const newAnnotation: Detection = {
+        ...pendingAnnotation,
+        class: selectedAnnotationClass.trim(),
+        confidence: 1.0,
+        color: getColorForClass(selectedAnnotationClass.trim()),
+        id: `user-annotation-${Date.now()}`,
+      };
+
+      setUserAnnotations((prev) => [...prev, newAnnotation]);
+      setPendingAnnotation(null);
+      setShowClassSelector(false);
+      setSelectedAnnotationClass("");
+    }
+  };
+
+  // Get combined detection boxes (original + user annotations)
+  const getCombinedDetectionBoxes = (): Detection[] => {
+    const originalBoxes = getDetectionBoxes();
+
+    // Filter user annotations by selected classes if any are selected
+    let filteredUserAnnotations = userAnnotations;
+    if (selectedClasses.size > 0) {
+      filteredUserAnnotations = userAnnotations.filter((annotation) =>
+        selectedClasses.has(annotation.class || "Unknown")
+      );
+    }
+
+    return [...originalBoxes, ...filteredUserAnnotations];
   };
 
   // Toolbar action handlers
@@ -500,15 +631,27 @@ export default function FullScreenImageViewer({
 
       {/* Image Container */}
       <div
-        className={`flex-1 flex items-center justify-center cursor-move relative ${
+        className={`flex-1 flex items-center justify-center relative ${
           leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
         }`}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        style={{
+          cursor:
+            activeTool === "annotate"
+              ? "crosshair"
+              : zoom > 1
+              ? isDragging
+                ? "grabbing"
+                : "grab"
+              : "default",
+        }}
       >
-        <div className="relative">
+        <div
+          className="relative"
+          onMouseDown={activeTool !== "annotate" ? handleMouseDown : undefined}
+          onMouseMove={activeTool !== "annotate" ? handleMouseMove : undefined}
+          onMouseUp={activeTool !== "annotate" ? handleMouseUp : undefined}
+          onMouseLeave={activeTool !== "annotate" ? handleMouseUp : undefined}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={currentImage.path}
@@ -518,9 +661,24 @@ export default function FullScreenImageViewer({
               transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
                 imagePosition.x / zoom
               }px, ${imagePosition.y / zoom}px)`,
-              cursor: zoom > 1 ? (isDragging ? "grabbing" : "grab") : "default",
+              cursor:
+                activeTool === "annotate"
+                  ? "crosshair"
+                  : zoom > 1
+                  ? isDragging
+                    ? "grabbing"
+                    : "grab"
+                  : "default",
             }}
             onLoad={handleImageLoad}
+            onMouseDown={
+              activeTool === "annotate" ? handleMouseDown : undefined
+            }
+            onMouseMove={
+              activeTool === "annotate" ? handleMouseMove : undefined
+            }
+            onMouseUp={activeTool === "annotate" ? handleMouseUp : undefined}
+            onMouseLeave={activeTool === "annotate" ? handleMouseUp : undefined}
             onError={(e) => {
               e.currentTarget.src =
                 "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
@@ -529,26 +687,44 @@ export default function FullScreenImageViewer({
           />
 
           {/* Detection Overlay */}
-          {detectionResults?.predictions &&
-            showDetections &&
-            imageDimensions.width > 0 && (
-              <svg
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
-                }}
-                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
-                preserveAspectRatio="xMidYMid meet"
-              >
-                {getDetectionBoxes().map((detection) => {
-                  // proportional x-axis shift based on width
-                  const shiftRatio =
-                    Math.log2(detection.width * 20000000000000000000000000000) /
-                    200; // non-linear smooth scaling
-                  const xShift = detection.width * shiftRatio;
-                  const yShift = detection.height * shiftRatio;
+          {imageDimensions.width > 0 && (
+            <svg
+              className={`absolute inset-0 ${
+                activeTool === "annotate"
+                  ? "pointer-events-none"
+                  : "pointer-events-none"
+              }`}
+              style={{
+                width: "100%",
+                height: "100%",
+                transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+              }}
+              viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {/* Original detections and user annotations */}
+              {showDetections &&
+                getCombinedDetectionBoxes().map((detection) => {
+                  // Check if this is a user annotation
+                  const isUserAnnotation =
+                    detection.id.startsWith("user-annotation-");
+
+                  // Apply different positioning logic for user annotations vs original detections
+                  let xShift, yShift;
+
+                  if (isUserAnnotation) {
+                    // For user annotations: simple offset down and right
+                    xShift = -1; // Move 10 pixels to the right
+                    yShift = -1; // Move 10 pixels down
+                  } else {
+                    // For original detections: keep the existing complex calculation
+                    const shiftRatio =
+                      Math.log2(
+                        detection.width * 20000000000000000000000000000
+                      ) / 200; // non-linear smooth scaling
+                    xShift = detection.width * shiftRatio;
+                    yShift = detection.height * shiftRatio;
+                  }
 
                   return (
                     <g key={detection.id}>
@@ -573,8 +749,16 @@ export default function FullScreenImageViewer({
                       />
                       {/* Label background */}
                       <rect
-                        x={detection.x - xShift * 0.2}
-                        y={detection.y + yShift - 12}
+                        x={
+                          isUserAnnotation
+                            ? detection.x + xShift
+                            : detection.x - xShift * 0.2
+                        }
+                        y={
+                          isUserAnnotation
+                            ? detection.y + yShift - 30
+                            : detection.y + yShift - 12
+                        }
                         width={Math.max(
                           (detection.class?.length || 7) * 8 + 20,
                           60
@@ -586,8 +770,16 @@ export default function FullScreenImageViewer({
 
                       {/* Label text */}
                       <text
-                        x={detection.x - xShift * 0.2}
-                        y={detection.y + yShift + 5}
+                        x={
+                          isUserAnnotation
+                            ? detection.x + xShift
+                            : detection.x - xShift * 0.2
+                        }
+                        y={
+                          isUserAnnotation
+                            ? detection.y + yShift - 10
+                            : detection.y + yShift + 5
+                        }
                         fill="white"
                         fontSize="14"
                         fontWeight="bold"
@@ -598,8 +790,40 @@ export default function FullScreenImageViewer({
                     </g>
                   );
                 })}
-              </svg>
-            )}
+
+              {/* Current drawing box */}
+              {currentBox && isDrawing && (
+                <g>
+                  <rect
+                    x={currentBox.x}
+                    y={currentBox.y}
+                    width={currentBox.width}
+                    height={currentBox.height}
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="3"
+                    strokeDasharray="5,5"
+                    strokeOpacity="0.8"
+                  />
+                  <rect
+                    x={currentBox.x}
+                    y={currentBox.y}
+                    width={currentBox.width}
+                    height={currentBox.height}
+                    fill="#3b82f6"
+                    fillOpacity="0.1"
+                  />
+                </g>
+              )}
+
+              {/* Debug: Show if we're in drawing mode */}
+              {isDrawing && (
+                <text x="50" y="50" fill="red" fontSize="20" fontWeight="bold">
+                  DRAWING MODE
+                </text>
+              )}
+            </svg>
+          )}
         </div>
       </div>
 
@@ -630,6 +854,11 @@ export default function FullScreenImageViewer({
             +/- to zoom • R to rotate • Esc to close
           </span>
           {zoom > 1 && <span className="block">Drag to pan when zoomed</span>}
+          {activeTool === "annotate" && (
+            <span className="block text-blue-300 font-medium">
+              🎯 Annotation Mode: Click and drag to create bounding boxes
+            </span>
+          )}
         </p>
       </div>
 
@@ -789,6 +1018,75 @@ export default function FullScreenImageViewer({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Class Selector Modal for Annotations */}
+      {showClassSelector && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4 max-h-96 overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">
+              Select Class for Annotation
+            </h3>
+
+            {/* Existing Classes */}
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                Existing Classes:
+              </h4>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {getAllAvailableClasses().map((className) => (
+                  <button
+                    key={className}
+                    onClick={() => handleAssignClass(className)}
+                    className="w-full flex items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: getColorForClass(className) }}
+                    ></div>
+                    <span className="capitalize text-sm">{className}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Create New Class */}
+            <div className="border-t border-gray-200 pt-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                Or Create New Class:
+              </h4>
+              <input
+                type="text"
+                placeholder="Enter new class name..."
+                value={selectedAnnotationClass}
+                onChange={(e) => setSelectedAnnotationClass(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                onKeyPress={(e) =>
+                  e.key === "Enter" && handleCreateNewClassForAnnotation()
+                }
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCreateNewClassForAnnotation}
+                  disabled={!selectedAnnotationClass.trim()}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
+                >
+                  Create & Assign
+                </button>
+                <button
+                  onClick={() => {
+                    setShowClassSelector(false);
+                    setPendingAnnotation(null);
+                    setSelectedAnnotationClass("");
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
