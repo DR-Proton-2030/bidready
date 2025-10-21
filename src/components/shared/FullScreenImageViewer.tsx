@@ -84,6 +84,7 @@ export default function FullScreenImageViewer({
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
     setSelectedClasses(new Set()); // Reset class filter on image change
+    setSelectedClasses(new Set()); // Reset class filter on image change
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
@@ -214,6 +215,7 @@ export default function FullScreenImageViewer({
     if (!detectionResults?.predictions || !showDetections) return [];
 
     const allBoxes = detectionResults.predictions.map(
+    const allBoxes = detectionResults.predictions.map(
       (detection: any, index: number): Detection => {
         // Generate a color based on the detection class or index
         const colors = [
@@ -335,6 +337,7 @@ export default function FullScreenImageViewer({
   if (!isOpen || !currentImage) return null;
 
   return (
+    <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
     <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-50 bg-[#1C2931] bg-opacity-50 px-4 py-2">
@@ -580,15 +583,20 @@ export default function FullScreenImageViewer({
 
           {/* Class Summary */}
           {/* {detectionResults.predictions &&
+          {/* {detectionResults.predictions &&
             detectionResults.predictions.length > 0 && (
               <div className="mb-4 p-3 bg-white border border-gray-300 bg-opacity-50 rounded-lg">
+              <div className="mb-4 p-3 bg-white border border-gray-300 bg-opacity-50 rounded-lg">
                 <h5 className="text-sm font-medium mb-2">Summary:</h5>
+                <p className="text-sm text-gray-900">{getClassSummary()}</p>
+                <p className="text-xs text-gray-900 mt-1">
                 <p className="text-sm text-gray-900">{getClassSummary()}</p>
                 <p className="text-xs text-gray-900 mt-1">
                   Total: {detectionResults.predictions.length} detection
                   {detectionResults.predictions.length !== 1 ? "s" : ""}
                 </p>
               </div>
+            )} */}
             )} */}
 
           {/* Class Breakdown */}

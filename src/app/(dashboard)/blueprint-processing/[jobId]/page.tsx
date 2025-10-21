@@ -46,6 +46,7 @@ export default function BlueprintProcessingPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [viewMode, setViewMode] = useState<"fullscreen" | "grid">("fullscreen");
   const [isDetecting, setIsDetecting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [detectionResults, setDetectionResults] = useState<any>(null);
   const [removedImages, setRemovedImages] = useState<Set<string>>(new Set());
 
