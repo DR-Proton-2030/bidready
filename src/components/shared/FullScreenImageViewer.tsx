@@ -8,7 +8,12 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
+  Download,
+  Share2,
+  DownloadCloud,
 } from "lucide-react";
+import RightToolbar from "./RightToolbar";
+import CompanyLogo from "./companyLogo/CompanyLogo";
 
 interface Image {
   id: string;
@@ -65,6 +70,11 @@ export default function FullScreenImageViewer({
     new Set()
   );
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [leftToolbarOpen, setLeftToolbarOpen] = useState(true);
+  const [activeTool, setActiveTool] = useState("select");
+  const [showGrid, setShowGrid] = useState(false);
+  const [annotations, setAnnotations] = useState<any[]>([]);
+  const [measurements, setMeasurements] = useState<any[]>([]);
 
   const currentImage = images[currentIndex];
 
@@ -274,16 +284,65 @@ export default function FullScreenImageViewer({
     });
   };
 
+  // Toolbar action handlers
+  const handleDownload = () => {
+    const link = document.createElement("a");
+    link.href = currentImage.path;
+    link.download = currentImage.name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `Blueprint: ${currentImage.name}`,
+        url: currentImage.path,
+      });
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(currentImage.path);
+      // You could show a toast notification here
+      alert("Blueprint link copied to clipboard!");
+    }
+  };
+
+  const handleToggleGrid = () => {
+    setShowGrid(!showGrid);
+  };
+
+  const handleAnnotate = () => {
+    console.log("Starting annotation mode");
+    // Implementation for annotation functionality
+  };
+
+  const handleMeasure = () => {
+    console.log("Starting measurement mode");
+    // Implementation for measurement functionality
+  };
+
+  const handleAddNote = () => {
+    console.log("Adding note/pin");
+    // Implementation for adding notes/pins
+  };
+
+  const handleCalculate = () => {
+    console.log("Opening calculator");
+    // Implementation for calculator functionality
+  };
+
   if (!isOpen || !currentImage) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-50 bg-gray-200 bg-opacity-50 p-4">
-        <div className="flex justify-between items-center text-black">
+      <div className="absolute top-0 left-0 right-0 z-50 bg-[#1C2931] bg-opacity-50 px-4 py-2">
+        <div className="flex justify-between items-center text-white">
           <div>
             <h3 className="text-lg font-medium truncate max-w-md">
-              {currentImage.name}
+              {/* <CompanyLogo width={150} /> */}
+              {currentImage.name} Blue Print
             </h3>
             <p className="text-sm text-gray-900">
               {currentIndex + 1} of {images.length}
@@ -292,7 +351,7 @@ export default function FullScreenImageViewer({
           </div>
 
           {/* Controls */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
             <button
               onClick={zoomOut}
               className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
@@ -321,10 +380,18 @@ export default function FullScreenImageViewer({
 
             <button
               onClick={resetView}
-              className="px-3 py-1 text-sm hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              className="px-3 py-1 text-lg bg-green-500 hover:bg-green-700 hover:bg-opacity-20 mr-4 transition-colors"
               title="Reset View"
             >
               Reset
+            </button>
+            <button
+              onClick={resetView}
+              className="px-3 py-1 flex justify-center items-center gap-2 text-lg bg-[#009568] hover:bg-green-700 hover:bg-opacity-20  transition-colors"
+              title="Reset View"
+            >
+              <DownloadCloud />
+              Export PDF
             </button>
             {/* {detectionResults?.predictions && (
               <button
@@ -340,13 +407,6 @@ export default function FullScreenImageViewer({
               </button>
             )} */}
             {/* Toggle classes/sidebar button */}
-            <button
-              onClick={() => setSidebarOpen((s) => !s)}
-              className="px-3 py-1 text-sm hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-              title="Toggle classes sidebar"
-            >
-              {sidebarOpen ? "Hide classes" : "Show classes"}
-            </button>
 
             <button
               onClick={onClose}
@@ -359,30 +419,30 @@ export default function FullScreenImageViewer({
         </div>
       </div>
 
-      {/* Navigation Buttons */}
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={goToPrevious}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
-            title="Previous Image (←)"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={goToNext}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-3 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all"
-            title="Next Image (→)"
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
-        </>
+      {/* Left Toolbar */}
+      {leftToolbarOpen && (
+        <div className="absolute left-3 top-24 bottom-0  z-20">
+          <RightToolbar
+            activeTool={activeTool}
+            setTool={setActiveTool}
+            onAnnotate={handleAnnotate}
+            onMeasure={handleMeasure}
+            onDownload={handleDownload}
+            onShare={handleShare}
+            onToggleGrid={handleToggleGrid}
+            onAddNote={handleAddNote}
+            onCalculate={handleCalculate}
+            showGrid={showGrid}
+            className=" shadow-xl border border-gray-200"
+          />
+        </div>
       )}
 
       {/* Image Container */}
       <div
-        className="flex-1 flex items-center justify-center p-16 cursor-move relative"
+        className={`flex-1 flex items-center justify-center cursor-move relative ${
+          leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
+        }`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -515,7 +575,7 @@ export default function FullScreenImageViewer({
 
       {/* Detection Results Panel (collapsible sidebar) */}
       {detectionResults && sidebarOpen && (
-        <div className="absolute w-86 top-10 right-0 z-10  bg-gray-200 bg-opacity-75 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto">
+        <div className="absolute w-86 top-20 right-0 z-10 bg-gray-200 bg-opacity-75 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto">
           <h4 className="text-lg font-medium mb-3 pt-10">Detection Results</h4>
 
           {/* Class Summary */}
