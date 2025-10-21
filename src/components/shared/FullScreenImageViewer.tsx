@@ -651,26 +651,30 @@ export default function FullScreenImageViewer({
 
           {/* Search Bar */}
           <div className="relative mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search classes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
+            <div className="flex gap-2 items-center justify-between">
+              <div className="relative w-3/4 flex items-center">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search classes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                />
+              </div>
+
+              <button
+                onClick={() => setShowAddClassModal(true)}
+                className="w-1/4 flex items-center justify-center gap-2 mb-4 px-2 py-2  mt-3
+                bg-black text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
             </div>
           </div>
 
           {/* Add New Class Button */}
-          <button
-            onClick={() => setShowAddClassModal(true)}
-            className="w-full flex items-center justify-center gap-2 mb-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            Add New Class
-          </button>
 
           {/* Class Breakdown */}
           {detectionResults.predictions &&
@@ -686,25 +690,49 @@ export default function FullScreenImageViewer({
                         <button
                           key={className}
                           onClick={() => toggleClassSelection(className)}
-                          className={`w-full flex items-center gap-3 px-3 py-1 rounded transition-all duration-200 ${
-                            isSelected
-                              ? "bg-blue-50 border-blue-300 shadow-md"
-                              : "bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
-                          }`}
+                          className="w-full flex items-center gap-3 px-3 py-2  border-t border-gray-200
+                           hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 bg-white"
                         >
-                          {/* Color Indicator */}
-                          <div
-                            className="w-4 h-4 rounded  border-white shadow-sm flex-shrink-0"
-                            style={{ backgroundColor: classColor }}
-                          ></div>
+                          {/* Circular Checkbox */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {/* Color Indicator */}
+                            <div
+                              className="w-4 h-4  shadow-sm flex-shrink-0"
+                              style={{ backgroundColor: classColor }}
+                            ></div>
+                          </div>
 
                           <div className="flex-1 flex justify-between items-center">
                             <span className="capitalize text-sm font-medium text-gray-700">
                               {className}
+                              <span
+                                className="text-xs font-bold px-1 py-0.5 rounded-full bg-gray-100 ml-2 border border-gray-300 text-black "
+                                // style={{ backgroundColor: classColor }}
+                              >
+                                {count}
+                              </span>
                             </span>
-                            <span className="text-xs font-bold px-2 py-1 rounded text-black shadow-sm">
-                              {count}
-                            </span>
+                          </div>
+                          <div
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                              isSelected
+                                ? "border-blue-500 bg-blue-500"
+                                : "border-gray-300 bg-white"
+                            }`}
+                          >
+                            {isSelected && (
+                              <svg
+                                className="w-2.5 h-2.5 text-white"
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            )}
                           </div>
                         </button>
                       );
