@@ -11,6 +11,8 @@ import {
   Download,
   Share2,
   DownloadCloud,
+  Search,
+  Plus,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
@@ -75,8 +77,49 @@ export default function FullScreenImageViewer({
   const [showGrid, setShowGrid] = useState(false);
   const [annotations, setAnnotations] = useState<any[]>([]);
   const [measurements, setMeasurements] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [newClassName, setNewClassName] = useState("");
+  const [customClasses, setCustomClasses] = useState<string[]>([]);
 
   const currentImage = images[currentIndex];
+
+  // Predefined colors for consistent class mapping
+  const classColors = [
+    "#ff5858ff", // Red
+    "#3ed1c8ff", // Teal
+    "#45b7d1ff", // Blue
+    "#59dc9fff", // Green
+    "#f9d869ff", // Yellow
+    "#d85fd8ff", // Magenta
+    "#66d8bbff", // Light Teal
+    "#f6d450ff", // Gold
+    "#a953ceff", // Purple
+    "#f342e7ff", // Sky Blue
+    "#ff8a80ff", // Light Red
+    "#80cbc4ff", // Mint
+    "#81c784ff", // Light Green
+    "#ffb74dff", // Orange
+    "#ba68c8ff", // Light Purple
+    "#4fc3f7ff", // Cyan
+    "#aed581ff", // Lime
+    "#ffcc80ff", // Peach
+    "#f48fb1ff", // Pink
+    "#90a4aeff", // Blue Grey
+  ];
+
+  // Function to get consistent color for a class
+  const getColorForClass = (className: string): string => {
+    if (!className) return classColors[0];
+
+    // Create a simple hash from the class name for consistent color assignment
+    let hash = 0;
+    for (let i = 0; i < className.length; i++) {
+      hash = className.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const colorIndex = Math.abs(hash) % classColors.length;
+    return classColors[colorIndex];
+  };
 
   // Reset zoom and position when image changes
   useEffect(() => {
@@ -84,7 +127,7 @@ export default function FullScreenImageViewer({
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
     setSelectedClasses(new Set()); // Reset class filter on image change
-    setSelectedClasses(new Set()); // Reset class filter on image change
+    setSearchTerm(""); // Reset search term on image change
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
@@ -216,20 +259,8 @@ export default function FullScreenImageViewer({
 
     const allBoxes = detectionResults.predictions.map(
       (detection: any, index: number): Detection => {
-        // Generate a color based on the detection class or index
-        const colors = [
-          "#ff5858ff",
-          "#3ed1c8ff",
-          "#45b7d1",
-          "#59dc9fff",
-          "#f9d869ff",
-          "#d85fd8ff",
-          "#66d8bbff",
-          "#f6d450ff",
-          "#a953ceff",
-          "#5dafe6ff",
-        ];
-        const color = colors[index % colors.length];
+        const className = detection.class || "Unknown";
+        const color = getColorForClass(className);
 
         return {
           x: detection.x || 0,
@@ -283,6 +314,34 @@ export default function FullScreenImageViewer({
       }
       return newSet;
     });
+  };
+
+  // Filter classes based on search term
+  const getFilteredClasses = () => {
+    const allClassCounts = getClassCounts();
+    const allClasses = Object.keys(allClassCounts);
+
+    if (!searchTerm) return allClassCounts;
+
+    const filteredCounts: { [key: string]: number } = {};
+    allClasses
+      .filter((className) =>
+        className.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .forEach((className) => {
+        filteredCounts[className] = allClassCounts[className];
+      });
+
+    return filteredCounts;
+  };
+
+  // Add new custom class
+  const handleAddNewClass = () => {
+    if (newClassName.trim() && !customClasses.includes(newClassName.trim())) {
+      setCustomClasses((prev) => [...prev, newClassName.trim()]);
+      setNewClassName("");
+      setShowAddClassModal(false);
+    }
   };
 
   // Toolbar action handlers
@@ -576,46 +635,179 @@ export default function FullScreenImageViewer({
 
       {/* Detection Results Panel (collapsible sidebar) */}
       {detectionResults && sidebarOpen && (
-        <div className="absolute w-86 top-20 right-0 z-10 bg-gray-200 bg-opacity-75 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto">
-          <h4 className="text-lg font-medium mb-3 pt-10">Detection Results</h4>
+        <div className="absolute w-96 top-0 right-0 z-10 bg-white bg-opacity-95 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto shadow-2xl border border-gray-300">
+          <div className="flex items-center justify-between mb-4 pt-6">
+            <h4 className="text-xl font-bold text-gray-800">
+              Detection Results
+            </h4>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1 hover:bg-gray-200 rounded transition-colors"
+              title="Close Panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search classes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Add New Class Button */}
+          <button
+            onClick={() => setShowAddClassModal(true)}
+            className="w-full flex items-center justify-center gap-2 mb-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Add New Class
+          </button>
 
           {/* Class Breakdown */}
           {detectionResults.predictions &&
             detectionResults.predictions.length > 0 && (
               <div className="mb-4">
                 <div className="space-y-1">
-                  {Object.entries(getClassCounts()).map(
+                  {Object.entries(getFilteredClasses()).map(
                     ([className, count]) => {
                       const isSelected = selectedClasses.has(className);
+                      const classColor = getColorForClass(className);
+
                       return (
                         <button
                           key={className}
                           onClick={() => toggleClassSelection(className)}
-                          className={`w-full flex mt-2 justify-between text-lg rounded px-4 py-2 transition-colors
-                             cursor-pointer hover:bg-opacity-30 ${
-                               isSelected
-                                 ? "bg-blue-500 text-white bg-opacity-40 border border-blue-400"
-                                 : "bg-white bg-opacity-10 hover:bg-blue-200"
-                             }`}
+                          className={`w-full flex items-center gap-3 px-3 py-1 rounded transition-all duration-200 ${
+                            isSelected
+                              ? "bg-blue-50 border-blue-300 shadow-md"
+                              : "bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
+                          }`}
                         >
-                          <span className="capitalize">{className}</span>
-                          <span className="font-medium">{count}</span>
+                          {/* Color Indicator */}
+                          <div
+                            className="w-4 h-4 rounded  border-white shadow-sm flex-shrink-0"
+                            style={{ backgroundColor: classColor }}
+                          ></div>
+
+                          <div className="flex-1 flex justify-between items-center">
+                            <span className="capitalize text-sm font-medium text-gray-700">
+                              {className}
+                            </span>
+                            <span className="text-xs font-bold px-2 py-1 rounded text-black shadow-sm">
+                              {count}
+                            </span>
+                          </div>
                         </button>
                       );
                     }
                   )}
                 </div>
+
+                {/* Clear Filter Button */}
                 {selectedClasses.size > 0 && (
                   <button
                     onClick={() => setSelectedClasses(new Set())}
-                    className="mt-2 text-xs text-gray-800 hover:text-blue-800 underline"
+                    className="mt-3 w-full text-sm text-gray-600 hover:text-blue-600 underline py-1"
                   >
-                    Clear filter (show all)
+                    Clear filter (show all{" "}
+                    {Object.keys(getClassCounts()).length} classes)
                   </button>
                 )}
+
+                {/* Summary Stats */}
+                <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">
+                    Total Detections:
+                  </p>
+                  <p className="text-lg font-bold text-gray-800">
+                    {detectionResults.predictions.length}
+                  </p>
+                  <p className="text-xs text-gray-600 mt-2">
+                    {Object.keys(getClassCounts()).length} different classes
+                    detected
+                  </p>
+                </div>
               </div>
             )}
+
+          {/* Custom Classes Section */}
+          {customClasses.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h5 className="text-sm font-semibold text-gray-700 mb-2">
+                Custom Classes
+              </h5>
+              <div className="space-y-1">
+                {customClasses.map((className, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 px-2 py-1 bg-gray-100 rounded text-sm"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: getColorForClass(className) }}
+                    ></div>
+                    <span className="capitalize">{className}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Add New Class Modal */}
+      {showAddClassModal && (
+        <div className="fixed inset-0 bg-black/50 bg-blur-sm bg-opacity-50 flex items-center justify-center 0 z-60">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-4">Add New Class</h3>
+            <input
+              type="text"
+              placeholder="Enter class name..."
+              value={newClassName}
+              onChange={(e) => setNewClassName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+              onKeyPress={(e) => e.key === "Enter" && handleAddNewClass()}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleAddNewClass}
+                disabled={!newClassName.trim()}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                Add Class
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddClassModal(false);
+                  setNewClassName("");
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toggle Sidebar Button (when closed) */}
+      {!sidebarOpen && detectionResults && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="absolute top-24 right-4 z-10 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
+          title="Show Detection Panel"
+        >
+          <Search className="w-5 h-5" />
+        </button>
       )}
     </div>
   );
