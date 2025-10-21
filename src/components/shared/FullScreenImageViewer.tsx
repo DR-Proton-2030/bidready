@@ -1024,13 +1024,48 @@ export default function FullScreenImageViewer({
       {/* Class Selector Modal for Annotations */}
       {showClassSelector && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60">
-          <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4 max-h-96 overflow-y-auto">
-            <h3 className="text-lg font-semibold mb-4">
-              Select Class for Annotation
-            </h3>
+          <div className="bg-white rounded-lg p-6 w-96 w-md mx-4 max-h-[70vh] overflow-y-auto">
+            {/* Create New Class */}
+            <div className="">
+              <h4 className="text-md font-semibold text-gray-900  mb-2">
+                Create New Class
+              </h4>
+              <input
+                type="text"
+                placeholder="Enter new class name..."
+                value={selectedAnnotationClass}
+                onChange={(e) => setSelectedAnnotationClass(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                onKeyPress={(e) =>
+                  e.key === "Enter" && handleCreateNewClassForAnnotation()
+                }
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCreateNewClassForAnnotation}
+                  disabled={!selectedAnnotationClass.trim()}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg
+                   hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed 
+                   transition-colors text-sm"
+                >
+                  Create & Assign
+                </button>
+                <button
+                  onClick={() => {
+                    setShowClassSelector(false);
+                    setPendingAnnotation(null);
+                    setSelectedAnnotationClass("");
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-800 text-gray-100 rounded-lg
+                   hover:bg-gray-300 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
 
             {/* Existing Classes */}
-            <div className="mb-4">
+            <div className="my-4">
               <h4 className="text-sm font-medium text-gray-700 mb-2">
                 Existing Classes:
               </h4>
@@ -1048,42 +1083,6 @@ export default function FullScreenImageViewer({
                     <span className="capitalize text-sm">{className}</span>
                   </button>
                 ))}
-              </div>
-            </div>
-
-            {/* Create New Class */}
-            <div className="border-t border-gray-200 pt-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Or Create New Class:
-              </h4>
-              <input
-                type="text"
-                placeholder="Enter new class name..."
-                value={selectedAnnotationClass}
-                onChange={(e) => setSelectedAnnotationClass(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
-                onKeyPress={(e) =>
-                  e.key === "Enter" && handleCreateNewClassForAnnotation()
-                }
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCreateNewClassForAnnotation}
-                  disabled={!selectedAnnotationClass.trim()}
-                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm"
-                >
-                  Create & Assign
-                </button>
-                <button
-                  onClick={() => {
-                    setShowClassSelector(false);
-                    setPendingAnnotation(null);
-                    setSelectedAnnotationClass("");
-                  }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
               </div>
             </div>
           </div>
