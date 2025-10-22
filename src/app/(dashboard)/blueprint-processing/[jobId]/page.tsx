@@ -264,8 +264,10 @@ export default function BlueprintProcessingPage() {
 
     // Append all images & metadata
     imagePairs.forEach((pair, index) => {
+      // Append the image file
       formData.append(`images`, pair.imageFile, pair.imageName);
 
+      // Create metadata for this image
       const metadata = {
         imageIndex: index,
         imageId: pair.imageId,
@@ -275,24 +277,42 @@ export default function BlueprintProcessingPage() {
         detection_result: pair.detection_result || null,
       };
 
+      // Append metadata as individual entries (this matches backend expectation)
       formData.append(`image_metadata`, JSON.stringify(metadata));
     });
 
+    // Also send image_pairs data for backend compatibility
+    const imagePairsData = imagePairs.map((pair, index) => ({
+      imageIndex: index,
+      imageId: pair.imageId,
+      imageName: pair.imageName,
+      pageNumber: pair.pageNumber,
+      hasDetectionResult: !!pair.detection_result,
+      detection_result: pair.detection_result || null,
+      svg_overlay: null, // We're not using SVG overlays in this flow
+    }));
+    
+    formData.append("image_pairs", JSON.stringify(imagePairsData));
     formData.append("image_count", imagePairs.length.toString());
 
     // Debug logging for verification
     console.log("======> Blueprint form data:");
+    console.log("======> Image pairs data:", imagePairsData);
     for (const [key, value] of formData.entries()) {
       if (value instanceof File) {
         console.log(`${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      } else if (key === 'image_pairs') {
+        console.log(`${key}: ${value} (parsed:`, JSON.parse(value as string), ')');
       } else {
         console.log(`${key}: ${value}`);
       }
     }
 
-    // ✅ Important: Don't set Content-Type manually!
+  
+    // ✅ Important: Don't set Content-Type manually for FormData!
     const apiResponse = await fetch("http://localhost:8989/api/v1/blueprints/create-blueprint", {
       method: "POST",
+   
       body: formData,
       credentials: "include", // optional if your API requires cookies/auth
     });
