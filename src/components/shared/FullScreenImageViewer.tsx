@@ -42,6 +42,7 @@ interface FullScreenImageViewerProps {
   onClose: () => void;
   onImageChange?: (image: Image, index: number) => void;
   detectionResults?: any;
+  onSvgOverlayUpdate?: (imageId: string, svgData: string | null) => void;
 }
 
 export default function FullScreenImageViewer({
@@ -51,6 +52,7 @@ export default function FullScreenImageViewer({
   onClose,
   onImageChange,
   detectionResults,
+  onSvgOverlayUpdate,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
@@ -58,7 +60,7 @@ export default function FullScreenImageViewer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  console.log("=========>detectionResults", detectionResults);
+  // console.log("=========>detectionResults", detectionResults);
   const [imageDimensions, setImageDimensions] = useState({
     width: 0,
     height: 0,
@@ -474,6 +476,93 @@ export default function FullScreenImageViewer({
 
     return [...originalBoxes, ...filteredUserAnnotations];
   };
+
+  // Generate SVG overlay from detection results and user annotations
+  const generateSvgOverlay = useCallback(() => {
+    if (!imageDimensions.width || !imageDimensions.height) return null;
+
+    // Get detection boxes directly here to avoid dependency issues
+    let allDetections: Detection[] = [];
+    
+    // Get original detections
+    if (detectionResults?.predictions && showDetections) {
+      const originalBoxes = detectionResults.predictions.map(
+        (detection: any, index: number): Detection => {
+          const className = detection.class || "Unknown";
+          const color = getColorForClass(className);
+
+          return {
+            x: detection.x || 0,
+            y: detection.y || 0,
+            width: detection.width || 0,
+            height: detection.height || 0,
+            class: detection.class,
+            confidence: detection.confidence,
+            color,
+            id: `detection-${index}`,
+          };
+        }
+      );
+
+      // Filter by selected classes if any are selected
+      if (selectedClasses.size === 0) {
+        allDetections = [...allDetections, ...originalBoxes];
+      } else {
+        allDetections = [...allDetections, ...originalBoxes.filter((box: Detection) =>
+          selectedClasses.has(box.class || "Unknown")
+        )];
+      }
+    }
+
+    // Add user annotations
+    let filteredUserAnnotations = userAnnotations;
+    if (selectedClasses.size > 0) {
+      filteredUserAnnotations = userAnnotations.filter((annotation) =>
+        selectedClasses.has(annotation.class || "Unknown")
+      );
+    }
+    allDetections = [...allDetections, ...filteredUserAnnotations];
+
+    if (allDetections.length === 0) return null;
+
+    const svgContent = `
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="${imageDimensions.width}" 
+           height="${imageDimensions.height}" 
+           viewBox="0 0 ${imageDimensions.width} ${imageDimensions.height}">
+        ${allDetections.map(detection => `
+          <rect x="${detection.x - detection.width/2}" 
+                y="${detection.y - detection.height/2}" 
+                width="${detection.width}" 
+                height="${detection.height}" 
+                fill="none" 
+                stroke="${detection.color}" 
+                stroke-width="2" 
+                opacity="0.8"/>
+          ${detection.class ? `
+            <text x="${detection.x - detection.width/2}" 
+                  y="${detection.y - detection.height/2 - 5}" 
+                  font-family="Arial, sans-serif" 
+                  font-size="12" 
+                  fill="${detection.color}" 
+                  font-weight="bold">
+              ${detection.class}${detection.confidence ? ` (${Math.round(detection.confidence * 100)}%)` : ''}
+            </text>
+          ` : ''}
+        `).join('')}
+      </svg>
+    `;
+
+    return svgContent;
+  }, [imageDimensions.width, imageDimensions.height, detectionResults, userAnnotations, selectedClasses, showDetections]);
+
+  // Update SVG overlay when detections change
+  useEffect(() => {
+    if (onSvgOverlayUpdate && currentImage) {
+      const svgData = generateSvgOverlay();
+      onSvgOverlayUpdate(currentImage.id, svgData);
+    }
+  }, [generateSvgOverlay, currentImage?.id, onSvgOverlayUpdate]);
 
   // Toolbar action handlers
   const handleDownload = () => {

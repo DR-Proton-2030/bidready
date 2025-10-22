@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBlueprints } from "@/hooks/useBlueprints/useBlueprints";
 import Header from "@/components/pages/createBlueprint/Header";
@@ -24,6 +24,7 @@ interface ProcessedImage {
   name: string;
   path: string;
   pageNumber?: number;
+  svgOverlay?: string | null; // SVG overlay URL or data
 }
 
 const statusOptions = ["active", "completed", "on-hold", "in-progress"];
@@ -50,6 +51,7 @@ export default function CreateBlueprintPage({
   const [fullScreenIndex, setFullScreenIndex] = useState(0);
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionResults, setDetectionResults] = useState<any>(null);
+  const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(new Map());
   const { handleNewBlueprint } = useBlueprints();
 
   // Check if we have processed images from URL params (coming from processing page)
@@ -141,6 +143,24 @@ export default function CreateBlueprintPage({
     detectImageWithAPI(image);
   };
 
+  // Handle SVG overlay updates from FullScreenImageViewer
+  const handleSvgOverlayUpdate = useCallback((imageId: string, svgData: string | null) => {
+    setSvgOverlays(prev => {
+      const current = prev.get(imageId);
+      if (current === svgData) return prev; // No change, avoid update
+      return new Map(prev.set(imageId, svgData));
+    });
+    
+    // Also update the processedImages array to include SVG overlay info
+    setProcessedImages(prev => 
+      prev.map(img => 
+        img.id === imageId 
+          ? { ...img, svgOverlay: svgData }
+          : img
+      )
+    );
+  }, []);
+
   const handleFileUpload = async (files: FileList) => {
     if (!files || files.length === 0) return;
 
@@ -219,11 +239,57 @@ export default function CreateBlueprintPage({
       fd.append("type", form.type || "");
       fd.append("project_object_id", form.project_object_id);
 
-      // Add processed images metadata
-      fd.append("processed_images", JSON.stringify(processedImages));
+      // Create image_pairs array with image files and SVG overlays
+      const imagePairs = await Promise.all(
+        processedImages.map(async (image, index) => {
+          // Fetch the image file from the server
+          const imageResponse = await fetch(image.path);
+          const imageBlob = await imageResponse.blob();
+          const imageFile = new File([imageBlob], image.name, { type: imageBlob.type });
+          
+          // Get SVG overlay for this image (null if no detection/annotation was done)
+          const svgOverlay = svgOverlays.get(image.id) || image.svgOverlay || null;
+          
+          return {
+            image: imageFile,
+            svg_overlay: svgOverlay,
+            imageId: image.id,
+            imageName: image.name,
+            pageNumber: image.pageNumber
+          };
+        })
+      );
+
+      // Add image files to FormData
+      imagePairs.forEach((pair, index) => {
+        fd.append(`image_${index}`, pair.image);
+        if (pair.svg_overlay) {
+          fd.append(`svg_overlay_${index}`, pair.svg_overlay);
+        }
+      });
+
+      // Add image_pairs metadata
+      const imagePairsMetadata = imagePairs.map((pair, index) => ({
+        imageIndex: index,
+        imageId: pair.imageId,
+        imageName: pair.imageName,
+        pageNumber: pair.pageNumber,
+        hasSvgOverlay: !!pair.svg_overlay
+      }));
+      
+      fd.append("image_pairs", JSON.stringify(imagePairsMetadata));
       fd.append("blueprint_files_count", String(processedImages.length));
 
-      console.log("======>payload", processedImages);
+      console.log("======>payload structure:", {
+        name: form.name,
+        description: form.description,
+        version: form.version,
+        status: form.status,
+        type: form.type,
+        project_object_id: form.project_object_id,
+        image_pairs: imagePairsMetadata
+      });
+
       await handleNewBlueprint(fd);
 
       // Success - navigate to blueprints list
@@ -476,6 +542,7 @@ export default function CreateBlueprintPage({
         }}
         onImageChange={handleImageChange}
         detectionResults={detectionResults}
+        onSvgOverlayUpdate={handleSvgOverlayUpdate}
       />
     </div>
   );

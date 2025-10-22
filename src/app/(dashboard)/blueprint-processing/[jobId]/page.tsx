@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   CheckCircle,
@@ -21,6 +21,7 @@ interface ProcessedImage {
   name: string;
   path: string;
   pageNumber?: number;
+  svgOverlay?: string | null;
 }
 
 interface JobStatus {
@@ -49,6 +50,8 @@ export default function BlueprintProcessingPage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [detectionResults, setDetectionResults] = useState<any>(null);
   const [removedImages, setRemovedImages] = useState<Set<string>>(new Set());
+  const [imageDetectionResults, setImageDetectionResults] = useState<Map<string, any>>(new Map());
+  const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(new Map());
 
   // Filter out removed images
   const filteredImages =
@@ -124,7 +127,8 @@ export default function BlueprintProcessingPage() {
       const result = await apiResponse.json();
       console.log("Detection result:", result);
 
-      // Store detection results
+      // Store detection results for this specific image
+      setImageDetectionResults(prev => new Map(prev.set(image.id, result)));
       setDetectionResults(result);
 
       // Open the modal after getting results
@@ -208,10 +212,73 @@ export default function BlueprintProcessingPage() {
     }
   };
 
+  const handleCreateBlueprint = useCallback(async () => {
+    if (filteredImages.length === 0) {
+      alert("No images available to create blueprint");
+      return;
+    }
+
+    try {
+      // Create image_pairs array with image files and detection results
+      const imagePairs = await Promise.all(
+        filteredImages.map(async (image, index) => {
+          // Fetch the image file from the server
+          const imageResponse = await fetch(image.path);
+          const imageBlob = await imageResponse.blob();
+          const imageFile = new File([imageBlob], image.name, { type: imageBlob.type });
+          
+          // Get detection results for this image (if any)
+          const detectionResult = imageDetectionResults.get(image.id) || null;
+          
+          return {
+            image: imageFile,
+            detection_result: detectionResult,
+            imageId: image.id,
+            imageName: image.name,
+            pageNumber: image.pageNumber
+          };
+        })
+      );
+
+      // Create the payload structure
+      const payload = {
+        name: `Blueprint from Job ${jobId}`,
+        description: "Auto-generated blueprint from processed images",
+        version: "v1",
+        status: "active",
+        type: "floor_plan",
+        project_object_id: "68b72c0b0002cf35d19b54e4", // You might want to make this dynamic
+        image_pairs: imagePairs.map((pair, index) => ({
+          imageIndex: index,
+          imageId: pair.imageId,
+          imageName: pair.imageName,
+          pageNumber: pair.pageNumber,
+          hasDetectionResult: !!pair.detection_result
+        }))
+      };
+
+      console.log("======> Blueprint Creation Payload:", payload);
+      console.log("======> Detection Results Map:", Array.from(imageDetectionResults.entries()));
+      
+      // For now, just show the payload in console - you can implement actual API call here
+      alert("Payload logged to console - check developer tools");
+      
+    } catch (error) {
+      console.error("Error creating blueprint:", error);
+      alert("Error creating blueprint: " + (error instanceof Error ? error.message : "Unknown error"));
+    }
+  }, [filteredImages, imageDetectionResults, jobId]);
+
+  // Keep the original function for navigation to form
   const handleContinueToForm = () => {
     if (filteredImages.length > 0) {
-      // Pass the filtered images data to the blueprint creation form
-      const imageData = encodeURIComponent(JSON.stringify(filteredImages));
+      // Pass the filtered images data to the blueprint creation form with SVG overlays
+      const imagesWithOverlays = filteredImages.map(image => ({
+        ...image,
+        svgOverlay: svgOverlays.get(image.id) || null
+      }));
+      
+      const imageData = encodeURIComponent(JSON.stringify(imagesWithOverlays));
       router.push(
         `/create-blueprint?processedImages=${imageData}&jobId=${jobId}`
       );
@@ -718,12 +785,20 @@ export default function BlueprintProcessingPage() {
           </button>
 
           {jobStatus.status === "completed" && filteredImages.length > 0 && (
-            <button
-              onClick={handleContinueToForm}
-              className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Continue to Blueprint Form
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={handleContinueToForm}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md hover:bg-gray-50"
+              >
+                Continue to Form
+              </button>
+              <button
+                onClick={handleCreateBlueprint}
+                className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Create Blueprint
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -738,6 +813,10 @@ export default function BlueprintProcessingPage() {
           setDetectionResults(null); // Clear detection results when closing
         }}
         detectionResults={detectionResults}
+        onSvgOverlayUpdate={(imageId, svgData) => {
+          // Just log for debugging - we're storing detection results instead
+          console.log('SVG overlay updated for image:', imageId, svgData ? 'with data' : 'cleared');
+        }}
       />
     </div>
   );
