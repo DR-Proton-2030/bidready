@@ -253,6 +253,8 @@ export default function BlueprintProcessingPage() {
           imageId: pair.imageId,
           imageName: pair.imageName,
           pageNumber: pair.pageNumber,
+          image: pair.image, // The actual File object
+          detection_result: pair.detection_result, // The detection JSON (null if no detection was run)
           hasDetectionResult: !!pair.detection_result
         }))
       };
