@@ -412,9 +412,9 @@ filteredImages
             <div className="flex items-center space-x-3">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  Blueprint Processing
+{blueprintData.name}
                 </h1>
-                <p className="text-xs text-gray-600">Job ID: {jobId}</p>
+                <p className="text-xs text-gray-600">Version :{blueprintData.version}</p>
               </div>
             </div>
 
@@ -425,14 +425,7 @@ filteredImages
                   {jobStatus.progress.processed} of {jobStatus.progress.total}{" "}
                   processed
                 </span>
-                <span
-                  className={`px-3 py-1  rounded-full text-sm font-medium ${getStatusColor(
-                    jobStatus.status
-                  )}`}
-                >
-                  {jobStatus.status.charAt(0).toUpperCase() +
-                    jobStatus.status.slice(1)}
-                </span>
+               
               </div>
               {/* <div className="w-96 bg-gray-200 rounded-full h-2">
                 <div
@@ -469,130 +462,8 @@ filteredImages
           </div>
         )}
 
-        {/* Blueprint Information */}
-        {blueprintData && (
-          <div className="bg-blue-50 rounded-lg border border-blue-200 p-4 mb-6">
-            <h3 className="text-sm font-medium text-blue-900 mb-3">
-              Blueprint Details
-            </h3>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">Name:</span>
-                <span className="ml-2 font-medium">{blueprintData.name}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Version:</span>
-                <span className="ml-2 font-medium">{blueprintData.version}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Type:</span>
-                <span className="ml-2 font-medium">{blueprintData.type}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Status:</span>
-                <span className="ml-2 font-medium">{blueprintData.status}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Total Images:</span>
-                <span className="ml-2 font-medium">{filteredImages.length}</span>
-              </div>
-              <div>
-                <span className="text-gray-600">Detected:</span>
-                <span className="ml-2 font-medium text-green-600">
-                  {filteredImages.filter(image => imageDetectionResults.has(image.id)).length}
-                </span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-600">Description:</span>
-                <span className="ml-2 font-medium">{blueprintData.description}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Detected Images Section */}
-        {filteredImages.filter(image => imageDetectionResults.has(image.id)).length > 0 && (
-          <div className="bg-green-50 rounded-lg border border-green-200 p-6 mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-green-900">
-                  🔍 Detected Images ({filteredImages.filter(image => imageDetectionResults.has(image.id)).length})
-                </h2>
-                <p className="text-sm text-green-600">
-                  Images with AI detection results
-                </p>
-              </div>
-              <div className="text-sm text-green-700 bg-green-100 px-3 py-1 rounded-full">
-                ✅ Ready for Blueprint Creation
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredImages
-                .filter(image => imageDetectionResults.has(image.id))
-                .map((image, index) => (
-                  <div
-                    key={image.id}
-                    className="border border-green-300 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group bg-white"
-                  >
-                    <div className="relative">
-                      <div
-                        className="aspect-video bg-gray-100 flex items-center justify-center cursor-pointer"
-                        onClick={() => {
-                          const originalIndex = filteredImages.findIndex(img => img.id === image.id);
-                          setSelectedImageIndex(originalIndex);
-                          setViewerOpen(true);
-                        }}
-                      >
-                        <img
-                          src={image.path}
-                          alt={image.name}
-                          className="max-w-full max-h-full object-contain"
-                          onError={(e) => {
-                            e.currentTarget.src =
-                              "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
-                          }}
-                        />
-                      </div>
-                      
-                      {/* Detection badge */}
-                      <div className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
-                        <span className="w-2 h-2 bg-white rounded-full mr-1"></span>
-                        Detected
-                      </div>
-                      
-                      {/* Remove button */}
-                      <button
-                        onClick={(e) => handleRemoveImage(image.id, e)}
-                        className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-                        title="Remove this image"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <div className="p-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 text-sm truncate">
-                            {image.name}
-                          </h3>
-                          {image.pageNumber && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Page {image.pageNumber}
-                            </p>
-                          )}
-                          <div className="text-xs text-green-600 mt-1 font-medium">
-                            Detection results available
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
+  
+   
 
         {/* Unprocessed Images */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -949,7 +820,116 @@ filteredImages
             </div>
           )}
         </div>
+     {/* Detected Images Section */}
+        {filteredImages.filter(image => imageDetectionResults.has(image.id)).length > 0 && (
+          <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-green-900">
+                  Detected Images ({filteredImages.filter(image => imageDetectionResults.has(image.id)).length})
+                </h2>
+                <p className="text-sm text-green-600">
+                  Images with AI detection results
+                </p>
+              </div>
+              <div className="text-sm text-gray-700 bg-gray-100 border border-gray-300 px-3 py-1 rounded-full">
+                Ready for Blueprint Creation
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredImages
+                .filter(image => imageDetectionResults.has(image.id))
+                .map((image, index) => (
+                  <div
+                    key={image.id}
+                    className="border border-green-300 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group bg-white"
+                  >
+                    <div className="relative">
+                      <div
+                        className="aspect-video bg-gray-100 flex items-center justify-center cursor-pointer"
+                        onClick={() => {
+                          const originalIndex = filteredImages.findIndex(img => img.id === image.id);
+                          setSelectedImageIndex(originalIndex);
+                          
+                          // Set the detection results for this image
+                          const storedResults = imageDetectionResults.get(image.id);
+                          if (storedResults) {
+                            setDetectionResults(storedResults);
+                          }
+                          
+                          setViewerOpen(true);
+                        }}
+                      >
+                        <img
+                          src={image.path}
+                          alt={image.name}
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Detection badge */}
+                      <div className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                        <span className="w-2 h-2 bg-white rounded-full mr-1"></span>
+                        Detected
+                      </div>
+                      
+                      {/* Remove button */}
+                      <button
+                        onClick={(e) => handleRemoveImage(image.id, e)}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                        title="Remove this image"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
 
+                    <div className="p-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 text-sm truncate">
+                            {image.name}
+                          </h3>
+                          {image.pageNumber && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Page {image.pageNumber}
+                            </p>
+                          )}
+                          <div className="text-xs text-green-600 mt-1 font-medium">
+                            Detection results available
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* View Detection Results Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent triggering the card click
+                          const originalIndex = filteredImages.findIndex(img => img.id === image.id);
+                          setSelectedImageIndex(originalIndex);
+                          
+                          // Set the detection results for this image
+                          const storedResults = imageDetectionResults.get(image.id);
+                          if (storedResults) {
+                            setDetectionResults(storedResults);
+                          }
+                          
+                          setViewerOpen(true);
+                        }}
+                        className="w-full mt-2 px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                      >
+                        View Detection Results
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
         {/* Removed Images Section */}
         {removedImages.size > 0 && (
           <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 mt-6">
