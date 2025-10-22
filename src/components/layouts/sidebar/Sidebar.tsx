@@ -90,56 +90,7 @@ const Sidebar = () => {
             </div>
           </div>
 
-          {/* User section */}
-          <div className="p-4 border-t border-gray-200">
-            {!isSidebarCollapsed ? (
-              <div className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50 animate-fade-in">
-                <div className="w-10 h-10 sidebar-gradient rounded-full flex items-center justify-center">
-                  <img
-                    src={user?.profile_picture}
-                    alt={user?.full_name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-900">
-                    {user?.full_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {user?.company_details?.company_name}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <div className="w-10 h-10 sidebar-gradient rounded-full flex items-center justify-center group">
-                  <img
-                    src={user?.profile_picture}
-                    alt={user?.full_name}
-                    className="w-full h-full rounded-full object-cover"
-                  />
-                  <div className="tooltip group-hover:opacity-100">
-                    {user?.full_name}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Collapse toggle button */}
-          <div className="p-4 border-t border-gray-200">
-            <button
-              onClick={toggleSidebar}
-              className="w-full flex items-center justify-center p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-              title={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isSidebarCollapsed ? (
-                <ChevronRight className="w-5 h-5" />
-              ) : (
-                <ChevronLeft className="w-5 h-5" />
-              )}
-            </button>
-          </div>
+   
         </div>
       </aside>
 

@@ -13,6 +13,7 @@ import {
   DownloadCloud,
   Search,
   Plus,
+  Save,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
@@ -652,7 +653,7 @@ export default function FullScreenImageViewer({
 
             <button
               onClick={rotate}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
               title="Rotate (R)"
             >
               <RotateCw className="w-5 h-5" />
@@ -660,19 +661,28 @@ export default function FullScreenImageViewer({
 
             <button
               onClick={resetView}
-              className="px-3 py-1 text-lg bg-green-500 hover:bg-green-700 hover:bg-opacity-20 mr-4 transition-colors"
+              className="px-3 py-1 text-md  hover:bg-gray-700 mr-4 transition-colors"
               title="Reset View"
             >
               Reset
             </button>
-            <button
+             <button
               onClick={resetView}
-              className="px-3 py-1 flex justify-center items-center gap-2 text-lg bg-[#009568] hover:bg-green-700 hover:bg-opacity-20  transition-colors"
-              title="Reset View"
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
+              title="ownload Pdf"
             >
-              <DownloadCloud />
+              <DownloadCloud size={18} />
               Export PDF
             </button>
+            <button
+                   onClick={onClose}
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
+              title="Download Pdf"
+            >
+              <Save size={18} />
+              Save Details
+            </button>
+            
             {/* {detectionResults?.predictions && (
               <button
                 onClick={() => setShowDetections(!showDetections)}
@@ -688,13 +698,7 @@ export default function FullScreenImageViewer({
             )} */}
             {/* Toggle classes/sidebar button */}
 
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-              title="Close (Esc)"
-            >
-              <X className="w-5 h-5" />
-            </button>
+           
           </div>
         </div>
       </div>
@@ -825,8 +829,8 @@ export default function FullScreenImageViewer({
                         height={detection.height}
                         fill="none"
                         stroke={detection.color}
-                        strokeWidth="3"
-                        strokeOpacity="0.8"
+                        strokeWidth="1"
+                        strokeOpacity="0.5"
                       />
                       <rect
                         x={detection.x - xShift}
@@ -834,48 +838,10 @@ export default function FullScreenImageViewer({
                         width={detection.width}
                         height={detection.height}
                         fill={detection.color}
-                        fillOpacity="0.1"
+                        fillOpacity="0.3"
                       />
-                      {/* Label background */}
-                      <rect
-                        x={
-                          isUserAnnotation
-                            ? detection.x + xShift
-                            : detection.x - xShift * 0.2
-                        }
-                        y={
-                          isUserAnnotation
-                            ? detection.y + yShift - 30
-                            : detection.y + yShift - 12
-                        }
-                        width={Math.max(
-                          (detection.class?.length || 7) * 8 + 20,
-                          60
-                        )}
-                        height="25"
-                        fill={detection.color}
-                        fillOpacity="0.9"
-                      />
-
-                      {/* Label text */}
-                      <text
-                        x={
-                          isUserAnnotation
-                            ? detection.x + xShift
-                            : detection.x - xShift * 0.2
-                        }
-                        y={
-                          isUserAnnotation
-                            ? detection.y + yShift - 10
-                            : detection.y + yShift + 5
-                        }
-                        fill="white"
-                        fontSize="14"
-                        fontWeight="bold"
-                        fontFamily="Arial, sans-serif"
-                      >
-                        {detection.class || "Unknown"}
-                      </text>
+                     
+                     
                     </g>
                   );
                 })}
