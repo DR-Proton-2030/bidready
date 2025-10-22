@@ -223,64 +223,97 @@ export default function BlueprintProcessingPage() {
     }
   };
 
-  const handleCreateBlueprint = useCallback(async () => {
+ const handleCreateBlueprint = useCallback(async () => {
+  try {
     if (filteredImages.length === 0) {
       alert("No images available to create blueprint");
       return;
     }
 
-    try {
-      // Create image_pairs array with image files and detection results
-      const imagePairs = await Promise.all(
-        filteredImages.map(async (image, index) => {
-          // Fetch the image file from the server
-          const imageResponse = await fetch(image.path);
-          const imageBlob = await imageResponse.blob();
-          const imageFile = new File([imageBlob], image.name, { type: imageBlob.type });
-          
-          // Get detection results for this image (if any)
-          const detectionResult = imageDetectionResults.get(image.id) || null;
-          
-          return {
-            image: imageFile,
-            detection_result: detectionResult,
-            imageId: image.id,
-            imageName: image.name,
-            pageNumber: image.pageNumber
-          };
-        })
-      );
+  
+    setError(null);
 
-      // Create the payload structure
-      const payload = {
-        name: blueprintData.name,
-        description: blueprintData.description,
-        version: blueprintData.version,
-        status: blueprintData.status,
-        type: blueprintData.type,
-        project_object_id: blueprintData.project_object_id,
-        image_pairs: imagePairs.map((pair, index) => ({
-          imageIndex: index,
-          imageId: pair.imageId,
-          imageName: pair.imageName,
-          pageNumber: pair.pageNumber,
-          image: pair.image, // The actual File object
-          detection_result: pair.detection_result, // The detection JSON (null if no detection was run)
-          hasDetectionResult: !!pair.detection_result
-        }))
+    // Build image pair data with actual files
+    const imagePairs = await Promise.all(
+      filteredImages.map(async (image) => {
+        const imageResponse = await fetch(image.path);
+        const imageBlob = await imageResponse.blob();
+        const imageFile = new File([imageBlob], image.name, { type: imageBlob.type });
+        const detectionResult = imageDetectionResults.get(image.id) || null;
+
+        return {
+          imageFile,
+          detection_result: detectionResult,
+          imageId: image.id,
+          imageName: image.name,
+          pageNumber: image.pageNumber,
+        };
+      })
+    );
+
+    // Prepare multipart form data
+    const formData = new FormData();
+
+    // Basic blueprint fields
+    formData.append("name", blueprintData.name || "");
+    formData.append("description", blueprintData.description || "");
+    formData.append("version", blueprintData.version || "");
+    formData.append("status", blueprintData.status || "");
+    formData.append("type", blueprintData.type || "");
+    formData.append("project_object_id", blueprintData.project_object_id || "");
+
+    // Append all images & metadata
+    imagePairs.forEach((pair, index) => {
+      formData.append(`images`, pair.imageFile, pair.imageName);
+
+      const metadata = {
+        imageIndex: index,
+        imageId: pair.imageId,
+        imageName: pair.imageName,
+        pageNumber: pair.pageNumber,
+        hasDetectionResult: !!pair.detection_result,
+        detection_result: pair.detection_result || null,
       };
 
-      console.log("======> Blueprint Creation Payload:", payload);
-      console.log("======> Detection Results Map:", Array.from(imageDetectionResults.entries()));
-      
-      // For now, just show the payload in console - you can implement actual API call here
-      alert("Payload logged to console - check developer tools");
-      
-    } catch (error) {
-      console.error("Error creating blueprint:", error);
-      alert("Error creating blueprint: " + (error instanceof Error ? error.message : "Unknown error"));
+      formData.append(`image_metadata`, JSON.stringify(metadata));
+    });
+
+    formData.append("image_count", imagePairs.length.toString());
+
+    // Debug logging for verification
+    console.log("======> Blueprint form data:");
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      } else {
+        console.log(`${key}: ${value}`);
+      }
     }
-  }, [filteredImages, imageDetectionResults, jobId, blueprintData]);
+
+    // ✅ Important: Don't set Content-Type manually!
+    const apiResponse = await fetch("http://localhost:8989/api/v1/blueprints/create-blueprint", {
+      method: "POST",
+      body: formData,
+      credentials: "include", // optional if your API requires cookies/auth
+    });
+
+    if (!apiResponse.ok) {
+      const text = await apiResponse.text();
+      throw new Error(`Blueprint creation failed: ${apiResponse.status} ${text}`);
+    }
+
+    const result = await apiResponse.json();
+
+    console.log("✅ Blueprint created:", result);
+    // router.push("/blueprints");
+  } catch (error) {
+    console.error("❌ Error creating blueprint:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    alert("Error creating blueprint: " + errorMessage);
+  } 
+}, [
+filteredImages
+]);
 
   // Keep the original function for navigation to form
   const handleContinueToForm = () => {
