@@ -485,26 +485,7 @@ filteredImages
 
             {filteredImages.filter(image => !imageDetectionResults.has(image.id)).length > 0 && (
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={() =>
-                    setViewMode(
-                      viewMode === "fullscreen" ? "grid" : "fullscreen"
-                    )
-                  }
-                  className="inline-flex items-center px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  {viewMode === "fullscreen" ? (
-                    <>
-                      <Grid3x3 className="w-4 h-4 mr-1" />
-                      Grid View
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-4 h-4 mr-1" />
-                      Full Screen
-                    </>
-                  )}
-                </button>
+               
 
                 {viewMode === "fullscreen" && filteredImages[selectedImageIndex] && !imageDetectionResults.has(filteredImages[selectedImageIndex].id) && (
                   <button
@@ -684,7 +665,9 @@ filteredImages
               {/* Thumbnail navigation */}
               {filteredImages.length > 1 && (
                 <div className="flex space-x-2 overflow-x-auto pb-2">
-                  {filteredImages.map((image, index) => (
+ {filteredImages
+                .filter(image => !imageDetectionResults.has(image.id))
+                .map((image, index) => (
                     <div key={image.id} className="relative flex-shrink-0">
                       <button
                         onClick={() => setSelectedImageIndex(index)}
