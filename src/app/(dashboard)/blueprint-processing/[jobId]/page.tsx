@@ -12,6 +12,7 @@ import {
   Grid3x3,
   Trash2,
   X,
+  Trash,
 } from "lucide-react";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import axios from "axios";
@@ -491,6 +492,16 @@ filteredImages
                 <span className="text-gray-600">Status:</span>
                 <span className="ml-2 font-medium">{blueprintData.status}</span>
               </div>
+              <div>
+                <span className="text-gray-600">Total Images:</span>
+                <span className="ml-2 font-medium">{filteredImages.length}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Detected:</span>
+                <span className="ml-2 font-medium text-green-600">
+                  {filteredImages.filter(image => imageDetectionResults.has(image.id)).length}
+                </span>
+              </div>
               <div className="col-span-2">
                 <span className="text-gray-600">Description:</span>
                 <span className="ml-2 font-medium">{blueprintData.description}</span>
@@ -499,13 +510,100 @@ filteredImages
           </div>
         )}
 
-        {/* Processed Images */}
+        {/* Detected Images Section */}
+        {filteredImages.filter(image => imageDetectionResults.has(image.id)).length > 0 && (
+          <div className="bg-green-50 rounded-lg border border-green-200 p-6 mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-green-900">
+                  🔍 Detected Images ({filteredImages.filter(image => imageDetectionResults.has(image.id)).length})
+                </h2>
+                <p className="text-sm text-green-600">
+                  Images with AI detection results
+                </p>
+              </div>
+              <div className="text-sm text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                ✅ Ready for Blueprint Creation
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredImages
+                .filter(image => imageDetectionResults.has(image.id))
+                .map((image, index) => (
+                  <div
+                    key={image.id}
+                    className="border border-green-300 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group bg-white"
+                  >
+                    <div className="relative">
+                      <div
+                        className="aspect-video bg-gray-100 flex items-center justify-center cursor-pointer"
+                        onClick={() => {
+                          const originalIndex = filteredImages.findIndex(img => img.id === image.id);
+                          setSelectedImageIndex(originalIndex);
+                          setViewerOpen(true);
+                        }}
+                      >
+                        <img
+                          src={image.path}
+                          alt={image.name}
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Detection badge */}
+                      <div className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                        <span className="w-2 h-2 bg-white rounded-full mr-1"></span>
+                        Detected
+                      </div>
+                      
+                      {/* Remove button */}
+                      <button
+                        onClick={(e) => handleRemoveImage(image.id, e)}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                        title="Remove this image"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <div className="p-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 text-sm truncate">
+                            {image.name}
+                          </h3>
+                          {image.pageNumber && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Page {image.pageNumber}
+                            </p>
+                          )}
+                          <div className="text-xs text-green-600 mt-1 font-medium">
+                            Detection results available
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Unprocessed Images */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">
-                Processed Images ({filteredImages.length})
+                📄 Unprocessed Images ({filteredImages.filter(image => !imageDetectionResults.has(image.id)).length})
               </h2>
+              <p className="text-sm text-gray-500">
+                Images ready for AI detection
+              </p>
               {removedImages.size > 0 && (
                 <p className="text-sm text-gray-500">
                   {removedImages.size} image
@@ -514,7 +612,7 @@ filteredImages
               )}
             </div>
 
-            {filteredImages.length > 0 && (
+            {filteredImages.filter(image => !imageDetectionResults.has(image.id)).length > 0 && (
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() =>
@@ -537,7 +635,7 @@ filteredImages
                   )}
                 </button>
 
-                {viewMode === "fullscreen" && (
+                {viewMode === "fullscreen" && filteredImages[selectedImageIndex] && !imageDetectionResults.has(filteredImages[selectedImageIndex].id) && (
                   <button
                     onClick={handleViewDetection}
                     disabled={isDetecting}
@@ -555,7 +653,38 @@ filteredImages
                     ) : (
                       <>
                         <Eye className="w-4 h-4 mr-2" />
-                        View Detection
+                        Detect Current
+                      </>
+                    )}
+                  </button>
+                )}
+                
+                {filteredImages.filter(image => !imageDetectionResults.has(image.id)).length > 1 && (
+                  <button
+                    onClick={async () => {
+                      const unprocessedImages = filteredImages.filter(image => !imageDetectionResults.has(image.id));
+                      for (const image of unprocessedImages) {
+                        if (!isDetecting) {
+                          await detectImageWithAPI(image);
+                        }
+                      }
+                    }}
+                    disabled={isDetecting}
+                    className={`inline-flex items-center px-4 py-2 rounded-md ${
+                      isDetecting
+                        ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                        : "bg-green-600 text-white hover:bg-green-700"
+                    }`}
+                  >
+                    {isDetecting ? (
+                      <>
+                        <Clock className="w-4 h-4 mr-2 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" />
+                        Detect All
                       </>
                     )}
                   </button>
@@ -564,16 +693,19 @@ filteredImages
             )}
           </div>
 
-          {filteredImages.length === 0 ? (
+          {filteredImages.filter(image => !imageDetectionResults.has(image.id)).length === 0 ? (
             <div className="text-center py-8">
               <FileImage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600">
-                {jobStatus.status === "processing" ||
-                jobStatus.status === "pending"
-                  ? "Processing files... Images will appear here as they are processed."
-                  : removedImages.size > 0
-                  ? "All images have been removed. Use the restore section below to bring them back."
-                  : "No images have been processed yet."}
+                {filteredImages.length === 0 ? (
+                  jobStatus.status === "processing" || jobStatus.status === "pending"
+                    ? "Processing files... Images will appear here as they are processed."
+                    : removedImages.size > 0
+                    ? "All images have been removed. Use the restore section below to bring them back."
+                    : "No images have been processed yet."
+                ) : (
+                  "All images have been processed with AI detection! 🎉"
+                )}
               </p>
             </div>
           ) : viewMode === "fullscreen" ? (
@@ -685,9 +817,11 @@ filteredImages
                     <div key={image.id} className="relative flex-shrink-0">
                       <button
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`w-16 h-16 rounded border-2 overflow-hidden ${
+                        className={`w-56 h-56 rounded border-2 overflow-hidden relative ${
                           index === selectedImageIndex
                             ? "border-blue-500"
+                            : imageDetectionResults.has(image.id)
+                            ? "border-green-300 hover:border-green-400"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
@@ -701,13 +835,20 @@ filteredImages
                               "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPk5BPC90ZXh0Pjwvc3ZnPg==";
                           }}
                         />
+                        
+                        {/* Detection badge for thumbnails */}
+                        {imageDetectionResults.has(image.id) && (
+                          <div className="absolute top-1 left-1 bg-green-600 text-white px-1 py-0.5 rounded text-xs font-medium">
+                            ✓
+                          </div>
+                        )}
                       </button>
                       <button
                         onClick={(e) => handleRemoveImage(image.id, e)}
-                        className="absolute -top-1 -right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg"
+                        className="absolute top-0 -right-1 p-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-lg"
                         title="Remove this image"
                       >
-                        <X className="w-3 h-3" />
+                        <Trash className="w-3 h-3" />
                       </button>
                     </div>
                   ))}
@@ -744,9 +885,11 @@ filteredImages
               )}
             </div>
           ) : (
-            /* Grid Mode - Original small boxes */
+            /* Grid Mode - Only unprocessed images */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredImages.map((image, index) => (
+              {filteredImages
+                .filter(image => !imageDetectionResults.has(image.id))
+                .map((image, index) => (
                 <div
                   key={image.id}
                   className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
@@ -754,7 +897,8 @@ filteredImages
                   <div
                     className="aspect-video bg-gray-100 flex items-center justify-center cursor-pointer"
                     onClick={() => {
-                      setSelectedImageIndex(index);
+                      const originalIndex = filteredImages.findIndex(img => img.id === image.id);
+                      setSelectedImageIndex(originalIndex);
                       setViewerOpen(true);
                     }}
                   >
