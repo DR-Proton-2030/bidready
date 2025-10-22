@@ -40,6 +40,17 @@ export default function BlueprintProcessingPage() {
   const router = useRouter();
   const jobId = params.jobId as string;
 
+  // Get blueprint form data from URL parameters
+  const searchParams = new URLSearchParams(window.location.search);
+  const blueprintData = {
+    name: searchParams.get('name') || `Blueprint from Job ${jobId}`,
+    description: searchParams.get('description') || 'Auto-generated blueprint from processed images',
+    version: searchParams.get('version') || 'v1',
+    status: searchParams.get('status') || 'active',
+    type: searchParams.get('type') || 'floor_plan',
+    project_object_id: searchParams.get('project_object_id') || '68b72c0b0002cf35d19b54e4'
+  };
+
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -242,12 +253,12 @@ export default function BlueprintProcessingPage() {
 
       // Create the payload structure
       const payload = {
-        name: `Blueprint from Job ${jobId}`,
-        description: "Auto-generated blueprint from processed images",
-        version: "v1",
-        status: "active",
-        type: "floor_plan",
-        project_object_id: "68b72c0b0002cf35d19b54e4", // You might want to make this dynamic
+        name: blueprintData.name,
+        description: blueprintData.description,
+        version: blueprintData.version,
+        status: blueprintData.status,
+        type: blueprintData.type,
+        project_object_id: blueprintData.project_object_id,
         image_pairs: imagePairs.map((pair, index) => ({
           imageIndex: index,
           imageId: pair.imageId,
@@ -269,7 +280,7 @@ export default function BlueprintProcessingPage() {
       console.error("Error creating blueprint:", error);
       alert("Error creating blueprint: " + (error instanceof Error ? error.message : "Unknown error"));
     }
-  }, [filteredImages, imageDetectionResults, jobId]);
+  }, [filteredImages, imageDetectionResults, jobId, blueprintData]);
 
   // Keep the original function for navigation to form
   const handleContinueToForm = () => {
@@ -399,6 +410,37 @@ export default function BlueprintProcessingPage() {
                   Processing Error
                 </h3>
                 <p className="text-sm text-red-700 mt-1">{jobStatus.error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Blueprint Information */}
+        {blueprintData && (
+          <div className="bg-blue-50 rounded-lg border border-blue-200 p-4 mb-6">
+            <h3 className="text-sm font-medium text-blue-900 mb-3">
+              Blueprint Details
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Name:</span>
+                <span className="ml-2 font-medium">{blueprintData.name}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Version:</span>
+                <span className="ml-2 font-medium">{blueprintData.version}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Type:</span>
+                <span className="ml-2 font-medium">{blueprintData.type}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Status:</span>
+                <span className="ml-2 font-medium">{blueprintData.status}</span>
+              </div>
+              <div className="col-span-2">
+                <span className="text-gray-600">Description:</span>
+                <span className="ml-2 font-medium">{blueprintData.description}</span>
               </div>
             </div>
           </div>

@@ -186,8 +186,18 @@ export default function CreateBlueprintPage({
 
       const result = await response.json();
 
-      // Redirect to processing page
-      router.push(`/blueprint-processing/${result.jobId}`);
+      // Pass form data as URL parameters when redirecting to processing page
+      const formParams = new URLSearchParams({
+        name: form.name || 'Untitled Blueprint',
+        description: form.description || 'Blueprint from uploaded files',
+        version: form.version || 'v1',
+        status: form.status || 'active',
+        type: form.type || 'floor_plan',
+        project_object_id: form.project_object_id || ''
+      });
+
+      // Redirect to processing page with form data
+      router.push(`/blueprint-processing/${result.jobId}?${formParams.toString()}`);
     } catch (error) {
       console.error("Error uploading files:", error);
       setError(
