@@ -696,6 +696,161 @@ export default function FullScreenImageViewer({
     // Implementation for calculator functionality
   };
 
+  // Build a combined, export-friendly list of detections (AI visible + user annotations)
+  const getAllDetectionsForExport = (): Array<{
+    id: string;
+    source: "AI" | "User";
+    className: string;
+    confidence?: number;
+    x: number; // center-x in image pixels
+    y: number; // center-y in image pixels
+    width: number;
+    height: number;
+    pageNumber?: number;
+  }> => {
+    const ai = (detectionResults?.predictions || [])
+      .filter((det: any, index: number) => {
+        const detId = det.id ? String(det.id) : `detection-${index}`;
+        return !dismissedDetections.has(detId);
+      })
+      .map((det: any, index: number) => ({
+        id: det.id ? String(det.id) : `detection-${index}`,
+        source: "AI" as const,
+        className: det.class || "Unknown",
+        confidence: det.confidence,
+        x: det.x || 0,
+        y: det.y || 0,
+        width: det.width || 0,
+        height: det.height || 0,
+        pageNumber: currentImage?.pageNumber,
+      }));
+
+    const user = userAnnotations.map((a) => ({
+      id: a.id,
+      source: "User" as const,
+      className: a.class || "Unknown",
+      confidence: a.confidence,
+      x: a.x,
+      y: a.y,
+      width: a.width,
+      height: a.height,
+      pageNumber: currentImage?.pageNumber,
+    }));
+
+    return [...ai, ...user];
+  };
+
+  // Export: draw base image + overlay to canvas, embed into PDF, download; also allow CSV export
+  const handleExportPdf = async () => {
+    try {
+      // Load base image with CORS enabled for canvas drawing
+      const imgEl = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const im = new Image();
+        im.crossOrigin = "anonymous";
+        im.onload = () => resolve(im);
+        im.onerror = reject;
+        im.src = currentImage.path;
+      });
+
+      const width = imgEl.naturalWidth || imgEl.width;
+      const height = imgEl.naturalHeight || imgEl.height;
+      if (!width || !height) throw new Error("Image dimensions unavailable");
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas 2D context not available");
+
+      // Draw image
+      ctx.drawImage(imgEl, 0, 0, width, height);
+
+      // Draw overlay rectangles using center-based coords
+      const overlays = getAllDetectionsForExport();
+      overlays.forEach((d) => {
+        const left = d.x - d.width / 2;
+        const top = d.y - d.height / 2;
+        // Outline
+        ctx.strokeStyle = getColorForClass(d.className);
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        ctx.strokeRect(left, top, d.width, d.height);
+        // Fill lite
+        ctx.fillStyle = getColorForClass(d.className);
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(left, top, d.width, d.height);
+        // Label
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#111827"; // slate-900 for legibility
+        ctx.font = "bold 18px Arial";
+        const label = `${d.className}${typeof d.confidence === "number" ? ` (${Math.round(d.confidence * 100)}%)` : ""}`;
+        ctx.fillText(label, left + 4, Math.max(14, top - 6));
+      });
+
+      // Create PDF from canvas
+      // @ts-ignore - jsPDF types may not be available at runtime until installed
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "px", format: [width, height], orientation: width >= height ? "l" : "p" });
+      const imgData = canvas.toDataURL("image/png");
+      doc.addImage(imgData, "PNG", 0, 0, width, height);
+      const filename = `${(currentImage.name || "blueprint").replace(/\s+/g, "_")}.pdf`;
+      doc.save(filename);
+    } catch (e) {
+      console.error("Failed to export PDF:", e);
+      alert("Failed to export PDF. See console for details.");
+    }
+  };
+
+  const handleExportCsv = () => {
+    try {
+      const rows = getAllDetectionsForExport();
+      const headers = [
+        "id",
+        "source",
+        "class",
+        "confidence",
+        "x_center",
+        "y_center",
+        "width",
+        "height",
+        "page",
+        "image_name",
+      ];
+      const escapeCsv = (v: any) => {
+        const s = v == null ? "" : String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const lines = [headers.join(",")];
+      rows.forEach((r) => {
+        lines.push([
+          r.id,
+          r.source,
+          r.className,
+          typeof r.confidence === "number" ? r.confidence.toFixed(4) : "",
+          r.x,
+          r.y,
+          r.width,
+          r.height,
+          r.pageNumber ?? "",
+          currentImage.name,
+        ].map(escapeCsv).join(","));
+      });
+      const csv = lines.join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(currentImage.name || "annotations").replace(/\s+/g, "_")}_annotations.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to export CSV:", e);
+      alert("Failed to export CSV. See console for details.");
+    }
+  };
+
   if (!isOpen || !currentImage) return null;
 
   return (
@@ -749,13 +904,21 @@ export default function FullScreenImageViewer({
             >
               Reset
             </button>
-             <button
-              onClick={resetView}
+            <button
+              onClick={handleExportPdf}
               className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
-              title="ownload Pdf"
+              title="Export PDF"
             >
               <DownloadCloud size={18} />
               Export PDF
+            </button>
+            <button
+              onClick={handleExportCsv}
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
+              title="Export Annotations CSV"
+            >
+              <Download size={18} />
+              Export CSV
             </button>
             <button
                    onClick={onClose}
