@@ -91,6 +91,54 @@ export default function FullScreenImageViewer({
   const [showClassSelector, setShowClassSelector] = useState(false);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [selectedAnnotationClass, setSelectedAnnotationClass] = useState("");
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [dismissedDetections, setDismissedDetections] = useState<Set<string>>(new Set());
+  type UndoAction = { kind: "user" | "api"; id: string; payload?: Detection };
+  const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
+  const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
+  const snackbarTimerRef = React.useRef<any>(null);
+
+  const showUndoSnackbar = (message = "Removed. Undo?") => {
+    setSnackbar({ visible: true, message });
+    if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
+    snackbarTimerRef.current = setTimeout(() => setSnackbar({ visible: false, message: "" }), 5000);
+  };
+
+  const undoLast = () => {
+    setUndoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const last = next.pop()!;
+      if (last.kind === "user" && last.payload) {
+        setUserAnnotations((anns) => [...anns, last.payload as Detection]);
+      } else if (last.kind === "api") {
+        setDismissedDetections((d) => {
+          const nd = new Set(d);
+          nd.delete(last.id);
+          return nd;
+        });
+      }
+      return next;
+    });
+    setSnackbar({ visible: false, message: "" });
+  };
+
+  const removeOverlayWithUndo = (id: string, isUser: boolean) => {
+    if (isUser) {
+      setUserAnnotations((prev) => {
+        const found = prev.find((a) => a.id === id);
+        if (found) {
+          setUndoStack((stack) => [...stack, { kind: "user", id, payload: found }]);
+        }
+        return prev.filter((a) => a.id !== id);
+      });
+    } else {
+      setDismissedDetections((prev) => new Set([...prev, id]));
+      setUndoStack((stack) => [...stack, { kind: "api", id }]);
+    }
+    setSelectedOverlayId(null);
+    showUndoSnackbar("Deleted. Undo?");
+  };
 
   const currentImage = images[currentIndex];
 
@@ -198,6 +246,36 @@ export default function FullScreenImageViewer({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
+  // Delete selected annotation with Delete/Backspace
+  useEffect(() => {
+    const onDel = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedOverlayId) {
+        e.preventDefault();
+        const isUser = userAnnotations.some((a) => a.id === selectedOverlayId);
+        removeOverlayWithUndo(selectedOverlayId, isUser);
+      }
+    };
+    window.addEventListener("keydown", onDel);
+    return () => window.removeEventListener("keydown", onDel);
+  }, [isOpen, selectedOverlayId, userAnnotations]);
+
+  // Ctrl/Cmd+Z undo
+  useEffect(() => {
+    const onUndo = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        undoLast();
+      }
+    };
+    window.addEventListener("keydown", onUndo);
+    return () => window.removeEventListener("keydown", onUndo);
+  }, [isOpen, undoStack]);
+
+  const deleteUserAnnotation = (id: string) => removeOverlayWithUndo(id, true);
+  const dismissApiDetection = (id: string) => removeOverlayWithUndo(id, false);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -334,16 +412,19 @@ export default function FullScreenImageViewer({
           class: detection.class,
           confidence: detection.confidence,
           color,
-          id: `detection-${index}`,
+          id: detection.id ? String(detection.id) : `detection-${index}`,
         };
       }
     );
 
+    // Remove dismissed detections
+    const visibleBoxes = allBoxes.filter((box: Detection) => !dismissedDetections.has(box.id));
+
     // Filter by selected classes if any are selected
     if (selectedClasses.size === 0) {
-      return allBoxes; // Show all if none selected
+      return visibleBoxes; // Show all if none selected
     }
-    return allBoxes.filter((box: Detection) =>
+    return visibleBoxes.filter((box: Detection) =>
       selectedClasses.has(box.class || "Unknown")
     );
   };
@@ -353,7 +434,9 @@ export default function FullScreenImageViewer({
 
     // Count original detections
     if (detectionResults?.predictions) {
-      detectionResults.predictions.forEach((detection: any) => {
+      detectionResults.predictions.forEach((detection: any, index: number) => {
+        const detId = detection.id ? String(detection.id) : `detection-${index}`;
+        if (dismissedDetections.has(detId)) return; // skip dismissed
         const className = detection.class || "Unknown";
         counts[className] = (counts[className] || 0) + 1;
       });
@@ -731,6 +814,8 @@ export default function FullScreenImageViewer({
           cursor:
             activeTool === "annotate"
               ? "crosshair"
+              : activeTool === "erase"
+              ? "pointer"
               : zoom > 1
               ? isDragging
                 ? "grabbing"
@@ -819,27 +904,73 @@ export default function FullScreenImageViewer({
                     yShift = detection.height * shiftRatio;
                   }
 
+                  const xRect = detection.x - xShift;
+                  const yRect = detection.y - yShift;
+                  const isSelected = selectedOverlayId === detection.id;
+
                   return (
-                    <g key={detection.id}>
+                    <g key={detection.id} style={{ pointerEvents: isUserAnnotation || activeTool === "erase" ? "auto" : "none", cursor: activeTool === "erase" ? "not-allowed" : isUserAnnotation ? "pointer" : "default" }}
+                       onClick={() => {
+                         if (activeTool === "erase") {
+                           removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                         } else if (isUserAnnotation) {
+                           setSelectedOverlayId(detection.id);
+                         }
+                       }}
+                       onContextMenu={(e) => {
+                         if (isUserAnnotation || activeTool === "erase") {
+                           e.preventDefault();
+                           removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                         }
+                       }}
+                    >
                       {/* Bounding box rectangle */}
                       <rect
-                        x={detection.x - xShift}
-                        y={detection.y - yShift}
+                        x={xRect}
+                        y={yRect}
                         width={detection.width}
                         height={detection.height}
                         fill="none"
-                        stroke={detection.color}
-                        strokeWidth="1"
-                        strokeOpacity="0.5"
+                        stroke={isSelected ? "#22c55e" : detection.color}
+                        strokeWidth={isSelected ? 2 : 1}
+                        strokeOpacity="0.7"
                       />
                       <rect
-                        x={detection.x - xShift}
-                        y={detection.y - yShift}
+                        x={xRect}
+                        y={yRect}
                         width={detection.width}
                         height={detection.height}
                         fill={detection.color}
-                        fillOpacity="0.3"
+                        fillOpacity={isSelected ? 0.2 : 0.3}
                       />
+                      {isUserAnnotation && activeTool !== "erase" && (
+                        <g>
+                          {/* Small delete chip at top-right */}
+                          <rect
+                            x={xRect + detection.width - 18}
+                            y={yRect - 18}
+                            width={18}
+                            height={18}
+                            rx={3}
+                            ry={3}
+                            fill="#ef4444"
+                            opacity="0.9"
+                            style={{ pointerEvents: "auto" }}
+                            onClick={(e) => { e.stopPropagation(); deleteUserAnnotation(detection.id); }}
+                          />
+                          <text
+                            x={xRect + detection.width - 9}
+                            y={yRect - 5}
+                            textAnchor="middle"
+                            fontSize="12"
+                            fontFamily="Arial, sans-serif"
+                            fill="#ffffff"
+                            style={{ pointerEvents: "none" }}
+                          >
+                            ×
+                          </text>
+                        </g>
+                      )}
                      
                      
                     </g>
@@ -897,6 +1028,21 @@ export default function FullScreenImageViewer({
                 }`}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Snackbar */}
+      {snackbar.visible && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+          <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
+            <span className="text-sm">{snackbar.message}</span>
+            <button
+              className="text-green-400 hover:text-green-300 font-semibold text-sm"
+              onClick={undoLast}
+            >
+              Undo
+            </button>
           </div>
         </div>
       )}

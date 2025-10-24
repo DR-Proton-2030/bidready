@@ -26,6 +26,7 @@ import {
   Circle,
   Square,
   Triangle,
+  Eraser,
 } from "lucide-react";
 
 interface ToolButtonProps {
@@ -167,6 +168,15 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
             onAnnotate?.();
           }}
           tooltip="Markup"
+        />
+
+        {/* Erase annotations */}
+        <ToolButton
+          icon={Eraser}
+          label="erase"
+          activeTool={activeTool}
+          onClick={() => setTool("erase")}
+          tooltip="Erase Annotations"
         />
 
         <ToolbarDivider />
