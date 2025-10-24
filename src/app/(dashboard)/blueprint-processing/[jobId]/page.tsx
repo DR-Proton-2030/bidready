@@ -123,12 +123,12 @@ export default function BlueprintProcessingPage() {
 
       // Create FormData and send to API
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("file", file);
 
       console.log("Sending request to detection API...");
 
       // API endpoint for detection
-      const apiResponse = await fetch("http://localhost:5050/api/detect", {
+      const apiResponse = await fetch("http://localhost:8000/detect", {
         method: "POST",
         body: formData,
       });
@@ -144,13 +144,49 @@ export default function BlueprintProcessingPage() {
       const result = await apiResponse.json();
       console.log("Detection result:", result);
 
-      // Store detection results for this specific image
-      setImageDetectionResults(prev => new Map(prev.set(image.id, result)));
-      setDetectionResults(result);
+      // Normalize new API shape to viewer-expected shape: { predictions: [ { x,y,width,height,class,confidence } ], annotated_image }
+      const normalized: any = {};
+
+      // If the API returns detections array with bbox {x1,y1,x2,y2} and label/confidence
+      if (Array.isArray(result.detections)) {
+        normalized.predictions = result.detections.map((d: any) => {
+          const bbox = d.bbox || d.bounding_box || {};
+          const x1 = bbox.x1 ?? bbox.x ?? 0;
+          const y1 = bbox.y1 ?? bbox.y ?? 0;
+          const x2 = bbox.x2 ?? bbox.x2 ?? 0;
+          const y2 = bbox.y2 ?? bbox.y2 ?? 0;
+
+          const width = Math.abs((x2 || 0) - (x1 || 0));
+          const height = Math.abs((y2 || 0) - (y1 || 0));
+          const x = (x1 || 0) + width / 2;
+          const y = (y1 || 0) + height / 2;
+
+          return {
+            x,
+            y,
+            width,
+            height,
+            class: d.label ?? d.class ?? "Unknown",
+            confidence: d.confidence ?? d.score ?? null,
+          };
+        });
+      }
+
+      // Pass through annotated image if provided (data URL)
+      normalized.annotated_image = result.annotated_image ?? result.annotatedImage ?? null;
+
+      // Store detection results for this specific image (normalized)
+      setImageDetectionResults((prev) => new Map(prev.set(image.id, normalized)));
+      setDetectionResults(normalized);
+
+      // Save annotated image into svgOverlays map so downstream flows (create blueprint) can include it
+      if (normalized.annotated_image) {
+        setSvgOverlays((prev) => new Map(prev.set(image.id, normalized.annotated_image)));
+      }
 
       // Switch to detected tab if this was the last unprocessed image
-      const remainingUnprocessed = unprocessedImages.filter(img => img.id !== image.id);
-      if (remainingUnprocessed.length === 0 && detectedImages.length >= 0) {
+      const remainingUnprocessed = unprocessedImages.filter((img) => img.id !== image.id);
+      if (remainingUnprocessed.length === 0) {
         setActiveTab("detected");
       }
 

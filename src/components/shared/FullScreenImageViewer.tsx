@@ -1048,6 +1048,26 @@ export default function FullScreenImageViewer({
                     detected
                   </p>
                 </div>
+
+                {/* Annotated Image Preview */}
+                {detectionResults.annotated_image && (
+                  <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                    <p className="text-xs text-gray-600 mb-2">
+                      AI Annotated Preview:
+                    </p>
+                    <div className="relative">
+                      <img
+                        src={detectionResults.annotated_image}
+                        alt="AI Annotated"
+                        className="w-full h-auto rounded border border-gray-300"
+                        style={{ maxHeight: '200px', objectFit: 'contain' }}
+                      />
+                      <div className="absolute top-1 right-1 bg-green-600 text-white px-2 py-1 rounded text-xs font-medium">
+                        AI Processed
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

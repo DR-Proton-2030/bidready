@@ -28,7 +28,11 @@ export interface QueueJob {
 }
 
 import { dirname, basename, extname, join } from "path";
-import { writeFile, readFile } from "fs/promises";
+import { writeFile, readFile, readdir } from "fs/promises";
+import { execFile } from "child_process";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
 
 // We'll use puppeteer to render PDFs in a headless Chromium (avoids native canvas builds)
 // import puppeteer dynamically to avoid type issues if not installed during type-check
@@ -166,39 +170,61 @@ class QueueManager {
         file.type === "application/pdf" ||
         extname(file.path).toLowerCase() === ".pdf"
       ) {
-        // Real PDF processing using pdftoppm (poppler). This will generate PNGs in the same upload dir.
+        // First try using Poppler's pdftoppm to render pages to PNG (fast, simple on macOS/Linux)
         const uploadDir = dirname(file.path);
         const parsedBase = basename(file.path, extname(file.path));
 
-        // Use Puppeteer + pdfjs in a headless browser to render PDF pages to PNGs
-
+        const outPrefix = join(uploadDir, `${parsedBase}_page`);
+        let usedPoppler = false;
         try {
-          const browser = await puppeteer.launch({
-            args: ["--no-sandbox", "--disable-setuid-sandbox"],
-          });
-          const pageBrowser = await browser.newPage();
+          // pdftoppm -png -r 150 <input.pdf> <outPrefix>
+          await execFileAsync("pdftoppm", ["-png", "-r", "150", file.path, outPrefix]);
+          usedPoppler = true;
 
-          // Read PDF file bytes and pass to the browser as base64 to avoid bundler and file:// issues
-          const pdfBuffer = await readFile(file.path);
-          const pdfBase64 = pdfBuffer.toString("base64");
+          // List generated files and register them
+          const files = await readdir(uploadDir);
+          const pagePngs = files
+            .filter((f) => f.startsWith(`${parsedBase}_page-`) && f.endsWith(".png"))
+            .sort((a, b) => {
+              // sort by page number
+              const pa = parseInt(a.split("-" ).pop()!.replace(/\.png$/, ""), 10);
+              const pb = parseInt(b.split("-" ).pop()!.replace(/\.png$/, ""), 10);
+              return pa - pb;
+            });
 
-          // Prefer loading pdfjs from the CDN inside the headless browser to
-          // avoid bundler/virtual-module path issues and to allow the worker to
-          // be fetched from a stable URL. If offline, fall back to local injection.
-          const pdfjsCdn = "https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.js";
-          const pdfjsWorkerCdn =
-            "https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.js";
+          job.progress = job.progress || { total: 0, processed: 0 };
+          job.progress.total = pagePngs.length;
 
+          for (let idx = 0; idx < pagePngs.length; idx++) {
+            const outFileName = pagePngs[idx];
+            const pageNumber = idx + 1;
+            const processedImage = {
+              id: `${job.id}_${outFileName}`,
+              name: `${file.originalName} - Page ${pageNumber}`,
+              path: `/api/blueprints/serve-image/${job.id}/${encodeURIComponent(outFileName)}`,
+              pageNumber,
+              processingTime: Date.now() - startTime,
+            };
+            job.processedImages.push(processedImage);
+            job.progress.processed = (job.progress.processed || 0) + 1;
+          }
+          this.jobs.set(job.id, job);
+        } catch (popplerErr) {
+          // If pdftoppm is not available (ENOENT) or failed, fall back to Puppeteer + pdf.js
+          let browser: any | undefined;
+          let pageBrowser: any | undefined;
           try {
-            // Make the worker CDN URL available inside the page before any scripts run
-            await pageBrowser.evaluateOnNewDocument((url: string) => {
-              // @ts-ignore
-              (window as any)._pdfjsWorkerCdn = url;
-            }, pdfjsWorkerCdn);
+            browser = await puppeteer.launch({
+              headless: true,
+              args: ["--no-sandbox", "--disable-setuid-sandbox"],
+            });
+            pageBrowser = await browser.newPage();
 
-            await pageBrowser.addScriptTag({ url: pdfjsCdn });
-          } catch (cdnErr) {
-            // fallback to local file injection if CDN isn't reachable
+            // Read PDF file bytes and pass to the browser as base64 to avoid file:// issues
+            const pdfBuffer = await readFile(file.path);
+            const pdfBase64 = pdfBuffer.toString("base64");
+
+            // Always inject pdf.js from node_modules (avoid CDN flakiness)
             try {
               const legacyPdfjsPath = join(
                 process.cwd(),
@@ -208,12 +234,9 @@ class QueueManager {
                 "build",
                 "pdf.js"
               );
-              const pdfjsCode = await readFile(legacyPdfjsPath, {
-                encoding: "utf8",
-              });
+              const pdfjsCode = await readFile(legacyPdfjsPath, { encoding: "utf8" });
               await pageBrowser.addScriptTag({ content: pdfjsCode });
-            } catch (localErr) {
-              // final fallback
+            } catch {
               const pdfjsBrowserPath = join(
                 process.cwd(),
                 "node_modules",
@@ -221,149 +244,138 @@ class QueueManager {
                 "build",
                 "pdf.js"
               );
-              const pdfjsCode = await readFile(pdfjsBrowserPath, {
-                encoding: "utf8",
-              });
+              const pdfjsCode = await readFile(pdfjsBrowserPath, { encoding: "utf8" });
               await pageBrowser.addScriptTag({ content: pdfjsCode });
-              console.log(localErr);
             }
-          }
 
-          // Read pdf.worker.js and pass its source to the page so pdfjs can spawn a worker
-          let workerCode = "";
-          try {
-            const workerPath = join(
-              process.cwd(),
-              "node_modules",
-              "pdfjs-dist",
-              "legacy",
-              "build",
-              "pdf.worker.js"
-            );
-            workerCode = await readFile(workerPath, { encoding: "utf8" });
-          } catch (e) {
+            // Try to inline worker as a Blob URL; if not found, render with disableWorker
+            let workerCode = "";
             try {
               const workerPath = join(
                 process.cwd(),
                 "node_modules",
                 "pdfjs-dist",
+                "legacy",
                 "build",
                 "pdf.worker.js"
               );
               workerCode = await readFile(workerPath, { encoding: "utf8" });
-              console.log(e);
-            } catch (err) {
-              // If we can't find a worker file, we'll fall back to disableWorker within the page
-              workerCode = "";
-              console.log(err);
+            } catch {
+              try {
+                const workerPath = join(
+                  process.cwd(),
+                  "node_modules",
+                  "pdfjs-dist",
+                  "build",
+                  "pdf.worker.js"
+                );
+                workerCode = await readFile(workerPath, { encoding: "utf8" });
+              } catch {}
             }
+
+            let hasInlineWorker = false;
+            if (workerCode) {
+              hasInlineWorker = true;
+              await pageBrowser.evaluateOnNewDocument((code: string) => {
+                const blob = new Blob([code], { type: "text/javascript" });
+                // @ts-ignore
+                (window as any)._pdfjsWorkerBlobUrl = URL.createObjectURL(blob);
+              }, workerCode);
+            }
+
+            // Stream rendered pages back to Node and write them to disk
+            await pageBrowser.exposeFunction(
+              "sendPageData",
+              async (dataUrl: string, pageNumber: number) => {
+                try {
+                  const base64 = dataUrl.split(",")[1];
+                  const buffer = Buffer.from(base64, "base64");
+                  const outFileName = `${parsedBase}_page-${pageNumber}.png`;
+                  const outPath = join(uploadDir, outFileName);
+                  await writeFile(outPath, buffer);
+
+                  const processedImage = {
+                    id: `${job.id}_${outFileName}`,
+                    name: `${file.originalName} - Page ${pageNumber}`,
+                    path: `/api/blueprints/serve-image/${job.id}/${encodeURIComponent(outFileName)}`,
+                    pageNumber,
+                    processingTime: Date.now() - startTime,
+                  };
+
+                  job.processedImages.push(processedImage);
+                  job.progress = job.progress || { total: 0, processed: 0 };
+                  job.progress.processed = (job.progress.processed || 0) + 1;
+                  this.jobs.set(job.id, job);
+                } catch (e) {
+                  console.error("Error writing page from browser:", e);
+                }
+              }
+            );
+
+            const numPages: number = await pageBrowser.evaluate(
+              async (base64Pdf: string, useWorker: boolean) => {
+                // @ts-ignore
+                const pdfjsLib =
+                  (window as any).pdfjsLib ||
+                  (window as any).PDFJS ||
+                  (window as any).pdfjs;
+                if (!pdfjsLib) throw new Error("pdfjsLib not found in browser context");
+
+                try {
+                  // @ts-ignore
+                  pdfjsLib.GlobalWorkerOptions = pdfjsLib.GlobalWorkerOptions || {};
+                  if (useWorker) {
+                    // @ts-ignore
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = (window as any)._pdfjsWorkerBlobUrl;
+                  }
+                } catch {}
+
+                const binaryString = atob(base64Pdf);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+
+                const loadingTask = pdfjsLib.getDocument({
+                  data: bytes,
+                  disableWorker: !useWorker,
+                });
+                const pdf = await loadingTask.promise;
+
+                for (let p = 1; p <= pdf.numPages; p++) {
+                  const page = await pdf.getPage(p);
+                  const scale = 2;
+                  const viewport = page.getViewport({ scale });
+                  const canvas = document.createElement("canvas");
+                  canvas.width = Math.floor(viewport.width);
+                  canvas.height = Math.floor(viewport.height);
+                  const ctx = canvas.getContext("2d");
+                  if (!ctx) throw new Error("Failed to get 2D context from canvas");
+                  await page.render({ canvasContext: ctx as any, viewport }).promise;
+                  const dataUrl = canvas.toDataURL("image/png");
+                  // @ts-ignore
+                  await (window as any).sendPageData(dataUrl, p);
+                }
+
+                return pdf.numPages;
+              },
+              pdfBase64,
+              hasInlineWorker
+            );
+
+            job.progress = job.progress || { total: 0, processed: 0 };
+            job.progress.total = numPages;
+            this.jobs.set(job.id, job);
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            const installHints = `Failed to process PDF (Poppler fallback to Puppeteer failed): ${message}`;
+            job.status = "failed";
+            job.error = installHints;
+            this.jobs.set(job.id, job);
+            throw new Error(installHints);
+          } finally {
+            try { await pageBrowser?.close(); } catch {}
+            try { await browser?.close(); } catch {}
           }
-
-          // Stream pages as they are rendered: expose a Node callback that the page will call
-          await pageBrowser.exposeFunction(
-            "sendPageData",
-            async (dataUrl: string, pageNumber: number) => {
-              try {
-                const base64 = dataUrl.split(",")[1];
-                const buffer = Buffer.from(base64, "base64");
-                const outFileName = `${parsedBase}_page-${pageNumber}.png`;
-                const outPath = join(uploadDir, outFileName);
-                await writeFile(outPath, buffer);
-
-                const processedImage = {
-                  id: `${job.id}_${outFileName}`,
-                  name: `${file.originalName} - Page ${pageNumber}`,
-                  path: `/api/blueprints/serve-image/${
-                    job.id
-                  }/${encodeURIComponent(outFileName)}`,
-                  pageNumber: pageNumber,
-                  processingTime: Date.now() - startTime,
-                };
-
-                job.processedImages.push(processedImage);
-                // update progress so the UI can reflect partial results
-                job.progress = job.progress || { total: 0, processed: 0 };
-                job.progress.processed = (job.progress.processed || 0) + 1;
-                this.jobs.set(job.id, job);
-              } catch (e) {
-                console.error("Error writing page from browser:", e);
-              }
-            }
-          );
-
-          // In the browser, load the PDF and call window.sendPageData(dataUrl, pageNumber) for each page
-          const numPages: number = await pageBrowser.evaluate(
-            async (base64Pdf: string) => {
-              // @ts-ignore
-              const pdfjsLib =
-                (window as any).pdfjsLib ||
-                (window as any).PDFJS ||
-                (window as any).pdfjs;
-              if (!pdfjsLib)
-                throw new Error("pdfjsLib not found in browser context");
-
-              try {
-                // @ts-ignore
-                pdfjsLib.GlobalWorkerOptions =
-                  pdfjsLib.GlobalWorkerOptions || {};
-                // @ts-ignore
-                if ((window as any)._pdfjsWorkerCdn)
-                  pdfjsLib.GlobalWorkerOptions.workerSrc = (
-                    window as any
-                  )._pdfjsWorkerCdn;
-              } catch (e) {}
-
-              const binaryString = atob(base64Pdf);
-              const len = binaryString.length;
-              const bytes = new Uint8Array(len);
-              for (let i = 0; i < len; i++)
-                bytes[i] = binaryString.charCodeAt(i);
-
-              const hasWorker = !!(
-                pdfjsLib.GlobalWorkerOptions &&
-                pdfjsLib.GlobalWorkerOptions.workerSrc
-              );
-              const loadingTask = pdfjsLib.getDocument({
-                data: bytes,
-                disableWorker: !hasWorker,
-              });
-              const pdf = await loadingTask.promise;
-
-              for (let p = 1; p <= pdf.numPages; p++) {
-                const page = await pdf.getPage(p);
-                const scale = 2;
-                const viewport = page.getViewport({ scale });
-                const canvas = document.createElement("canvas");
-                canvas.width = Math.floor(viewport.width);
-                canvas.height = Math.floor(viewport.height);
-                const ctx = canvas.getContext("2d");
-                if (!ctx)
-                  throw new Error("Failed to get 2D context from canvas");
-                await page.render({ canvasContext: ctx as any, viewport })
-                  .promise;
-                const dataUrl = canvas.toDataURL("image/png");
-                // @ts-ignore
-                await (window as any).sendPageData(dataUrl, p);
-              }
-
-              return pdf.numPages;
-            },
-            pdfBase64
-          );
-
-          // set total pages for progress tracking
-          job.progress = job.progress || { total: 0, processed: 0 };
-          job.progress.total = numPages;
-          this.jobs.set(job.id, job);
-
-          await browser.close();
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : String(err);
-          const installHints = `Failed to process PDF using Puppeteer: ${message}`;
-          job.status = "failed";
-          job.error = installHints;
-          this.jobs.set(job.id, job);
-          throw new Error(installHints);
         }
       } else {
         // For image files we already saved the original uploaded file to the uploads/<jobId>/ folder
