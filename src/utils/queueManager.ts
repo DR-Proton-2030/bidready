@@ -28,9 +28,11 @@ export interface QueueJob {
 }
 
 import { dirname, basename, extname, join } from "path";
-import { writeFile, readFile, readdir } from "fs/promises";
+import { writeFile, readFile, readdir, stat as fsStat } from "fs/promises";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { EventEmitter } from "events";
+import { watch } from "fs";
 
 const execFileAsync = promisify(execFile);
 
@@ -43,6 +45,7 @@ class QueueManager {
   private jobs = new Map<string, QueueJob>();
   private processingQueue: string[] = [];
   private isProcessing = false;
+  private emitter = new EventEmitter();
 
   static getInstance(): QueueManager {
     if (!QueueManager.instance) {
@@ -54,6 +57,8 @@ class QueueManager {
   addJob(job: QueueJob): void {
     this.jobs.set(job.id, job);
     this.processingQueue.push(job.id);
+    // notify queued status
+    this.notify(job.id, { type: "status", status: "pending", progress: job.progress });
     this.processNext();
   }
 
@@ -66,7 +71,21 @@ class QueueManager {
     if (job) {
       Object.assign(job, updates);
       this.jobs.set(jobId, job);
+      this.notify(jobId, { type: "progress", progress: job.progress, status: job.status });
     }
+  }
+
+  // Subscribe to real-time job events (SSE uses this)
+  onJob(jobId: string, listener: (evt: any) => void): void {
+    this.emitter.on(`job:${jobId}`, listener);
+  }
+
+  offJob(jobId: string, listener: (evt: any) => void): void {
+    this.emitter.off(`job:${jobId}`, listener);
+  }
+
+  private notify(jobId: string, payload: any): void {
+    this.emitter.emit(`job:${jobId}`, { jobId, ...payload });
   }
 
   // Remove a processed image from a job and optionally delete the file on disk
@@ -132,6 +151,7 @@ class QueueManager {
       job.status = "processing";
       job.progress.currentFile = "Starting processing...";
       this.jobs.set(jobId, job);
+      this.notify(jobId, { type: "status", status: job.status, progress: job.progress });
 
       for (let i = 0; i < job.files.length; i++) {
         const file = job.files[i];
@@ -151,11 +171,13 @@ class QueueManager {
       job.completedAt = new Date();
       job.progress.currentFile = undefined;
       this.jobs.set(jobId, job);
+      this.notify(jobId, { type: "status", status: job.status, progress: job.progress });
     } catch (error) {
       console.error("Error processing job:", error);
       job.status = "failed";
       job.error = error instanceof Error ? error.message : "Unknown error";
       this.jobs.set(jobId, job);
+      this.notify(jobId, { type: "error", error: job.error, status: job.status });
     }
   }
 
@@ -177,38 +199,83 @@ class QueueManager {
         const outPrefix = join(uploadDir, `${parsedBase}_page`);
         let usedPoppler = false;
         try {
-          // pdftoppm -png -r 150 <input.pdf> <outPrefix>
+          // Try to get total pages via pdfinfo (if available) so we can report progress early
+          try {
+            const { stdout } = await execFileAsync("pdfinfo", [file.path]);
+            const match = stdout.match(/Pages:\s+(\d+)/i);
+            if (match) {
+              const total = parseInt(match[1], 10);
+              job.progress = job.progress || { total: 0, processed: 0 };
+              job.progress.total = total;
+              this.jobs.set(job.id, job);
+              this.notify(job.id, { type: "progress", progress: job.progress });
+            }
+          } catch {}
+
+          // Watch for new PNG files as pdftoppm renders them, to stream one-by-one
+          const seen = new Set<string>();
+          const watcher = watch(uploadDir, async (_event, filename) => {
+            try {
+              if (!filename) return;
+              if (!filename.startsWith(`${parsedBase}_page-`) || !filename.endsWith(".png")) return;
+              if (seen.has(filename)) return;
+              seen.add(filename);
+              // Ensure file is fully written and stable before emitting
+              const pngPath = join(uploadDir, filename);
+              await this.waitForFileStable(pngPath);
+              // Derive page number
+              const pageNumber = parseInt(filename.split("-" ).pop()!.replace(/\.png$/, ""), 10);
+              const processedImage = {
+                id: `${job.id}_${filename}`,
+                name: `${file.originalName} - Page ${pageNumber}`,
+                path: `/api/blueprints/serve-image/${job.id}/${encodeURIComponent(filename)}`,
+                pageNumber,
+                processingTime: Date.now() - startTime,
+              };
+              job.processedImages.push(processedImage);
+              job.progress = job.progress || { total: 0, processed: 0 };
+              job.progress.processed = (job.progress.processed || 0) + 1;
+              this.jobs.set(job.id, job);
+              this.notify(job.id, { type: "image", image: processedImage, progress: job.progress });
+            } catch (e) {
+              // ignore
+            }
+          });
+
+          // Run pdftoppm -png -r 150 <input.pdf> <outPrefix>
           await execFileAsync("pdftoppm", ["-png", "-r", "150", file.path, outPrefix]);
           usedPoppler = true;
+          try { watcher.close(); } catch {}
 
-          // List generated files and register them
-          const files = await readdir(uploadDir);
-          const pagePngs = files
-            .filter((f) => f.startsWith(`${parsedBase}_page-`) && f.endsWith(".png"))
-            .sort((a, b) => {
-              // sort by page number
-              const pa = parseInt(a.split("-" ).pop()!.replace(/\.png$/, ""), 10);
-              const pb = parseInt(b.split("-" ).pop()!.replace(/\.png$/, ""), 10);
-              return pa - pb;
-            });
-
-          job.progress = job.progress || { total: 0, processed: 0 };
-          job.progress.total = pagePngs.length;
-
-          for (let idx = 0; idx < pagePngs.length; idx++) {
-            const outFileName = pagePngs[idx];
-            const pageNumber = idx + 1;
-            const processedImage = {
-              id: `${job.id}_${outFileName}`,
-              name: `${file.originalName} - Page ${pageNumber}`,
-              path: `/api/blueprints/serve-image/${job.id}/${encodeURIComponent(outFileName)}`,
-              pageNumber,
-              processingTime: Date.now() - startTime,
-            };
-            job.processedImages.push(processedImage);
-            job.progress.processed = (job.progress.processed || 0) + 1;
+          // If we couldn't detect any images via watcher (rare), register them after the fact
+          if (job.processedImages.length === 0) {
+            const files = await readdir(uploadDir);
+            const pagePngs = files
+              .filter((f) => f.startsWith(`${parsedBase}_page-`) && f.endsWith(".png"))
+              .sort((a, b) => {
+                const pa = parseInt(a.split("-" ).pop()!.replace(/\.png$/, ""), 10);
+                const pb = parseInt(b.split("-" ).pop()!.replace(/\.png$/, ""), 10);
+                return pa - pb;
+              });
+            if (!job.progress) job.progress = { total: 0, processed: 0 };
+            if (!job.progress.total) job.progress.total = pagePngs.length;
+            for (let idx = 0; idx < pagePngs.length; idx++) {
+              const outFileName = pagePngs[idx];
+              const pageNumber = idx + 1;
+              const processedImage = {
+                id: `${job.id}_${outFileName}`,
+                name: `${file.originalName} - Page ${pageNumber}`,
+                path: `/api/blueprints/serve-image/${job.id}/${encodeURIComponent(outFileName)}`,
+                pageNumber,
+                processingTime: Date.now() - startTime,
+              };
+              job.processedImages.push(processedImage);
+              job.progress.processed = (job.progress.processed || 0) + 1;
+              this.notify(job.id, { type: "image", image: processedImage, progress: job.progress });
+            }
+            this.jobs.set(job.id, job);
+            this.notify(job.id, { type: "progress", progress: job.progress });
           }
-          this.jobs.set(job.id, job);
         } catch (popplerErr) {
           // If pdftoppm is not available (ENOENT) or failed, fall back to Puppeteer + pdf.js
           let browser: any | undefined;
@@ -305,6 +372,7 @@ class QueueManager {
                   job.processedImages.push(processedImage);
                   job.progress = job.progress || { total: 0, processed: 0 };
                   job.progress.processed = (job.progress.processed || 0) + 1;
+                  this.notify(job.id, { type: "image", image: processedImage, progress: job.progress });
                   this.jobs.set(job.id, job);
                 } catch (e) {
                   console.error("Error writing page from browser:", e);
@@ -364,6 +432,7 @@ class QueueManager {
 
             job.progress = job.progress || { total: 0, processed: 0 };
             job.progress.total = numPages;
+            this.notify(job.id, { type: "progress", progress: job.progress });
             this.jobs.set(job.id, job);
           } catch (err: unknown) {
             const message = err instanceof Error ? err.message : String(err);
@@ -401,6 +470,30 @@ class QueueManager {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // Wait until a file exists and its size is stable across two checks
+  private async waitForFileStable(filePath: string, timeoutMs = 10000): Promise<void> {
+    const start = Date.now();
+    let lastSize = -1;
+    let stableOnce = false;
+    while (Date.now() - start < timeoutMs) {
+      try {
+        const s = await fsStat(filePath);
+        if (s.size > 0) {
+          if (s.size === lastSize) {
+            if (stableOnce) return; // two consecutive stable checks
+            stableOnce = true;
+          } else {
+            stableOnce = false;
+          }
+          lastSize = s.size;
+        }
+      } catch {
+        // file not yet present
+      }
+      await this.delay(60);
+    }
   }
 
   // Cleanup old jobs (call this periodically)
