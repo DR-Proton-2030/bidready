@@ -221,13 +221,13 @@ const ImageCard: React.FC<ImageCardProps> = ({
                     {p.overlay ? (
                       <div
                         onClick={() => viewDetection(p)}
-                        className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 rounded-full shadow-xl shadow-gray-400 bg-green-600 text-white text-md font-medium flex items-center gap-1 cursor-pointer"
+                        className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 rounded-lg shadow-lg shadow-gray-400 bg-green-600/90 text-white text-md font-medium flex items-center gap-1 cursor-pointer"
                       >
                         <ArrowUpRight />
                         View Detection
                       </div>
                     ) : (
-                      <div className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 cursor-pointer shadow-xl shadow-gray-400 rounded-full bg-orange-400 text-white text-md font-medium flex items-center gap-1">
+                      <div className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 cursor-pointer rounded-lg shadow-lg shadow-gray-400 bg-[#e16349] text-white text-md font-medium flex items-center gap-1">
                         <ArrowUpRight />
                         Detect Image
                       </div>

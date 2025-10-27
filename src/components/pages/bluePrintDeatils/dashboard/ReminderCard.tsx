@@ -51,7 +51,7 @@ const ReminderCard = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">Team Collaboration</h2>
-        <button className="flex items-center gap-2 px-4 py-1 bg-gradient-to-r from-[#e16349] to-[#ec8773] text-white -800 rounded-full text-sm font-medium hover:bg-green-50 transition">
+        <button className="flex items-center gap-2 px-4 py-2 bg-black/70 text-white -800 rounded-full text-sm font-medium hover:bg-green-50 transition">
           <Plus className="w-4 h-4" /> Add Member
         </button>
       </div>
