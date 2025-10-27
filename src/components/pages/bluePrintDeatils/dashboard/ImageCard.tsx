@@ -126,9 +126,19 @@ const ImageCard: React.FC<ImageCardProps> = ({
   const viewDetection = (p: FilePreview) => {
     if (typeof window === "undefined") return;
     try {
+      // store payload in localStorage under a short key to avoid long query strings
       const payload = { file_url: p.src, svg_overlay_url: p.overlayData };
-      const encoded = encodeURIComponent(JSON.stringify(payload));
-      const url = `/blueprint-detection?data=${encoded}`;
+      const key = `blueprint_detection_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      try {
+        localStorage.setItem(key, JSON.stringify(payload));
+      } catch (err) {
+        // fallback to direct open with data if localStorage fails
+        const encoded = encodeURIComponent(JSON.stringify(payload));
+        const url = `/blueprint-detection?data=${encoded}`;
+        window.open(url, "_blank");
+        return;
+      }
+      const url = `/blueprint-detection?key=${encodeURIComponent(key)}`;
       window.open(url, "_blank");
     } catch (err) {
       console.error("Failed to open detection page", err);

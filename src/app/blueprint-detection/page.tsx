@@ -9,17 +9,42 @@ const DetectionPage: React.FC = () => {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
+    // prefer short key passed in 'key' param which points to localStorage entry
+    const key = params.get("key");
     const data = params.get("data");
-    if (!data) return;
-    try {
-      const parsed = JSON.parse(decodeURIComponent(data));
-      setPayload(parsed);
-      // log to console as requested
-      // eslint-disable-next-line no-console
-      console.log("Detection payload:", parsed);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("Failed to parse detection data", err);
+    if (key) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          setPayload(parsed);
+          // cleanup stored payload to avoid leaking data
+          try {
+            localStorage.removeItem(key);
+          } catch (e) {
+            /* ignore */
+          }
+          // eslint-disable-next-line no-console
+          console.log("Detection payload (from localStorage):", parsed);
+          return;
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to read detection payload from localStorage", err);
+      }
+    }
+
+    // fallback: handle older 'data' query param (encoded JSON)
+    if (data) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(data));
+        setPayload(parsed);
+        // eslint-disable-next-line no-console
+        console.log("Detection payload (from query):", parsed);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error("Failed to parse detection data from query", err);
+      }
     }
   }, []);
 
