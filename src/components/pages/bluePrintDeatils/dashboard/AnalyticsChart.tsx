@@ -17,15 +17,15 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
 }) => {
   return (
     <div>
-      <div className="flex items-end justify-between h-48">
+      <div className="flex items-end justify-between h-56 mt-16 px-7">
         {days.map((day, i) => {
           const isActive = i === activeIndex;
-          const height = heights[i] ?? 60;
+          const height = heights[i] ?? 100;
           return (
             <div key={day} className="flex flex-col items-center justify-end w-12">
               <div
                 className={`rounded-full w-12 ${isActive ? "bg-orange-400 relative" : "bg-[#e16349]/20"}`}
-                style={{ height: `${height * 1.5}px` }}
+                style={{ height: `${height * 2.4}px` }}
               >
                 {isActive && (
                   <span className="absolute -top-5 text-xs font-medium text-gray-600">{activePercent}%</span>

@@ -32,12 +32,12 @@ const RightPanelImageCard: React.FC<ImageCardProps> = ({
           <img src={src} alt={alt} className="w-full h-40 object-cover block" />
 
           {/* Dark Overlay */}
-          <div className="absolute inset-0 bg-black/10 transition-opacity group-hover:bg-black/30" />
+          <div className="absolute inset-0 bg-black/5 transition-opacity group-hover:bg-black/30" />
 
           
 
           {/* Top Action Buttons */}
-          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute top-2 right-2 flex gap-2 opacity-0 opacity-100 transition-opacity">
             <button
               onClick={onExpand}
               className="p-1.5 bg-white/80 hover:bg-white rounded-full shadow"

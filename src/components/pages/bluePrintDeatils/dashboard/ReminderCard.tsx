@@ -26,11 +26,28 @@ const teamMembers = [
     statusColor: "bg-red-100 text-red-700",
   },
 
+  {
+    name: "Edwin Adenike",
+    task: "Integrate User Authentication System",
+    status: "In Progress",
+    color: "bg-green-200",
+    statusColor: "bg-yellow-100 text-yellow-700",
+  },
+  {
+    name: "Saac Oluwatemilorun",
+    task: "Develop Search and Filter Functionality",
+    status: "Pending",
+    color: "bg-blue-200",
+    statusColor: "bg-red-100 text-red-700",
+  },
+
+ 
+
 ];
 
 const ReminderCard = () => {
   return (
-    <div className="bg-gray-50 rounded-2xl p-6 shadow-sm w-[412px]">
+    <div className="bg-gray-50 rounded-2xl p-6 shadow-sm w-2/5">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">Team Collaboration</h2>
