@@ -5,6 +5,8 @@ import LeftToolbar from "./LeftToolbar";
 import TopBar from "./TopBar";
 import BlueprintViewer from "./BlueprintViewer";
 import RightPanel from "./RightPanel";
+import Dasboard from "./Dasboard";
+import { ArrowUpRight, Video } from "lucide-react";
 
 const BlueprintDetails = ({ blueprintDetails }: any) => {
   const [tool, setTool] = useState("select");
@@ -97,31 +99,18 @@ const BlueprintDetails = ({ blueprintDetails }: any) => {
   };
 
   return (
-    <div className="flex h-[89vh] bg-gray-50 font-sans overflow-hidden">
-      <LeftToolbar
-        activeTool={tool}
-        setTool={setTool}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
-      />
+    <div className="flex h-[89vh]  font-sans overflow-hidden">
+      
       <main className="flex-1 flex flex-col">
         <TopBar
           onToggleRightPanel={() => setIsRightPanelOpen((s) => !s)}
           blueprintDetails={blueprintDetails}
         />
-        <BlueprintViewer
-          tool={tool}
-          scale={scale}
-          position={position}
-          annotations={annotations}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onWheel={handleWheel}
-          images={blueprintDetails?.file_url}
-        />
+         <div className="min-h-screen overflow-y-auto bg-white p-6">
+           <Dasboard/>
+   
+    </div>
+      
       </main>
       <RightPanel isOpen={isRightPanelOpen} />
     </div>
