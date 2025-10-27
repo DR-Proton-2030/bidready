@@ -123,6 +123,18 @@ const ImageCard: React.FC<ImageCardProps> = ({
 
   const openFileDialog = () => inputRef.current?.click();
 
+  const viewDetection = (p: FilePreview) => {
+    if (typeof window === "undefined") return;
+    try {
+      const payload = { file_url: p.src, svg_overlay_url: p.overlayData };
+      const encoded = encodeURIComponent(JSON.stringify(payload));
+      const url = `/blueprint-detection?data=${encoded}`;
+      window.open(url, "_blank");
+    } catch (err) {
+      console.error("Failed to open detection page", err);
+    }
+  };
+
   return (
     <div className="relative bg-gray-50 p-6 rounded-2xl shadow-sm space-y-6">
       {/* Floating Top-Right Button */}
@@ -197,17 +209,19 @@ const ImageCard: React.FC<ImageCardProps> = ({
                   >
                     {/* Overlay badge for detected svg overlays */}
                     {p.overlay ? (
-                      <div className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 rounded-full shadow-xl shadow-gray-400 bg-green-600 text-white text-md font-medium flex items-center gap-1">
-                     <ArrowUpRight/>
-                     View Detection
+                      <div
+                        onClick={() => viewDetection(p)}
+                        className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 rounded-full shadow-xl shadow-gray-400 bg-green-600 text-white text-md font-medium flex items-center gap-1 cursor-pointer"
+                      >
+                        <ArrowUpRight />
+                        View Detection
                       </div>
-                    ):
-
-                    <div className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 cursor-pointer shadow-xl shadow-gray-400 rounded-full bg-orange-400 text-white text-md font-medium flex items-center gap-1">
-                        <ArrowUpRight/>
+                    ) : (
+                      <div className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 cursor-pointer shadow-xl shadow-gray-400 rounded-full bg-orange-400 text-white text-md font-medium flex items-center gap-1">
+                        <ArrowUpRight />
                         Detect Image
                       </div>
-                      }
+                    )}
                     <img
                       src={p.src}
                       alt={p.file?.name ?? p.name}
