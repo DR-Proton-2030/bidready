@@ -13,7 +13,7 @@ const TopBar: React.FC<TopBarProps> = ({
   blueprintDetails,
 }) => {
   return (
-    <header className="flex-shrink-0 flex items-center justify-between  px-6 bg-white mb-5">
+    <header className="flex-shrink-0 flex items-center justify-between  px-16 py-3 bg-white mb-5">
       <div className="flex items-center space-x-4">
         <div>
         <h1 className="text-3xl font-semibold text-gray-900 pt-5">{blueprintDetails?.name || "Untitled Blueprint"}</h1>

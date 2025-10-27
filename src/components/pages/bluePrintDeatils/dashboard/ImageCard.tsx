@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
-import { X, Upload, ArrowUpRight, Trash2, Image } from "lucide-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { X, Upload, ArrowUpRight, Trash2, Image, Check } from "lucide-react";
 
 type ImageCardProps = {
   maxFiles?: number;
@@ -11,8 +11,20 @@ type ImageCardProps = {
 };
 
 type FilePreview = {
-  file: File;
+  // local file for uploads; undefined for remote/preloaded images
+  file?: File | null;
+  // image src (either object URL or remote URL)
   src: string;
+  // original filename (optional)
+  name?: string;
+  // whether this preview comes from remote blueprint_images prop
+  remote?: boolean;
+  // whether server returned an svg overlay for this image
+  overlay?: boolean;
+  // optional overlay payload (keeps original svg_overlay_url object)
+  overlayData?: any;
+  // optional id from server for remote images
+  id?: string;
 };
 
 const ImageCard: React.FC<ImageCardProps> = ({
@@ -28,7 +40,9 @@ const ImageCard: React.FC<ImageCardProps> = ({
 
   const notifyChange = useCallback(
     (items: FilePreview[]) => {
-      onChange?.(items.map((p) => p.file));
+      // only notify with actual File objects (local uploads)
+      const files = items.filter((p) => p.file).map((p) => p.file!)
+      onChange?.(files)
     },
     [onChange]
   );
@@ -45,9 +59,11 @@ const ImageCard: React.FC<ImageCardProps> = ({
       const newPreviews = toAdd.map((file) => ({
         file,
         src: URL.createObjectURL(file),
+        name: file.name,
+        remote: false,
       }));
-
-      const merged = [...previews, ...newPreviews];
+      // put newly added uploads on top
+      const merged = [...newPreviews, ...previews];
       setPreviews(merged);
       notifyChange(merged);
       setSidebarOpen(true);
@@ -63,16 +79,43 @@ const ImageCard: React.FC<ImageCardProps> = ({
 
   const removeAt = (index: number) => {
     const target = previews[index];
-    if (target) URL.revokeObjectURL(target.src);
+    if (target && !target.remote && target.src.startsWith("blob:")) {
+      // only revoke object URLs created for local files
+      URL.revokeObjectURL(target.src);
+    }
     const next = previews.filter((_, i) => i !== index);
     setPreviews(next);
     notifyChange(next);
   };
 
+  // initialize with blueprint_images if provided
+  useEffect(() => {
+    if (!blueprint_images || !blueprint_images.length) return;
+    const preloaded: FilePreview[] = blueprint_images.map((img: any) => ({
+      file: null,
+      src: img.file_url,
+      name: img.file_url?.split("/").pop?.() ?? img.file_url,
+      remote: true,
+      id: img._id,
+      overlay: Boolean(img.svg_overlay_url),
+      overlayData: img.svg_overlay_url,
+    }));
+    // append preloaded images after any existing previews (but keep existing local ones on top)
+    // avoid duplicates (React Strict Mode may run this effect twice in development)
+    setPreviews((cur) => {
+      const existing = new Set(cur.map((p) => p.src));
+      const toAdd = preloaded.filter((p) => !existing.has(p.src));
+      if (!toAdd.length) return cur;
+      return [...cur, ...toAdd];
+    });
+  }, [blueprint_images]);
+
   const handleUpload = async () => {
     if (!onUpload) return;
     try {
-      await onUpload(previews.map((p) => p.file));
+      const filesToUpload = previews.map((p) => p.file).filter(Boolean) as File[];
+      if (!filesToUpload.length) return;
+      await onUpload(filesToUpload);
     } catch (err) {
       console.error("Upload failed:", err);
     }
@@ -152,9 +195,22 @@ const ImageCard: React.FC<ImageCardProps> = ({
                     key={idx}
                     className="relative w-full h-40 rounded-xl overflow-hidden border"
                   >
+                    {/* Overlay badge for detected svg overlays */}
+                    {p.overlay ? (
+                      <div className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 rounded-full shadow-xl shadow-gray-400 bg-green-600 text-white text-md font-medium flex items-center gap-1">
+                     <ArrowUpRight/>
+                     View Detection
+                      </div>
+                    ):
+
+                    <div className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 cursor-pointer shadow-xl shadow-gray-400 rounded-full bg-orange-400 text-white text-md font-medium flex items-center gap-1">
+                        <ArrowUpRight/>
+                        Detect Image
+                      </div>
+                      }
                     <img
                       src={p.src}
-                      alt={p.file.name}
+                      alt={p.file?.name ?? p.name}
                       className="w-full h-full object-cover"
                     />
                     <button
@@ -164,7 +220,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
                       <Trash2 className="w-4 h-4 text-white" />
                     </button>
                     <p className="text-xs text-center mt-1 text-gray-500 truncate">
-                      {p.file.name}
+                      {p.file?.name ?? p.name}
                     </p>
                   </div>
                 ))
