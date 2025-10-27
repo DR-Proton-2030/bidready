@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import BlueprintDetails from "@/components/pages/bluePrintDeatils/BlurPrintDetails";
 import { api } from "@/utils/api";
 import { cookies } from "next/headers";
+import Loader from "@/components/shared/loader/Loader";
 
 interface BlueprintDetailsPageProps {
   params: Promise<{
@@ -50,7 +51,7 @@ const BlueprintDetailsPage: React.FC<BlueprintDetailsPageProps> = async ({
 
   console.log("==>blueprintDetails", blueprintDetails);
   return (
-    <Suspense fallback={<div>Loading blueprint...</div>}>
+    <Suspense fallback={<Loader/>}>
       <BlueprintDetails blueprintDetails={blueprintDetails} />
     </Suspense>
   );
