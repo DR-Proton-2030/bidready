@@ -13,6 +13,7 @@ import {
   DownloadCloud,
   Search,
   Plus,
+  Save,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
@@ -42,6 +43,7 @@ interface FullScreenImageViewerProps {
   onClose: () => void;
   onImageChange?: (image: Image, index: number) => void;
   detectionResults?: any;
+  onSvgOverlayUpdate?: (imageId: string, svgData: string | null) => void;
 }
 
 export default function FullScreenImageViewer({
@@ -51,6 +53,7 @@ export default function FullScreenImageViewer({
   onClose,
   onImageChange,
   detectionResults,
+  onSvgOverlayUpdate,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
@@ -58,7 +61,7 @@ export default function FullScreenImageViewer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  console.log("=========>detectionResults", detectionResults);
+  // console.log("=========>detectionResults", detectionResults);
   const [imageDimensions, setImageDimensions] = useState({
     width: 0,
     height: 0,
@@ -88,6 +91,54 @@ export default function FullScreenImageViewer({
   const [showClassSelector, setShowClassSelector] = useState(false);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [selectedAnnotationClass, setSelectedAnnotationClass] = useState("");
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [dismissedDetections, setDismissedDetections] = useState<Set<string>>(new Set());
+  type UndoAction = { kind: "user" | "api"; id: string; payload?: Detection };
+  const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
+  const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
+  const snackbarTimerRef = React.useRef<any>(null);
+
+  const showUndoSnackbar = (message = "Removed. Undo?") => {
+    setSnackbar({ visible: true, message });
+    if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
+    snackbarTimerRef.current = setTimeout(() => setSnackbar({ visible: false, message: "" }), 5000);
+  };
+
+  const undoLast = () => {
+    setUndoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const last = next.pop()!;
+      if (last.kind === "user" && last.payload) {
+        setUserAnnotations((anns) => [...anns, last.payload as Detection]);
+      } else if (last.kind === "api") {
+        setDismissedDetections((d) => {
+          const nd = new Set(d);
+          nd.delete(last.id);
+          return nd;
+        });
+      }
+      return next;
+    });
+    setSnackbar({ visible: false, message: "" });
+  };
+
+  const removeOverlayWithUndo = (id: string, isUser: boolean) => {
+    if (isUser) {
+      setUserAnnotations((prev) => {
+        const found = prev.find((a) => a.id === id);
+        if (found) {
+          setUndoStack((stack) => [...stack, { kind: "user", id, payload: found }]);
+        }
+        return prev.filter((a) => a.id !== id);
+      });
+    } else {
+      setDismissedDetections((prev) => new Set([...prev, id]));
+      setUndoStack((stack) => [...stack, { kind: "api", id }]);
+    }
+    setSelectedOverlayId(null);
+    showUndoSnackbar("Deleted. Undo?");
+  };
 
   const currentImage = images[currentIndex];
 
@@ -195,6 +246,36 @@ export default function FullScreenImageViewer({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
+  // Delete selected annotation with Delete/Backspace
+  useEffect(() => {
+    const onDel = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if ((e.key === "Delete" || e.key === "Backspace") && selectedOverlayId) {
+        e.preventDefault();
+        const isUser = userAnnotations.some((a) => a.id === selectedOverlayId);
+        removeOverlayWithUndo(selectedOverlayId, isUser);
+      }
+    };
+    window.addEventListener("keydown", onDel);
+    return () => window.removeEventListener("keydown", onDel);
+  }, [isOpen, selectedOverlayId, userAnnotations]);
+
+  // Ctrl/Cmd+Z undo
+  useEffect(() => {
+    const onUndo = (e: KeyboardEvent) => {
+      if (!isOpen) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        undoLast();
+      }
+    };
+    window.addEventListener("keydown", onUndo);
+    return () => window.removeEventListener("keydown", onUndo);
+  }, [isOpen, undoStack]);
+
+  const deleteUserAnnotation = (id: string) => removeOverlayWithUndo(id, true);
+  const dismissApiDetection = (id: string) => removeOverlayWithUndo(id, false);
 
   // Prevent body scroll when modal is open
   useEffect(() => {
@@ -331,16 +412,19 @@ export default function FullScreenImageViewer({
           class: detection.class,
           confidence: detection.confidence,
           color,
-          id: `detection-${index}`,
+          id: detection.id ? String(detection.id) : `detection-${index}`,
         };
       }
     );
 
+    // Remove dismissed detections
+    const visibleBoxes = allBoxes.filter((box: Detection) => !dismissedDetections.has(box.id));
+
     // Filter by selected classes if any are selected
     if (selectedClasses.size === 0) {
-      return allBoxes; // Show all if none selected
+      return visibleBoxes; // Show all if none selected
     }
-    return allBoxes.filter((box: Detection) =>
+    return visibleBoxes.filter((box: Detection) =>
       selectedClasses.has(box.class || "Unknown")
     );
   };
@@ -350,7 +434,9 @@ export default function FullScreenImageViewer({
 
     // Count original detections
     if (detectionResults?.predictions) {
-      detectionResults.predictions.forEach((detection: any) => {
+      detectionResults.predictions.forEach((detection: any, index: number) => {
+        const detId = detection.id ? String(detection.id) : `detection-${index}`;
+        if (dismissedDetections.has(detId)) return; // skip dismissed
         const className = detection.class || "Unknown";
         counts[className] = (counts[className] || 0) + 1;
       });
@@ -475,6 +561,93 @@ export default function FullScreenImageViewer({
     return [...originalBoxes, ...filteredUserAnnotations];
   };
 
+  // Generate SVG overlay from detection results and user annotations
+  const generateSvgOverlay = useCallback(() => {
+    if (!imageDimensions.width || !imageDimensions.height) return null;
+
+    // Get detection boxes directly here to avoid dependency issues
+    let allDetections: Detection[] = [];
+    
+    // Get original detections
+    if (detectionResults?.predictions && showDetections) {
+      const originalBoxes = detectionResults.predictions.map(
+        (detection: any, index: number): Detection => {
+          const className = detection.class || "Unknown";
+          const color = getColorForClass(className);
+
+          return {
+            x: detection.x || 0,
+            y: detection.y || 0,
+            width: detection.width || 0,
+            height: detection.height || 0,
+            class: detection.class,
+            confidence: detection.confidence,
+            color,
+            id: `detection-${index}`,
+          };
+        }
+      );
+
+      // Filter by selected classes if any are selected
+      if (selectedClasses.size === 0) {
+        allDetections = [...allDetections, ...originalBoxes];
+      } else {
+        allDetections = [...allDetections, ...originalBoxes.filter((box: Detection) =>
+          selectedClasses.has(box.class || "Unknown")
+        )];
+      }
+    }
+
+    // Add user annotations
+    let filteredUserAnnotations = userAnnotations;
+    if (selectedClasses.size > 0) {
+      filteredUserAnnotations = userAnnotations.filter((annotation) =>
+        selectedClasses.has(annotation.class || "Unknown")
+      );
+    }
+    allDetections = [...allDetections, ...filteredUserAnnotations];
+
+    if (allDetections.length === 0) return null;
+
+    const svgContent = `
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           width="${imageDimensions.width}" 
+           height="${imageDimensions.height}" 
+           viewBox="0 0 ${imageDimensions.width} ${imageDimensions.height}">
+        ${allDetections.map(detection => `
+          <rect x="${detection.x - detection.width/2}" 
+                y="${detection.y - detection.height/2}" 
+                width="${detection.width}" 
+                height="${detection.height}" 
+                fill="none" 
+                stroke="${detection.color}" 
+                stroke-width="2" 
+                opacity="0.8"/>
+          ${detection.class ? `
+            <text x="${detection.x - detection.width/2}" 
+                  y="${detection.y - detection.height/2 - 5}" 
+                  font-family="Arial, sans-serif" 
+                  font-size="12" 
+                  fill="${detection.color}" 
+                  font-weight="bold">
+              ${detection.class}${detection.confidence ? ` (${Math.round(detection.confidence * 100)}%)` : ''}
+            </text>
+          ` : ''}
+        `).join('')}
+      </svg>
+    `;
+
+    return svgContent;
+  }, [imageDimensions.width, imageDimensions.height, detectionResults, userAnnotations, selectedClasses, showDetections]);
+
+  // Update SVG overlay when detections change
+  useEffect(() => {
+    if (onSvgOverlayUpdate && currentImage) {
+      const svgData = generateSvgOverlay();
+      onSvgOverlayUpdate(currentImage.id, svgData);
+    }
+  }, [generateSvgOverlay, currentImage?.id, onSvgOverlayUpdate]);
+
   // Toolbar action handlers
   const handleDownload = () => {
     const link = document.createElement("a");
@@ -523,6 +696,161 @@ export default function FullScreenImageViewer({
     // Implementation for calculator functionality
   };
 
+  // Build a combined, export-friendly list of detections (AI visible + user annotations)
+  const getAllDetectionsForExport = (): Array<{
+    id: string;
+    source: "AI" | "User";
+    className: string;
+    confidence?: number;
+    x: number; // center-x in image pixels
+    y: number; // center-y in image pixels
+    width: number;
+    height: number;
+    pageNumber?: number;
+  }> => {
+    const ai = (detectionResults?.predictions || [])
+      .filter((det: any, index: number) => {
+        const detId = det.id ? String(det.id) : `detection-${index}`;
+        return !dismissedDetections.has(detId);
+      })
+      .map((det: any, index: number) => ({
+        id: det.id ? String(det.id) : `detection-${index}`,
+        source: "AI" as const,
+        className: det.class || "Unknown",
+        confidence: det.confidence,
+        x: det.x || 0,
+        y: det.y || 0,
+        width: det.width || 0,
+        height: det.height || 0,
+        pageNumber: currentImage?.pageNumber,
+      }));
+
+    const user = userAnnotations.map((a) => ({
+      id: a.id,
+      source: "User" as const,
+      className: a.class || "Unknown",
+      confidence: a.confidence,
+      x: a.x,
+      y: a.y,
+      width: a.width,
+      height: a.height,
+      pageNumber: currentImage?.pageNumber,
+    }));
+
+    return [...ai, ...user];
+  };
+
+  // Export: draw base image + overlay to canvas, embed into PDF, download; also allow CSV export
+  const handleExportPdf = async () => {
+    try {
+      // Load base image with CORS enabled for canvas drawing
+      const imgEl = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const im = new Image();
+        im.crossOrigin = "anonymous";
+        im.onload = () => resolve(im);
+        im.onerror = reject;
+        im.src = currentImage.path;
+      });
+
+      const width = imgEl.naturalWidth || imgEl.width;
+      const height = imgEl.naturalHeight || imgEl.height;
+      if (!width || !height) throw new Error("Image dimensions unavailable");
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas 2D context not available");
+
+      // Draw image
+      ctx.drawImage(imgEl, 0, 0, width, height);
+
+      // Draw overlay rectangles using center-based coords
+      const overlays = getAllDetectionsForExport();
+      overlays.forEach((d) => {
+        const left = d.x - d.width / 2;
+        const top = d.y - d.height / 2;
+        // Outline
+        ctx.strokeStyle = getColorForClass(d.className);
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9;
+        ctx.strokeRect(left, top, d.width, d.height);
+        // Fill lite
+        ctx.fillStyle = getColorForClass(d.className);
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(left, top, d.width, d.height);
+        // Label
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#111827"; // slate-900 for legibility
+        ctx.font = "bold 18px Arial";
+        const label = `${d.className}${typeof d.confidence === "number" ? ` (${Math.round(d.confidence * 100)}%)` : ""}`;
+        ctx.fillText(label, left + 4, Math.max(14, top - 6));
+      });
+
+      // Create PDF from canvas
+      // @ts-ignore - jsPDF types may not be available at runtime until installed
+      const { jsPDF } = await import("jspdf");
+      const doc = new jsPDF({ unit: "px", format: [width, height], orientation: width >= height ? "l" : "p" });
+      const imgData = canvas.toDataURL("image/png");
+      doc.addImage(imgData, "PNG", 0, 0, width, height);
+      const filename = `${(currentImage.name || "blueprint").replace(/\s+/g, "_")}.pdf`;
+      doc.save(filename);
+    } catch (e) {
+      console.error("Failed to export PDF:", e);
+      alert("Failed to export PDF. See console for details.");
+    }
+  };
+
+  const handleExportCsv = () => {
+    try {
+      const rows = getAllDetectionsForExport();
+      const headers = [
+        "id",
+        "source",
+        "class",
+        "confidence",
+        "x_center",
+        "y_center",
+        "width",
+        "height",
+        "page",
+        "image_name",
+      ];
+      const escapeCsv = (v: any) => {
+        const s = v == null ? "" : String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const lines = [headers.join(",")];
+      rows.forEach((r) => {
+        lines.push([
+          r.id,
+          r.source,
+          r.className,
+          typeof r.confidence === "number" ? r.confidence.toFixed(4) : "",
+          r.x,
+          r.y,
+          r.width,
+          r.height,
+          r.pageNumber ?? "",
+          currentImage.name,
+        ].map(escapeCsv).join(","));
+      });
+      const csv = lines.join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${(currentImage.name || "annotations").replace(/\s+/g, "_")}_annotations.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Failed to export CSV:", e);
+      alert("Failed to export CSV. See console for details.");
+    }
+  };
+
   if (!isOpen || !currentImage) return null;
 
   return (
@@ -563,7 +891,7 @@ export default function FullScreenImageViewer({
 
             <button
               onClick={rotate}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
+              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
               title="Rotate (R)"
             >
               <RotateCw className="w-5 h-5" />
@@ -571,19 +899,36 @@ export default function FullScreenImageViewer({
 
             <button
               onClick={resetView}
-              className="px-3 py-1 text-lg bg-green-500 hover:bg-green-700 hover:bg-opacity-20 mr-4 transition-colors"
+              className="px-3 py-1 text-md  hover:bg-gray-700 mr-4 transition-colors"
               title="Reset View"
             >
               Reset
             </button>
             <button
-              onClick={resetView}
-              className="px-3 py-1 flex justify-center items-center gap-2 text-lg bg-[#009568] hover:bg-green-700 hover:bg-opacity-20  transition-colors"
-              title="Reset View"
+              onClick={handleExportPdf}
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
+              title="Export PDF"
             >
-              <DownloadCloud />
+              <DownloadCloud size={18} />
               Export PDF
             </button>
+            <button
+              onClick={handleExportCsv}
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
+              title="Export Annotations CSV"
+            >
+              <Download size={18} />
+              Export CSV
+            </button>
+            <button
+                   onClick={onClose}
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
+              title="Download Pdf"
+            >
+              <Save size={18} />
+              Save Details
+            </button>
+            
             {/* {detectionResults?.predictions && (
               <button
                 onClick={() => setShowDetections(!showDetections)}
@@ -599,13 +944,7 @@ export default function FullScreenImageViewer({
             )} */}
             {/* Toggle classes/sidebar button */}
 
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-              title="Close (Esc)"
-            >
-              <X className="w-5 h-5" />
-            </button>
+           
           </div>
         </div>
       </div>
@@ -638,6 +977,8 @@ export default function FullScreenImageViewer({
           cursor:
             activeTool === "annotate"
               ? "crosshair"
+              : activeTool === "erase"
+              ? "pointer"
               : zoom > 1
               ? isDragging
                 ? "grabbing"
@@ -726,67 +1067,75 @@ export default function FullScreenImageViewer({
                     yShift = detection.height * shiftRatio;
                   }
 
+                  const xRect = detection.x - xShift;
+                  const yRect = detection.y - yShift;
+                  const isSelected = selectedOverlayId === detection.id;
+
                   return (
-                    <g key={detection.id}>
+                    <g key={detection.id} style={{ pointerEvents: isUserAnnotation || activeTool === "erase" ? "auto" : "none", cursor: activeTool === "erase" ? "not-allowed" : isUserAnnotation ? "pointer" : "default" }}
+                       onClick={() => {
+                         if (activeTool === "erase") {
+                           removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                         } else if (isUserAnnotation) {
+                           setSelectedOverlayId(detection.id);
+                         }
+                       }}
+                       onContextMenu={(e) => {
+                         if (isUserAnnotation || activeTool === "erase") {
+                           e.preventDefault();
+                           removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                         }
+                       }}
+                    >
                       {/* Bounding box rectangle */}
                       <rect
-                        x={detection.x - xShift}
-                        y={detection.y - yShift}
+                        x={xRect}
+                        y={yRect}
                         width={detection.width}
                         height={detection.height}
                         fill="none"
-                        stroke={detection.color}
-                        strokeWidth="3"
-                        strokeOpacity="0.8"
+                        stroke={isSelected ? "#22c55e" : detection.color}
+                        strokeWidth={isSelected ? 2 : 1}
+                        strokeOpacity="0.7"
                       />
                       <rect
-                        x={detection.x - xShift}
-                        y={detection.y - yShift}
+                        x={xRect}
+                        y={yRect}
                         width={detection.width}
                         height={detection.height}
                         fill={detection.color}
-                        fillOpacity="0.1"
+                        fillOpacity={isSelected ? 0.2 : 0.3}
                       />
-                      {/* Label background */}
-                      <rect
-                        x={
-                          isUserAnnotation
-                            ? detection.x + xShift
-                            : detection.x - xShift * 0.2
-                        }
-                        y={
-                          isUserAnnotation
-                            ? detection.y + yShift - 30
-                            : detection.y + yShift - 12
-                        }
-                        width={Math.max(
-                          (detection.class?.length || 7) * 8 + 20,
-                          60
-                        )}
-                        height="25"
-                        fill={detection.color}
-                        fillOpacity="0.9"
-                      />
-
-                      {/* Label text */}
-                      <text
-                        x={
-                          isUserAnnotation
-                            ? detection.x + xShift
-                            : detection.x - xShift * 0.2
-                        }
-                        y={
-                          isUserAnnotation
-                            ? detection.y + yShift - 10
-                            : detection.y + yShift + 5
-                        }
-                        fill="white"
-                        fontSize="14"
-                        fontWeight="bold"
-                        fontFamily="Arial, sans-serif"
-                      >
-                        {detection.class || "Unknown"}
-                      </text>
+                      {isUserAnnotation && activeTool !== "erase" && (
+                        <g>
+                          {/* Small delete chip at top-right */}
+                          <rect
+                            x={xRect + detection.width - 18}
+                            y={yRect - 18}
+                            width={18}
+                            height={18}
+                            rx={3}
+                            ry={3}
+                            fill="#ef4444"
+                            opacity="0.9"
+                            style={{ pointerEvents: "auto" }}
+                            onClick={(e) => { e.stopPropagation(); deleteUserAnnotation(detection.id); }}
+                          />
+                          <text
+                            x={xRect + detection.width - 9}
+                            y={yRect - 5}
+                            textAnchor="middle"
+                            fontSize="12"
+                            fontFamily="Arial, sans-serif"
+                            fill="#ffffff"
+                            style={{ pointerEvents: "none" }}
+                          >
+                            ×
+                          </text>
+                        </g>
+                      )}
+                     
+                     
                     </g>
                   );
                 })}
@@ -842,6 +1191,21 @@ export default function FullScreenImageViewer({
                 }`}
               />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Snackbar */}
+      {snackbar.visible && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+          <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
+            <span className="text-sm">{snackbar.message}</span>
+            <button
+              className="text-green-400 hover:text-green-300 font-semibold text-sm"
+              onClick={undoLast}
+            >
+              Undo
+            </button>
           </div>
         </div>
       )}
@@ -993,6 +1357,26 @@ export default function FullScreenImageViewer({
                     detected
                   </p>
                 </div>
+
+                {/* Annotated Image Preview */}
+                {detectionResults.annotated_image && (
+                  <div className="mt-4 p-3 bg-gray-100 rounded-lg">
+                    <p className="text-xs text-gray-600 mb-2">
+                      AI Annotated Preview:
+                    </p>
+                    <div className="relative">
+                      <img
+                        src={detectionResults.annotated_image}
+                        alt="AI Annotated"
+                        className="w-full h-auto rounded border border-gray-300"
+                        style={{ maxHeight: '200px', objectFit: 'contain' }}
+                      />
+                      <div className="absolute top-1 right-1 bg-green-600 text-white px-2 py-1 rounded text-xs font-medium">
+                        AI Processed
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

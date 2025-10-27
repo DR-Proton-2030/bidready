@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   CheckCircle,
@@ -12,6 +12,7 @@ import {
   Grid3x3,
   Trash2,
   X,
+  Trash,
 } from "lucide-react";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import axios from "axios";
@@ -21,6 +22,7 @@ interface ProcessedImage {
   name: string;
   path: string;
   pageNumber?: number;
+  svgOverlay?: string | null;
 }
 
 interface JobStatus {
@@ -39,6 +41,17 @@ export default function BlueprintProcessingPage() {
   const router = useRouter();
   const jobId = params.jobId as string;
 
+  // Get blueprint form data from URL parameters
+  const searchParams = new URLSearchParams(window.location.search);
+  const blueprintData = {
+    name: searchParams.get('name') || `Blueprint from Job ${jobId}`,
+    description: searchParams.get('description') || 'Auto-generated blueprint from processed images',
+    version: searchParams.get('version') || 'v1',
+    status: searchParams.get('status') || 'active',
+    type: searchParams.get('type') || 'floor_plan',
+    project_object_id: searchParams.get('project_object_id') || '68b72c0b0002cf35d19b54e4'
+  };
+
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,12 +62,19 @@ export default function BlueprintProcessingPage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [detectionResults, setDetectionResults] = useState<any>(null);
   const [removedImages, setRemovedImages] = useState<Set<string>>(new Set());
+  const [imageDetectionResults, setImageDetectionResults] = useState<Map<string, any>>(new Map());
+  const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(new Map());
+  const [activeTab, setActiveTab] = useState<"unprocessed" | "detected">("unprocessed");
 
   // Filter out removed images
   const filteredImages =
     jobStatus?.processedImages.filter(
       (image) => !removedImages.has(image.id)
     ) || [];
+
+  // Separate images for tabs
+  const unprocessedImages = filteredImages.filter(image => !imageDetectionResults.has(image.id));
+  const detectedImages = filteredImages.filter(image => imageDetectionResults.has(image.id));
 
   useEffect(() => {
     if (!jobId) return;
@@ -103,12 +123,12 @@ export default function BlueprintProcessingPage() {
 
       // Create FormData and send to API
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("file", file);
 
       console.log("Sending request to detection API...");
 
       // API endpoint for detection
-      const apiResponse = await fetch("http://localhost:5050/api/detect", {
+      const apiResponse = await fetch("http://localhost:8000/detect", {
         method: "POST",
         body: formData,
       });
@@ -124,8 +144,51 @@ export default function BlueprintProcessingPage() {
       const result = await apiResponse.json();
       console.log("Detection result:", result);
 
-      // Store detection results
-      setDetectionResults(result);
+      // Normalize new API shape to viewer-expected shape: { predictions: [ { x,y,width,height,class,confidence } ], annotated_image }
+      const normalized: any = {};
+
+      // If the API returns detections array with bbox {x1,y1,x2,y2} and label/confidence
+      if (Array.isArray(result.detections)) {
+        normalized.predictions = result.detections.map((d: any) => {
+          const bbox = d.bbox || d.bounding_box || {};
+          const x1 = bbox.x1 ?? bbox.x ?? 0;
+          const y1 = bbox.y1 ?? bbox.y ?? 0;
+          const x2 = bbox.x2 ?? bbox.x2 ?? 0;
+          const y2 = bbox.y2 ?? bbox.y2 ?? 0;
+
+          const width = Math.abs((x2 || 0) - (x1 || 0));
+          const height = Math.abs((y2 || 0) - (y1 || 0));
+          const x = (x1 || 0) + width / 2;
+          const y = (y1 || 0) + height / 2;
+
+          return {
+            x,
+            y,
+            width,
+            height,
+            class: d.label ?? d.class ?? "Unknown",
+            confidence: d.confidence ?? d.score ?? null,
+          };
+        });
+      }
+
+      // Pass through annotated image if provided (data URL)
+      normalized.annotated_image = result.annotated_image ?? result.annotatedImage ?? null;
+
+      // Store detection results for this specific image (normalized)
+      setImageDetectionResults((prev) => new Map(prev.set(image.id, normalized)));
+      setDetectionResults(normalized);
+
+      // Save annotated image into svgOverlays map so downstream flows (create blueprint) can include it
+      if (normalized.annotated_image) {
+        setSvgOverlays((prev) => new Map(prev.set(image.id, normalized.annotated_image)));
+      }
+
+      // Switch to detected tab if this was the last unprocessed image
+      const remainingUnprocessed = unprocessedImages.filter((img) => img.id !== image.id);
+      if (remainingUnprocessed.length === 0) {
+        setActiveTab("detected");
+      }
 
       // Open the modal after getting results
       setViewerOpen(true);
@@ -208,10 +271,128 @@ export default function BlueprintProcessingPage() {
     }
   };
 
+ const handleCreateBlueprint = useCallback(async () => {
+  try {
+    if (filteredImages.length === 0) {
+      alert("No images available to create blueprint");
+      return;
+    }
+
+  
+    setError(null);
+
+    // Build image pair data with actual files
+    const imagePairs = await Promise.all(
+      filteredImages.map(async (image) => {
+        const imageResponse = await fetch(image.path);
+        const imageBlob = await imageResponse.blob();
+        const imageFile = new File([imageBlob], image.name, { type: imageBlob.type });
+        const detectionResult = imageDetectionResults.get(image.id) || null;
+
+        return {
+          imageFile,
+          detection_result: detectionResult,
+          imageId: image.id,
+          imageName: image.name,
+          pageNumber: image.pageNumber,
+        };
+      })
+    );
+
+    // Prepare multipart form data
+    const formData = new FormData();
+
+    // Basic blueprint fields
+    formData.append("name", blueprintData.name || "");
+    formData.append("description", blueprintData.description || "");
+    formData.append("version", blueprintData.version || "");
+    formData.append("status", blueprintData.status || "");
+    formData.append("type", blueprintData.type || "");
+    formData.append("project_object_id", blueprintData.project_object_id || "");
+
+    // Append all images & metadata
+    imagePairs.forEach((pair, index) => {
+      // Append the image file
+      formData.append(`images`, pair.imageFile, pair.imageName);
+
+      // Create metadata for this image
+      const metadata = {
+        imageIndex: index,
+        imageId: pair.imageId,
+        imageName: pair.imageName,
+        pageNumber: pair.pageNumber,
+        hasDetectionResult: !!pair.detection_result,
+        detection_result: pair.detection_result || null,
+      };
+
+      // Append metadata as individual entries (this matches backend expectation)
+      formData.append(`image_metadata`, JSON.stringify(metadata));
+    });
+
+    // Also send image_pairs data for backend compatibility
+    const imagePairsData = imagePairs.map((pair, index) => ({
+      imageIndex: index,
+      imageId: pair.imageId,
+      imageName: pair.imageName,
+      pageNumber: pair.pageNumber,
+      hasDetectionResult: !!pair.detection_result,
+      detection_result: pair.detection_result || null,
+      svg_overlay: null, // We're not using SVG overlays in this flow
+    }));
+    
+    formData.append("image_pairs", JSON.stringify(imagePairsData));
+    formData.append("image_count", imagePairs.length.toString());
+
+    // Debug logging for verification
+    console.log("======> Blueprint form data:");
+    console.log("======> Image pairs data:", imagePairsData);
+    for (const [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+      } else if (key === 'image_pairs') {
+        console.log(`${key}: ${value} (parsed:`, JSON.parse(value as string), ')');
+      } else {
+        console.log(`${key}: ${value}`);
+      }
+    }
+
+  
+    // ✅ Important: Don't set Content-Type manually for FormData!
+    const apiResponse = await fetch("http://localhost:8989/api/v1/blueprints/create-blueprint", {
+      method: "POST",
+   
+      body: formData,
+      credentials: "include", // optional if your API requires cookies/auth
+    });
+
+    if (!apiResponse.ok) {
+      const text = await apiResponse.text();
+      throw new Error(`Blueprint creation failed: ${apiResponse.status} ${text}`);
+    }
+
+    const result = await apiResponse.json();
+
+    console.log("✅ Blueprint created:", result);
+    // router.push("/blueprints");
+  } catch (error) {
+    console.error("❌ Error creating blueprint:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    alert("Error creating blueprint: " + errorMessage);
+  } 
+}, [
+filteredImages
+]);
+
+  // Keep the original function for navigation to form
   const handleContinueToForm = () => {
     if (filteredImages.length > 0) {
-      // Pass the filtered images data to the blueprint creation form
-      const imageData = encodeURIComponent(JSON.stringify(filteredImages));
+      // Pass the filtered images data to the blueprint creation form with SVG overlays
+      const imagesWithOverlays = filteredImages.map(image => ({
+        ...image,
+        svgOverlay: svgOverlays.get(image.id) || null
+      }));
+      
+      const imageData = encodeURIComponent(JSON.stringify(imagesWithOverlays));
       router.push(
         `/create-blueprint?processedImages=${imageData}&jobId=${jobId}`
       );
@@ -278,9 +459,9 @@ export default function BlueprintProcessingPage() {
             <div className="flex items-center space-x-3">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
-                  Blueprint Processing
+{blueprintData.name}
                 </h1>
-                <p className="text-xs text-gray-600">Job ID: {jobId}</p>
+                <p className="text-xs text-gray-600">Version :{blueprintData.version}</p>
               </div>
             </div>
 
@@ -291,14 +472,7 @@ export default function BlueprintProcessingPage() {
                   {jobStatus.progress.processed} of {jobStatus.progress.total}{" "}
                   processed
                 </span>
-                <span
-                  className={`px-3 py-1  rounded-full text-sm font-medium ${getStatusColor(
-                    jobStatus.status
-                  )}`}
-                >
-                  {jobStatus.status.charAt(0).toUpperCase() +
-                    jobStatus.status.slice(1)}
-                </span>
+               
               </div>
               {/* <div className="w-96 bg-gray-200 rounded-full h-2">
                 <div
@@ -334,46 +508,97 @@ export default function BlueprintProcessingPage() {
             </div>
           </div>
         )}
-
-        {/* Processed Images */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Processed Images ({filteredImages.length})
-              </h2>
-              {removedImages.size > 0 && (
-                <p className="text-sm text-gray-500">
-                  {removedImages.size} image
-                  {removedImages.size !== 1 ? "s" : ""} removed
-                </p>
-              )}
+ {/* Tab Navigation */}
+  <div className="bg-white px-5 py-4 border border-gray-200 my-5 flex justify-between items-center rounded-xl">
+   <div className="flex">
+            <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
+              <button
+                onClick={() => setActiveTab("unprocessed")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  activeTab === "unprocessed"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Unprocessed ({unprocessedImages.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("detected")}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  activeTab === "detected"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Detected ({detectedImages.length})
+              </button>
             </div>
+          </div>
+           {jobStatus.status === "completed" && filteredImages.length > 0 && (
+            <div className="flex space-x-3">
+              <button
+                onClick={handleContinueToForm}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md hover:bg-gray-50"
+              >
+                Continue to Form
+              </button>
+              <button
+                onClick={handleCreateBlueprint}
+                className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              >
+                Create Blueprint
+              </button>
+            </div>
+          )}
+</div>
+       
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          {/* Tab Headers */}
+          
 
-            {filteredImages.length > 0 && (
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() =>
-                    setViewMode(
-                      viewMode === "fullscreen" ? "grid" : "fullscreen"
-                    )
-                  }
-                  className="inline-flex items-center px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  {viewMode === "fullscreen" ? (
-                    <>
-                      <Grid3x3 className="w-4 h-4 mr-1" />
-                      Grid View
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-4 h-4 mr-1" />
-                      Full Screen
-                    </>
+          {/* Tab Content */}
+          {activeTab === "unprocessed" && (
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Unprocessed Images
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Images ready for AI detection
+                  </p>
+                  {removedImages.size > 0 && (
+                    <p className="text-sm text-gray-500">
+                      {removedImages.size} image
+                      {removedImages.size !== 1 ? "s" : ""} removed
+                    </p>
                   )}
-                </button>
+                </div>
 
-                {viewMode === "fullscreen" && (
+                {unprocessedImages.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() =>
+                        setViewMode(
+                          viewMode === "fullscreen" ? "grid" : "fullscreen"
+                        )
+                      }
+                      className="inline-flex items-center px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                    >
+                      {viewMode === "fullscreen" ? (
+                        <>
+                          <Grid3x3 className="w-4 h-4 mr-1" />
+                          Grid View
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-4 h-4 mr-1" />
+                          Full Screen
+                        </>
+                      )}
+                    </button>
+
+                    {viewMode === "fullscreen" && filteredImages[selectedImageIndex] && !imageDetectionResults.has(filteredImages[selectedImageIndex].id) && (
                   <button
                     onClick={handleViewDetection}
                     disabled={isDetecting}
@@ -391,27 +616,60 @@ export default function BlueprintProcessingPage() {
                     ) : (
                       <>
                         <Eye className="w-4 h-4 mr-2" />
-                        View Detection
+                        Detect Current
                       </>
                     )}
                   </button>
                 )}
-              </div>
-            )}
+                
+                    {unprocessedImages.length > 1 && (
+                      <button
+                        onClick={async () => {
+                          for (const image of unprocessedImages) {
+                            if (!isDetecting) {
+                              await detectImageWithAPI(image);
+                            }
+                          }
+                        }}
+                        disabled={isDetecting}
+                        className={`inline-flex items-center px-4 py-2 rounded-md ${
+                          isDetecting
+                            ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                            : "bg-green-600 text-white hover:bg-green-700"
+                        }`}
+                      >
+                        {isDetecting ? (
+                          <>
+                            <Clock className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="w-4 h-4 mr-2" />
+                            Detect All
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
           </div>
 
-          {filteredImages.length === 0 ? (
-            <div className="text-center py-8">
-              <FileImage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">
-                {jobStatus.status === "processing" ||
-                jobStatus.status === "pending"
-                  ? "Processing files... Images will appear here as they are processed."
-                  : removedImages.size > 0
-                  ? "All images have been removed. Use the restore section below to bring them back."
-                  : "No images have been processed yet."}
-              </p>
-            </div>
+              {unprocessedImages.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileImage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">
+                    {filteredImages.length === 0 ? (
+                      jobStatus.status === "processing" || jobStatus.status === "pending"
+                        ? "Processing files... Images will appear here as they are processed."
+                        : removedImages.size > 0
+                        ? "All images have been removed. Use the restore section below to bring them back."
+                        : "No images have been processed yet."
+                    ) : (
+                      "All images have been processed with AI detection! 🎉"
+                    )}
+                  </p>
+                </div>
           ) : viewMode === "fullscreen" ? (
             /* Full Screen Mode - Show large preview with navigation hint */
             <div className="space-y-4">
@@ -517,13 +775,16 @@ export default function BlueprintProcessingPage() {
               {/* Thumbnail navigation */}
               {filteredImages.length > 1 && (
                 <div className="flex space-x-2 overflow-x-auto pb-2">
-                  {filteredImages.map((image, index) => (
+ {filteredImages
+                .map((image, index) => (
                     <div key={image.id} className="relative flex-shrink-0">
                       <button
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`w-16 h-16 rounded border-2 overflow-hidden ${
+                        className={`w-56 h-56 rounded border-2 overflow-hidden relative ${
                           index === selectedImageIndex
                             ? "border-blue-500"
+                            : imageDetectionResults.has(image.id)
+                            ? "border-green-300 hover:border-green-400"
                             : "border-gray-200 hover:border-gray-300"
                         }`}
                       >
@@ -537,13 +798,20 @@ export default function BlueprintProcessingPage() {
                               "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiM2YjcyODAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPk5BPC90ZXh0Pjwvc3ZnPg==";
                           }}
                         />
+                        
+                        {/* Detection badge for thumbnails */}
+                        {imageDetectionResults.has(image.id) && (
+                          <div className="absolute top-1 left-1 bg-green-600 text-white px-1 py-0.5 rounded text-xs font-medium">
+                            ✓
+                          </div>
+                        )}
                       </button>
                       <button
                         onClick={(e) => handleRemoveImage(image.id, e)}
-                        className="absolute -top-1 -right-1 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg"
+                        className="absolute top-0 -right-1 p-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors shadow-lg"
                         title="Remove this image"
                       >
-                        <X className="w-3 h-3" />
+                        <Trash className="w-3 h-3" />
                       </button>
                     </div>
                   ))}
@@ -580,9 +848,9 @@ export default function BlueprintProcessingPage() {
               )}
             </div>
           ) : (
-            /* Grid Mode - Original small boxes */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredImages.map((image, index) => (
+                /* Grid Mode - Only unprocessed images */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {unprocessedImages.map((image, index) => (
                 <div
                   key={image.id}
                   className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group"
@@ -590,7 +858,8 @@ export default function BlueprintProcessingPage() {
                   <div
                     className="aspect-video bg-gray-100 flex items-center justify-center cursor-pointer"
                     onClick={() => {
-                      setSelectedImageIndex(index);
+                      const originalIndex = filteredImages.findIndex(img => img.id === image.id);
+                      setSelectedImageIndex(originalIndex);
                       setViewerOpen(true);
                     }}
                   >
@@ -638,6 +907,131 @@ export default function BlueprintProcessingPage() {
                   </div>
                 </div>
               ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Detected Images Tab */}
+          {activeTab === "detected" && (
+            <div>
+              {detectedImages.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileImage className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">
+                    No images have been processed with AI detection yet.
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Switch to the "Unprocessed" tab to start detecting images.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-green-900">
+                        Detected Images
+                      </h2>
+                      <p className="text-sm text-gray-600">
+                        Images with AI detection results
+                      </p>
+                    </div>
+                    <div className="text-sm text-gray-700 bg-gray-100 border border-gray-300 px-3 py-1 rounded-full">
+                      Ready for Blueprint Creation
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {detectedImages.map((image, index) => (
+                      <div
+                        key={image.id}
+                        className="border border-green-300 rounded-lg overflow-hidden hover:shadow-md transition-shadow relative group bg-white"
+                      >
+                    <div className="relative">
+                      <div
+                        className="aspect-video bg-gray-100 flex items-center justify-center cursor-pointer"
+                        onClick={() => {
+                          const originalIndex = filteredImages.findIndex(img => img.id === image.id);
+                          setSelectedImageIndex(originalIndex);
+                          
+                          // Set the detection results for this image
+                          const storedResults = imageDetectionResults.get(image.id);
+                          if (storedResults) {
+                            setDetectionResults(storedResults);
+                          }
+                          
+                          setViewerOpen(true);
+                        }}
+                      >
+                        <img
+                          src={image.path}
+                          alt={image.name}
+                          className="max-w-full max-h-full object-contain"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzZiNzI4MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
+                          }}
+                        />
+                      </div>
+                      
+                      {/* Detection badge */}
+                      <div className="absolute top-2 left-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
+                        <span className="w-2 h-2 bg-white rounded-full mr-1"></span>
+                        Detected
+                      </div>
+                      
+                      {/* Remove button */}
+                      <button
+                        onClick={(e) => handleRemoveImage(image.id, e)}
+                        className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+                        title="Remove this image"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <div className="p-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 text-sm truncate">
+                            {image.name}
+                          </h3>
+                          {image.pageNumber && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Page {image.pageNumber}
+                            </p>
+                          )}
+                          <div className="text-xs text-green-600 mt-1 font-medium">
+                            Detection results available
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* View Detection Results Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent triggering the card click
+                          const originalIndex = filteredImages.findIndex(img => img.id === image.id);
+                          setSelectedImageIndex(originalIndex);
+                          
+                          // Set the detection results for this image
+                          const storedResults = imageDetectionResults.get(image.id);
+                          if (storedResults) {
+                            setDetectionResults(storedResults);
+                          }
+                          
+                          setViewerOpen(true);
+                        }}
+                        className="w-full mt-2 px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                      >
+                        View Detection Results
+                      </button>
+                    </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -717,14 +1111,7 @@ export default function BlueprintProcessingPage() {
             Back to Upload
           </button>
 
-          {jobStatus.status === "completed" && filteredImages.length > 0 && (
-            <button
-              onClick={handleContinueToForm}
-              className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-            >
-              Continue to Blueprint Form
-            </button>
-          )}
+         
         </div>
       </div>
 
@@ -738,6 +1125,10 @@ export default function BlueprintProcessingPage() {
           setDetectionResults(null); // Clear detection results when closing
         }}
         detectionResults={detectionResults}
+        onSvgOverlayUpdate={(imageId, svgData) => {
+          // Just log for debugging - we're storing detection results instead
+          console.log('SVG overlay updated for image:', imageId, svgData ? 'with data' : 'cleared');
+        }}
       />
     </div>
   );

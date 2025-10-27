@@ -13,16 +13,20 @@ const TopBar: React.FC<TopBarProps> = ({
   blueprintDetails,
 }) => {
   return (
-    <header className="flex-shrink-0 flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200">
+    <header className="flex-shrink-0 flex items-center justify-between  px-16 py-3 bg-white mb-5">
       <div className="flex items-center space-x-4">
-        <h1 className="text-xl font-semibold text-gray-800">
+        <div>
+        <h1 className="text-3xl font-semibold text-gray-900 pt-5">{blueprintDetails?.name || "Untitled Blueprint"}</h1>
+        <p className="text-gray-500">Plan, prioritize, and accomplish your tasks with ease.</p>
+      </div>
+        {/* <h1 className="text-xl font-semibold text-gray-800">
           {blueprintDetails?.name || "Untitled Blueprint"}
         </h1>
         <div className="flex items-center space-x-2 text-sm text-gray-500 cursor-pointer">
           <File className="w-4 h-4" />
           <span>{blueprintDetails?.type || "No type"}</span>
           <ChevronDown className="w-4 h-4" />
-        </div>
+        </div> */}
       </div>
       <div className="flex items-center space-x-4">
         <button className="p-2 text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200">
