@@ -99,7 +99,7 @@ const BlueprintDetails = ({ blueprintDetails }: any) => {
   };
 
   return (
-    <div className="flex h-[89vh]  font-sans overflow-hidden">
+    <div className="flex h-[89vh] bg-white font-sans overflow-hidden">
       
       <main className="flex-1 flex flex-col">
         <TopBar
