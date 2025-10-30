@@ -15,6 +15,10 @@ import {
   Trash,
 } from "lucide-react";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
+import PDFViewerSection from "@/components/pages/blueprintProcessing/PDFViewerSection";
+import ImageGridSection from "@/components/pages/blueprintProcessing/ImageGridSection";
+import ViewModeSwitcher from "@/components/pages/blueprintProcessing/ViewModeSwitcher";
+import PDFUploadButton from "@/components/pages/blueprintProcessing/PDFUploadButton";
 import axios from "axios";
 
 interface ProcessedImage {
@@ -57,7 +61,7 @@ export default function BlueprintProcessingPage() {
   const [error, setError] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [viewMode, setViewMode] = useState<"fullscreen" | "grid">("fullscreen");
+  const [imageViewMode, setImageViewMode] = useState<"fullscreen" | "grid">("fullscreen");
   const [isDetecting, setIsDetecting] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [detectionResults, setDetectionResults] = useState<any>(null);
@@ -65,6 +69,11 @@ export default function BlueprintProcessingPage() {
   const [imageDetectionResults, setImageDetectionResults] = useState<Map<string, any>>(new Map());
   const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(new Map());
   const [activeTab, setActiveTab] = useState<"unprocessed" | "detected">("unprocessed");
+  
+  // PDF Viewer state
+  const [viewMode, setViewMode] = useState<"images" | "pdf">("images");
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfExportData, setPdfExportData] = useState<{ blob: Blob; fileName: string } | null>(null);
 
   // Filter out removed images
   const filteredImages =
@@ -106,6 +115,26 @@ export default function BlueprintProcessingPage() {
 
     pollJobStatus();
   }, [jobId]);
+
+  // Check if there's a PDF file in the original upload
+  useEffect(() => {
+    const checkForPDF = async () => {
+      // Check if the original file was a PDF by looking at the processedImages names
+      const hasPdfPages = jobStatus?.processedImages.some(
+        (img) => img.name.toLowerCase().includes('.pdf') || img.name.includes('_page_')
+      );
+
+      if (hasPdfPages && jobStatus?.processedImages && jobStatus.processedImages.length > 0) {
+        // Try to reconstruct or fetch the original PDF if needed
+        // For now, we'll set a flag that PDF mode is available
+        console.log("PDF detected in processed images");
+      }
+    };
+
+    if (jobStatus) {
+      checkForPDF();
+    }
+  }, [jobStatus]);
 
   // API call function for image detection
   const detectImageWithAPI = async (image: ProcessedImage) => {
@@ -403,7 +432,7 @@ filteredImages
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Clock className="w-12 h-12 text-blue-500 animate-spin w-7xl mb-4" />
+          <Clock className="w-12 h-12 text-blue-500 animate-spin mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
             Loading job status...
           </h2>
@@ -465,33 +494,25 @@ filteredImages
               </div>
             </div>
 
-            <div className="mt-">
-              <div className="flex justify-start gap-44 text-sm text-gray-600 mb-2">
-                <span className="flex justify-start gap-2 item-center font-semibold">
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-gray-600">
+                <span className="flex items-center gap-2 font-semibold">
                   {getStatusIcon(jobStatus.status)}{" "}
                   {jobStatus.progress.processed} of {jobStatus.progress.total}{" "}
                   processed
                 </span>
-               
               </div>
-              {/* <div className="w-96 bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${
-                      jobStatus.progress.total > 0
-                        ? (jobStatus.progress.processed /
-                            jobStatus.progress.total) *
-                          100
-                        : 0
-                    }%`,
-                  }}
-                ></div>
-              </div> */}
+              
+              {/* PDF Upload Button */}
+              <PDFUploadButton
+                onFileSelect={(file) => {
+                  setPdfFile(file);
+                  setViewMode("pdf");
+                }}
+                disabled={isDetecting}
+              />
             </div>
           </div>
-
-          {/* Progress Bar */}
         </div>
 
         {/* Error Display */}
@@ -508,6 +529,29 @@ filteredImages
             </div>
           </div>
         )}
+
+        {/* View Mode Switcher - Toggle between Image Detection and PDF Annotation */}
+        <ViewModeSwitcher
+          currentMode={viewMode}
+          hasPDF={!!pdfFile}
+          hasImages={filteredImages.length > 0}
+          onModeChange={setViewMode}
+        />
+
+        {/* Conditional Content - Show either PDF Viewer or Image Processing */}
+        {viewMode === "pdf" ? (
+          <PDFViewerSection
+            pdfFile={pdfFile}
+            blueprintName={blueprintData.name}
+            onBack={() => setViewMode("images")}
+            onExportComplete={(data) => {
+              setPdfExportData(data);
+              console.log("PDF export saved:", data.fileName);
+            }}
+            onError={(err) => setError(err)}
+          />
+        ) : (
+          <>
  {/* Tab Navigation */}
   <div className="bg-white px-5 py-4 border border-gray-200 my-5 flex justify-between items-center rounded-xl">
    <div className="flex">
@@ -579,13 +623,13 @@ filteredImages
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() =>
-                        setViewMode(
-                          viewMode === "fullscreen" ? "grid" : "fullscreen"
+                        setImageViewMode(
+                          imageViewMode === "fullscreen" ? "grid" : "fullscreen"
                         )
                       }
                       className="inline-flex items-center px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
                     >
-                      {viewMode === "fullscreen" ? (
+                      {imageViewMode === "fullscreen" ? (
                         <>
                           <Grid3x3 className="w-4 h-4 mr-1" />
                           Grid View
@@ -598,7 +642,7 @@ filteredImages
                       )}
                     </button>
 
-                    {viewMode === "fullscreen" && filteredImages[selectedImageIndex] && !imageDetectionResults.has(filteredImages[selectedImageIndex].id) && (
+                    {imageViewMode === "fullscreen" && filteredImages[selectedImageIndex] && !imageDetectionResults.has(filteredImages[selectedImageIndex].id) && (
                   <button
                     onClick={handleViewDetection}
                     disabled={isDetecting}
@@ -670,7 +714,7 @@ filteredImages
                     )}
                   </p>
                 </div>
-          ) : viewMode === "fullscreen" ? (
+          ) : imageViewMode === "fullscreen" ? (
             /* Full Screen Mode - Show large preview with navigation hint */
             <div className="space-y-4">
               <div className="aspect-video bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden">
@@ -1101,35 +1145,35 @@ filteredImages
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="mt-6 flex justify-between">
-          <button
-            onClick={() => router.push("/create-blueprint")}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md hover:bg-gray-50"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Upload
-          </button>
+          {/* Action Buttons */}
+          <div className="mt-6 flex justify-between">
+            <button
+              onClick={() => router.push("/create-blueprint")}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md hover:bg-gray-50"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Upload
+            </button>
+          </div>
 
-         
-        </div>
+          {/* Full Screen Image Viewer */}
+          <FullScreenImageViewer
+            images={filteredImages}
+            initialIndex={selectedImageIndex}
+            isOpen={viewerOpen}
+            onClose={() => {
+              setViewerOpen(false);
+              setDetectionResults(null); // Clear detection results when closing
+            }}
+            detectionResults={detectionResults}
+            onSvgOverlayUpdate={(imageId, svgData) => {
+              // Just log for debugging - we're storing detection results instead
+              console.log('SVG overlay updated for image:', imageId, svgData ? 'with data' : 'cleared');
+            }}
+          />
+        </>
+        )}
       </div>
-
-      {/* Full Screen Image Viewer */}
-      <FullScreenImageViewer
-        images={filteredImages}
-        initialIndex={selectedImageIndex}
-        isOpen={viewerOpen}
-        onClose={() => {
-          setViewerOpen(false);
-          setDetectionResults(null); // Clear detection results when closing
-        }}
-        detectionResults={detectionResults}
-        onSvgOverlayUpdate={(imageId, svgData) => {
-          // Just log for debugging - we're storing detection results instead
-          console.log('SVG overlay updated for image:', imageId, svgData ? 'with data' : 'cleared');
-        }}
-      />
     </div>
   );
 }

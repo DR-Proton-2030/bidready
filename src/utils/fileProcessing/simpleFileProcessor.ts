@@ -141,8 +141,10 @@ const processPdfFile = async (file: File): Promise<FileProcessingResult> => {
         console.log(`Processing page ${pageNum}/${totalPages}`);
 
         const page = await pdf.getPage(pageNum);
-        const scale = 1.5;
+        const scale = 0.5;
         const viewport = page.getViewport({ scale });
+        console.log("viewport height", viewport.height);
+        console.log("viewport width", viewport.width);
 
         // Create canvas
         const canvas = document.createElement("canvas");
