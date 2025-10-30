@@ -9,7 +9,6 @@ import ErrorMessage from "@/components/pages/createBlueprint/ErrorMessage";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import FileUploadSection from "@/components/pages/createBlueprint/FileUploadSection";
 import ProcessedImagesSection from "@/components/pages/createBlueprint/ProcessedImagesSection";
-import PDFHandler from "@/components/shared/pdf/PDFHandler";
 import { ProcessedImage, BlueprintFormData } from "@/@types/interface/blueprint.interface";
 import { BLUEPRINT_STATUS_OPTIONS, BLUEPRINT_FORM_DEFAULTS } from "@/constants/blueprints/blueprints.constant";
 import {
@@ -41,11 +40,10 @@ export default function CreateBlueprint({
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
   const [fullScreenIndex, setFullScreenIndex] = useState(0);
-  const [isDetecting, setIsDetecting] = useState(false);
-  const [detectionResults, setDetectionResults] = useState<any>(null);
+  
   const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(new Map());
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [showPdfEditor, setShowPdfEditor] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const { handleNewBlueprint } = useBlueprints();
 
   // Check if we have processed images from URL params (coming from processing page)
@@ -75,66 +73,15 @@ export default function CreateBlueprint({
     setForm({ ...form, status });
   };
 
-  // API call function for image detection
-  const detectImageWithAPI = async (image: ProcessedImage) => {
-    try {
-      console.log("Detecting image with API:", image.name);
-      setIsDetecting(true);
-      setError("");
-
-      // Convert image URL to File object
-      const response = await fetch(image.path);
-      const blob = await response.blob();
-      const file = new File([blob], image.name, { type: blob.type });
-
-      console.log("Created file object:", file.name, file.type, file.size);
-
-      // Create FormData and send to API
-      const formData = new FormData();
-      formData.append("image", file);
-
-      console.log("Sending request to detection API...");
-
-      // API endpoint for detection
-      const apiResponse = await fetch("http://localhost:5050/detect", {
-        method: "POST",
-        body: formData,
-      });
-
-      console.log("API Response status:", apiResponse.status);
-
-      if (!apiResponse.ok) {
-        throw new Error(
-          `API request failed with status: ${apiResponse.status}`
-        );
-      }
-
-      const result = await apiResponse.json();
-      console.log("Detection result:", result);
-
-      // Store detection results
-      setDetectionResults(result);
-
-      // Open the modal after getting results
-      setIsFullScreenOpen(true);
-    } catch (error) {
-      console.error("Error detecting image:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to detect image"
-      );
-    } finally {
-      setIsDetecting(false);
-    }
-  };
-
   const handleImageClick = (index: number) => {
     setFullScreenIndex(index);
     setIsFullScreenOpen(true);
   };
 
   const handleImageChange = (image: ProcessedImage, index: number) => {
+    // No detection flow here. Just open the full screen viewer at the image.
     console.log("Image changed to:", image.name, "at index:", index);
-    detectImageWithAPI(image);
+    handleImageClick(index);
   };
 
   // Handle SVG overlay updates from FullScreenImageViewer
@@ -172,8 +119,10 @@ export default function CreateBlueprint({
         }
 
         const pdfFile = filesArray[0];
+        // Keep the PDF in state but DO NOT navigate/open the editor automatically.
+        // The user can choose to open the PDF editor manually if desired.
         setPdfFile(pdfFile);
-        setShowPdfEditor(true);
+  // Do not auto-open editor on upload
         return;
       }
     } catch (error) {
@@ -195,126 +144,105 @@ export default function CreateBlueprint({
     window.history.replaceState({}, "", url.toString());
   };
 
-  const handlePdfBack = () => {
-    setShowPdfEditor(false);
-    setPdfFile(null);
-  };
-
-  const handlePdfNext = async (annotatedPdfBlob: Blob, pages: any[]) => {
-    const validationError = validatePdfBlueprintForm(form);
-    if (validationError) {
-      setError(validationError);
+  // manage object URL for pdf preview and cleanup
+  useEffect(() => {
+    if (!pdfFile) {
+      setPdfPreviewUrl(null);
       return;
     }
+    const url = URL.createObjectURL(pdfFile);
+    setPdfPreviewUrl(url);
+    return () => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (e) {}
+    };
+  }, [pdfFile]);
 
-    setError("");
-
-    try {
-      const fd = buildPdfBlueprintFormData(
-        form,
-        annotatedPdfBlob,
-        pdfFile?.name || "blueprint.pdf",
-        pages.length
-      );
-
-      console.log("Creating blueprint from PDF:", {
-        name: form.name,
-        description: form.description,
-        page_count: pages.length,
-      });
-
-      await handleNewBlueprint(fd);
-      router.push("/blueprints");
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create blueprint from PDF";
-      setError(message);
-    }
-  };
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const validationError = validateBlueprintForm(form, processedImages);
     if (validationError) {
-      setError(validationError);
-      return;
+      // Allow submission when a PDF file is present even if processedImages is empty
+      const isOnlyPdfCase = pdfFile && processedImages.length === 0;
+      if (isOnlyPdfCase && validationError.includes("Please upload and process at least one")) {
+        // ignore this particular validation when user uploaded a PDF
+      } else {
+        setError(validationError);
+        return;
+      }
     }
 
     setError("");
 
     try {
-      const fd = await buildBlueprintFormData(form, processedImages, svgOverlays);
-      await handleNewBlueprint(fd);
-      router.push("/blueprints");
+      // If a PDF file is present (and no processed images), submit as PDF blueprint
+      if (pdfFile && processedImages.length === 0) {
+        const fd = new FormData();
+        fd.append("name", form.name);
+        fd.append("description", form.description || "");
+        fd.append("version", form.version || "");
+        fd.append("status", form.status || "");
+        fd.append("type", form.type || "");
+        fd.append("project_object_id", form.project_object_id);
+        fd.append("pdf", pdfFile); // MUST be "pdf"
+
+        console.log("📦 Sending PDF FormData:", Array.from(fd.entries()));
+
+        setIsUploading(true);
+
+        const res = await fetch("http://localhost:8989/api/v1/blueprints/create-blueprint-only", {
+          method: "POST",
+          body: fd,
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => null);
+          throw new Error(errBody?.message || "Failed to create blueprint");
+        }
+
+        const data = await res.json();
+        setIsUploading(false);
+        setError("");
+        console.log("✅ Blueprint created (PDF)", data);
+      } else {
+        const fd = await buildBlueprintFormData(form, processedImages, svgOverlays);
+        console.log("=====>formdata body",fd)
+        // POST directly to the create-blueprint-only API (FormData)
+        setIsUploading(true);
+        const res = await fetch("http://localhost:8989/api/v1/blueprints/create-blueprint-only", {
+          method: "POST",
+          body: fd,
+          // send cookies for authentication if present
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          let errBody: any = { message: "Failed to create blueprint" };
+          try {
+            errBody = await res.json();
+          } catch (e) {}
+          throw new Error(errBody.message || "Failed to create blueprint");
+        }
+
+        const data = await res.json().catch(() => null);
+        // Keep on the same page; optionally show a success message
+        setError("");
+        setIsUploading(false);
+        // If you want to surface created blueprint data, update state or show toast
+        console.log("Blueprint created", data);
+      }
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Failed to create blueprint";
       setError(message);
     }
   };
-  // If PDF editor is open, show only the PDF editor
-  if (showPdfEditor && pdfFile) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={handlePdfBack}
-                  className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
-                  type="button"
-                >
-                  <ArrowRight className="w-5 h-5 rotate-180" />
-                  <span>Back to Form</span>
-                </button>
-                <div className="border-l border-gray-300 h-6"></div>
-                <div>
-                  <h1 className="text-xl font-semibold text-gray-900">
-                    {form.name || "Untitled Blueprint"}
-                  </h1>
-                  <p className="text-sm text-gray-500">
-                    Annotate your PDF blueprint
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  // Trigger the export from PDFHandler
-                  const exportButton = document.querySelector('[data-pdf-export-button]') as HTMLButtonElement;
-                  if (exportButton) {
-                    exportButton.click();
-                  }
-                }}
-                className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                type="button"
-              >
-                <span>Next</span>
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* PDF Editor */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          {error && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-              <ErrorMessage message={error} />
-            </div>
-          )}
-          <PDFHandler
-            file={pdfFile}
-            onExport={handlePdfNext}
-            showExportButton={true}
-            exportButtonText="Next - Create Blueprint"
-          />
-        </div>
-      </div>
-    );
-  }
+  
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -337,20 +265,55 @@ export default function CreateBlueprint({
             onStatusChange={handleStatusChange}
           />
 
-          {/* File Upload Section */}
-          {processedImages.length === 0 ? (
+          {/* File Upload / PDF Preview Section */}
+          {processedImages.length === 0 && !pdfFile ? (
             <FileUploadSection
               isUploading={isUploading}
               onFileUpload={handleFileUpload}
             />
-          ) : (
+          ) : processedImages.length > 0 ? (
             /* Processed Images Preview */
             <ProcessedImagesSection
               images={processedImages}
               onImageClick={handleImageClick}
               onClearImages={handleClearImages}
             />
-          )}
+          ) : pdfFile ? (
+            /* PDF Preview Card when a PDF is uploaded but not edited */
+            <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="flex items-start gap-4">
+                <div className="w-32 h-40 border rounded overflow-hidden bg-gray-50">
+                  {/* Small embedded PDF preview using object tag */}
+                  <object
+                    data={pdfPreviewUrl ?? undefined}
+                    type="application/pdf"
+                    className="w-full h-full"
+                    aria-label="PDF preview"
+                  >
+                    <div className="p-3 text-sm text-gray-500">Preview not available</div>
+                  </object>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{pdfFile.name}</div>
+                      <div className="text-xs text-gray-500">{(pdfFile.size / 1024).toFixed(1)} KB</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPdfFile(null)}
+                        className="px-3 py-1 border rounded-md text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm text-gray-600">You uploaded a PDF. Click Create Blueprint to upload this PDF as-is, or Remove to cancel.</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Error Display */}
           {error && (
@@ -371,11 +334,11 @@ export default function CreateBlueprint({
               </button>
               <button
                 type="submit"
-                disabled={isUploading || processedImages.length === 0}
+                disabled={isUploading || (processedImages.length === 0 && !pdfFile)}
                 className={`
                   px-6 py-2 rounded-md flex items-center space-x-2
                   ${
-                    isUploading || processedImages.length === 0
+                    isUploading || (processedImages.length === 0 && !pdfFile)
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                       : "bg-blue-600 text-white hover:bg-blue-700"
                   }
@@ -389,15 +352,7 @@ export default function CreateBlueprint({
         </form>
       </div>
 
-      {/* Loading overlay for image detection */}
-      {isDetecting && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40">
-          <div className="bg-white rounded-lg p-6 flex flex-col items-center space-y-4">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <p className="text-gray-700">Detecting image...</p>
-          </div>
-        </div>
-      )}
+      {/* no detection overlay */}
 
       {/* Full Screen Image Viewer */}
       <FullScreenImageViewer
@@ -406,11 +361,8 @@ export default function CreateBlueprint({
         isOpen={isFullScreenOpen}
         onClose={() => {
           setIsFullScreenOpen(false);
-          setDetectionResults(null); // Clear detection results when closing
         }}
         onImageChange={handleImageChange}
-        detectionResults={detectionResults}
-        onSvgOverlayUpdate={handleSvgOverlayUpdate}
       />
     </div>
   );

@@ -100,27 +100,16 @@ export const buildBlueprintFormData = async (
  */
 export const buildPdfBlueprintFormData = (
   form: BlueprintFormData,
-  annotatedPdfBlob: Blob,
-  pdfFileName: string,
-  pageCount: number
+  pdfFile: File
 ): FormData => {
   const fd = new FormData();
   fd.append("name", form.name);
-  fd.append("description", form.description);
-  fd.append("version", form.version || "v1");
-  fd.append("status", form.status);
-  fd.append("type", form.type || "floor_plan");
-  fd.append("project_object_id", form.project_object_id);
-  
-  // Add the annotated PDF file
-  const annotatedFile = new File(
-    [annotatedPdfBlob],
-    pdfFileName.replace(".pdf", "_annotated.pdf") || "blueprint_annotated.pdf",
-    { type: "application/pdf" }
-  );
-  fd.append("pdf_file", annotatedFile);
-  fd.append("page_count", String(pageCount));
-
+  fd.append("description", form.description || "");
+  fd.append("version", form.version || "");
+  fd.append("status", form.status || "");
+  fd.append("type", form.type || "");
+  fd.append("project_object_id", form.project_object_id || "");
+  fd.append("pdf", pdfFile); // correct field name for multer single('pdf')
   return fd;
 };
 
