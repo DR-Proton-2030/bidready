@@ -11,8 +11,24 @@ const ITEMS_PER_PAGE = 4;
 const DataGrid = ({ data }: any) => {
 
   const [page, setPage] = useState(1);
-  const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
-  const paginatedData = data.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const [query, setQuery] = useState('');
+
+  // filtered across whole data set
+  const filteredData = data.filter((item: any) => {
+    if (!query) return true;
+    const q = query.toString().toLowerCase();
+    return (
+      String(item.class || '').toLowerCase().includes(q) ||
+      String(item.website || '').toLowerCase().includes(q) ||
+      String(item.description || '').toLowerCase().includes(q) ||
+      String(item.subdesc || '').toLowerCase().includes(q)
+    );
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
+  // ensure current page is valid
+  if (page > totalPages) setPage(1);
+  const paginatedData = filteredData.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   // CSV download handler
   const handleDownloadCSV = () => {
@@ -51,11 +67,13 @@ const DataGrid = ({ data }: any) => {
 
       {/* Search + Filters */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 shadow py-3 flex-grow">
+          <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 shadow py-3 flex-grow">
           <Search size={18} className="text-gray-400" />
           <input
             type="text"
             placeholder="Search Order"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
             className="bg-transparent outline-none text-md ml-2 w-full"
           />
         </div>
