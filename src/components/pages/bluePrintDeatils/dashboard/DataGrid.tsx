@@ -61,7 +61,7 @@ const DataGrid = ({ data }: any) => {
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h2 className="text-xl font-semibold">Floor Activity History </h2>
+          <h2 className="text-xl font-semibold">Floor Detection Activity </h2>
         </div>
       </div>
 

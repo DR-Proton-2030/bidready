@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { X, Upload, ArrowUpRight, Trash2, Image, Check, Map } from "lucide-react";
+import { X, Upload, ArrowUpRight, Image, Check, Map } from "lucide-react";
+import ImagePreview, { FilePreview as PreviewType } from './ImagePreview'
 
 type ImageCardProps = {
   maxFiles?: number;
@@ -34,7 +35,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
   blueprint_images 
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [previews, setPreviews] = useState<FilePreview[]>([]);
+  const [previews, setPreviews] = useState<PreviewType[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -91,7 +92,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
   // initialize with blueprint_images if provided
   useEffect(() => {
     if (!blueprint_images || !blueprint_images.length) return;
-    const preloaded: FilePreview[] = blueprint_images.map((img: any) => ({
+    const preloaded: PreviewType[] = blueprint_images.map((img: any) => ({
       file: null,
       src: img.file_url,
       name: img.file_url?.split("/").pop?.() ?? img.file_url,
@@ -220,45 +221,16 @@ const ImageCard: React.FC<ImageCardProps> = ({
             <div className="p-4 overflow-y-auto space-y-4 flex-1">
               {previews.length > 0 ? (
                 previews.map((p, idx) => (
-                  <div
-                    key={idx}
-                    className="relative w-full h-40 rounded-xl overflow-hidden border"
-                  >
-                    {/* Overlay badge for detected svg overlays */}
-                    {p.overlay ? (
-                      <div
-                        onClick={() => viewDetection(p)}
-                        className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 rounded-lg shadow-lg shadow-gray-400 bg-green-600/90 text-white text-md font-medium flex items-center gap-1 cursor-pointer"
-                      >
-                        <ArrowUpRight />
-                        View Detection
-                      </div>
-                    ) : (
-                      <div className="absolute left-3 top-3 z-20 pl-2 pr-4 py-2 cursor-pointer rounded-lg shadow-lg shadow-gray-400 bg-[#e16349] text-white text-md font-medium flex items-center gap-1">
-                        <ArrowUpRight />
-                        Detect Image
-                      </div>
-                    )}
-                    <img
-                      src={p.src}
-                      alt={p.file?.name ?? p.name}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-full hover:bg-black/70"
-                      onClick={() => removeAt(idx)}
-                    >
-                      <Trash2 className="w-4 h-4 text-white" />
-                    </button>
-                    <p className="text-xs text-center mt-1 text-gray-500 truncate">
-                      {p.file?.name ?? p.name}
-                    </p>
-                  </div>
+                  <ImagePreview
+                    key={p.src ?? p.id ?? idx}
+                    p={p}
+                    idx={idx}
+                    onRemove={(i) => removeAt(i)}
+                    onViewDetection={(preview) => viewDetection(preview)}
+                  />
                 ))
               ) : (
-                <p className="text-gray-400 text-center mt-8">
-                  No images uploaded yet.
-                </p>
+                <p className="text-gray-400 text-center mt-8">No images uploaded yet.</p>
               )}
             </div>
 
