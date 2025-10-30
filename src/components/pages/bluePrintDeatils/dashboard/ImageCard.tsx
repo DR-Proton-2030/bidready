@@ -130,8 +130,32 @@ const ImageCard: React.FC<ImageCardProps> = ({
       // store payload in localStorage under a short key to avoid long query strings
       const payload = { file_url: p.src, svg_overlay_url: p.overlayData };
       const key = `blueprint_detection_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      // Helper to set and delete short-lived cookies
+      const setTempCookie = (name: string, value: string, maxAgeSec = 60 * 5) => {
+        try {
+          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = `${encodeURIComponent(name)}=${value}; Max-Age=${maxAgeSec}; Path=/; SameSite=Lax${secure}`;
+        } catch (e) {
+          // ignore cookie failures
+        }
+      };
+      const deleteCookie = (name: string) => {
+        try {
+          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+          document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+        } catch (e) {
+          // ignore cookie failures
+        }
+      };
       try {
         localStorage.setItem(key, JSON.stringify(payload));
+        // Also set a short‑lived cookie with the same key so another tab can read it if preferred
+        // Only store a compact encoded version to respect cookie size limits
+        const compact = encodeURIComponent(JSON.stringify(payload));
+        // Note: cookies have ~4KB limit; this value should only hold small URLs/metadata
+        setTempCookie(key, compact, 60 * 5);
+        // Safety cleanup after 5 minutes in case the target page doesn't remove it
+        setTimeout(() => deleteCookie(key), 60 * 5 * 1000);
       } catch (err) {
         // fallback to direct open with data if localStorage fails
         const encoded = encodeURIComponent(JSON.stringify(payload));
