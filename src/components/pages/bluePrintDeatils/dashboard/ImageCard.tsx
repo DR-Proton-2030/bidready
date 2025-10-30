@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { X, Upload, ArrowUpRight, Trash2, Image, Check } from "lucide-react";
+import { X, Upload, ArrowUpRight, Trash2, Image, Check, Map } from "lucide-react";
 
 type ImageCardProps = {
   maxFiles?: number;
@@ -146,12 +146,19 @@ const ImageCard: React.FC<ImageCardProps> = ({
   };
 
   return (
-    <div className="relative bg-gray-50 p-6 rounded-2xl shadow-sm space-y-6">
-      {/* Floating Top-Right Button */}
-      <div className="absolute top-2 right-2 z-10">
-        <div   onClick={() => setSidebarOpen(true)} className={`flex items-center justify-center w-10 h-10 bg-gray-50 rounded-full border`}>
+    <div className=" w-1/3">
+      <div  onClick={() => setSidebarOpen(true)} className="bg-gray-50 shadow-sm mb-6 p-4 rounded-2xl items-center justify-between flex">
+                <h2 className={`text-lg font-medium text-gray-900 flex items-center gap-2`}>
+                  {/* <Map/> */}
+                  View Floor Plans</h2>
+                <div className={`flex items-center justify-center text-white w-10 h-10 bg-black/70 rounded-full border`}>
                   <ArrowUpRight className={`w-4 h-4`} />
                 </div>
+      </div>
+    <div className="relative  h-[80%] w-full bg-gray-50 p-6 rounded-2xl  shadow-sm space-y-6">
+      {/* Floating Top-Right Button */}
+      <div className="absolute top-2 right-2 z-10">
+    
       
       </div>
 
@@ -274,7 +281,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
           </div>
         </>
       )}
-    </div>
+    </div></div>
   );
 };
 

@@ -13,10 +13,10 @@ const BlueprintDetailsClient: React.FC<BlueprintDetailsClientProps> = ({ bluepri
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
 console.log("=====>festxhed details of blue print ",blueprintDetails)
   return (
-    <div className="flex h-screen bg-white font-sans overflow-hidden">
+    <div className="flex  bg-white font-sans  overflow-y-auto ">
       <main className="flex-1 flex flex-col">
         <TopBar onToggleRightPanel={() => setIsRightPanelOpen((s) => !s)} blueprintDetails={blueprintDetails} />
-        <div className="min-h-screen overflow-y-auto bg-white px-6">
+        <div className="overflow-hidden bg-white px-6 ">
           <Dasboard blueprintDetails={blueprintDetails} />
         </div>
       </main>
