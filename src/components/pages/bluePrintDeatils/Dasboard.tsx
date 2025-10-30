@@ -26,7 +26,7 @@ const Dasboard= ({blueprintDetails}:any) => {
 
       </div>
       <div className="flex w-full gap-6">
-      <DataGrid />
+      <DataGrid data={blueprintDetails?.class_totals ?? []} />
  <ImageCard blueprint_images={blueprintDetails?.blueprint_images ?? []} />
       </div>
       {/* Bottom Section */}
