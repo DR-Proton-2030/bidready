@@ -1,8 +1,8 @@
-import { Blueprint } from '@/@types/interface/blueprint.interface';
+import { BluePrint } from '@/@types/interface/blueprint.interface';
 
 export const BLUEPRINT_CATEGORIES = ["All", "Architectural", "MEP", "Mechanical", "Structural", "Civil"] as const;
 
-export const BLUEPRINTS_DATA: Blueprint[] = [
+export const BLUEPRINTS_DATA: any[] = [
   {
     id: 1,
     name: "Floor Plan - Level 1",
@@ -58,4 +58,12 @@ export const BLUEPRINTS_TEXT = {
   pageTitle: "Blueprints",
   newBlueprintButton: "New Blueprint",
   allCategory: "All",
+} as const;
+
+export const BLUEPRINT_STATUS_OPTIONS = ["active", "completed", "on-hold", "in-progress"] as const;
+
+export const BLUEPRINT_FORM_DEFAULTS = {
+  version: "v1",
+  status: "active",
+  type: "floor_plan",
 } as const;

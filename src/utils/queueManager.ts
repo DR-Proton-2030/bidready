@@ -392,11 +392,17 @@ class QueueManager {
                 try {
                   // @ts-ignore
                   pdfjsLib.GlobalWorkerOptions = pdfjsLib.GlobalWorkerOptions || {};
-                  if (useWorker) {
+                  if (useWorker && (window as any)._pdfjsWorkerBlobUrl) {
                     // @ts-ignore
                     pdfjsLib.GlobalWorkerOptions.workerSrc = (window as any)._pdfjsWorkerBlobUrl;
+                  } else {
+                    // Fallback to CDN worker if inline worker is not available
+                    // @ts-ignore
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
                   }
-                } catch {}
+                } catch (e) {
+                  console.warn('Failed to set worker options:', e);
+                }
 
                 const binaryString = atob(base64Pdf);
                 const len = binaryString.length;

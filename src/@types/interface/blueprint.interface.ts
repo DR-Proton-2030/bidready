@@ -18,3 +18,20 @@ export interface BlueprintCategory {
   name: string;
   value: string;
 }
+
+export interface ProcessedImage {
+  id: string;
+  name: string;
+  path: string;
+  pageNumber?: number;
+  svgOverlay?: string | null;
+}
+
+export interface BlueprintFormData {
+  name: string;
+  description: string;
+  version: string;
+  status: string;
+  type: string;
+  project_object_id: string;
+}

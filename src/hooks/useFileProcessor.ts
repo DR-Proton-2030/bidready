@@ -15,6 +15,7 @@ export interface UseFileProcessorState {
   originalFile: File | null;
   fileType: "image" | "pdf" | null;
   totalPages?: number;
+  usePDFHandler?: boolean; // New flag for PDF annotation mode
 }
 
 export interface UseFileProcessorReturn extends UseFileProcessorState {
@@ -29,10 +30,12 @@ export interface UseFileProcessorReturn extends UseFileProcessorState {
   clearAll: () => void;
   getFormDataForImages: () => { blobs: Blob[]; names: string[] };
   previewImages: ProcessedImage[];
+  setUsePDFHandler: (use: boolean) => void;
 }
 
 export const useFileProcessor = (
-  maxFileSizeMB: number = 10
+  maxFileSizeMB: number = 10,
+  enablePDFHandler: boolean = false
 ): UseFileProcessorReturn => {
   const [state, setState] = useState<UseFileProcessorState>({
     processedImages: [],
@@ -41,12 +44,17 @@ export const useFileProcessor = (
     originalFile: null,
     fileType: null,
     totalPages: undefined,
+    usePDFHandler: enablePDFHandler,
   });
 
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
+  }, []);
+
+  const setUsePDFHandler = useCallback((use: boolean) => {
+    setState((prev) => ({ ...prev, usePDFHandler: use }));
   }, []);
 
   const processNewFile = useCallback(
@@ -148,5 +156,6 @@ export const useFileProcessor = (
     clearAll,
     getFormDataForImages,
     previewImages: state.processedImages,
+    setUsePDFHandler,
   };
 };

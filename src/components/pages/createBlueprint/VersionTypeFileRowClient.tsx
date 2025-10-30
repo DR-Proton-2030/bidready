@@ -1,6 +1,7 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import EnhancedFileUpload from "@/components/shared/fileUpload/EnhancedFileUpload";
+import PDFHandler from "@/components/shared/pdf/PDFHandler";
 import PDFTester from "@/components/shared/fileUpload/PDFTester";
 import { useFileProcessor } from "@/hooks/useFileProcessor";
 
@@ -15,6 +16,7 @@ interface Props {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onImagesProcessed?: (images: ImageData[]) => void;
+  usePDFAnnotation?: boolean; // New prop to enable PDF annotation mode
 }
 
 const VersionTypeFileRowClient: React.FC<Props> = ({
@@ -23,7 +25,10 @@ const VersionTypeFileRowClient: React.FC<Props> = ({
   onChange,
   onFileChange,
   onImagesProcessed,
+  usePDFAnnotation = false,
 }) => {
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  
   const {
     processedImages,
     isProcessing,
@@ -33,10 +38,14 @@ const VersionTypeFileRowClient: React.FC<Props> = ({
     processNewFile,
     removeImage,
     clearAll,
-  } = useFileProcessor();
+    usePDFHandler,
+    setUsePDFHandler,
+  } = useFileProcessor(10, usePDFAnnotation);
 
   const handleFileUpload = async (file: File | null) => {
     if (file) {
+      setCurrentFile(file);
+      
       // Create a fake event to maintain compatibility with existing interface
       const fakeEvent = {
         target: {
@@ -45,6 +54,12 @@ const VersionTypeFileRowClient: React.FC<Props> = ({
       } as unknown as React.ChangeEvent<HTMLInputElement>;
 
       onFileChange(fakeEvent);
+
+      // If PDF annotation mode is enabled and file is PDF, don't process to images
+      if (usePDFHandler && file.type === "application/pdf") {
+        console.log("PDF file detected - using annotation mode");
+        return;
+      }
 
       try {
         const ret = await processNewFile(file);
@@ -60,6 +75,13 @@ const VersionTypeFileRowClient: React.FC<Props> = ({
       } catch (err) {
         console.error("Error processing file:", err);
       }
+    }
+  };
+
+  const handlePDFExport = (exportData: { blob: Blob; fileName: string }) => {
+    if (onImagesProcessed) {
+      onImagesProcessed([{ blob: exportData.blob, name: exportData.fileName }]);
+      console.log("=====>PDF exported", exportData.fileName);
     }
   };
 
@@ -94,20 +116,47 @@ const VersionTypeFileRowClient: React.FC<Props> = ({
           Upload Blueprint Files
         </label>
         <p className="text-sm text-gray-500 mb-4">
-          Upload blueprint images or PDF files. PDF files will be converted to
-          individual page images.
+          {usePDFHandler
+            ? "Upload and annotate blueprint PDF files with drawing tools, text, and shapes."
+            : "Upload blueprint images or PDF files. PDF files will be converted to individual page images."}
         </p>
 
-        <EnhancedFileUpload
-          onChange={handleFileUpload}
-          processedImages={processedImages}
-          isProcessing={isProcessing}
-          error={error}
-          fileType={fileType}
-          totalPages={totalPages}
-          onRemoveImage={removeImage}
-          onClearAll={clearAll}
-        />
+        {/* Toggle for PDF mode (optional) */}
+        {!usePDFAnnotation && fileType === "pdf" && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={usePDFHandler}
+                onChange={(e) => setUsePDFHandler(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm font-medium text-blue-900">
+                Enable PDF Annotation Mode (Draw, mark, and edit PDF pages)
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* Show PDF Handler or regular file upload based on mode */}
+        {usePDFHandler && currentFile?.type === "application/pdf" ? (
+          <PDFHandler
+            file={currentFile}
+            onPagesChange={handlePDFExport}
+            onError={(err) => console.error("PDF Handler error:", err)}
+          />
+        ) : (
+          <EnhancedFileUpload
+            onChange={handleFileUpload}
+            processedImages={processedImages}
+            isProcessing={isProcessing}
+            error={error}
+            fileType={fileType}
+            totalPages={totalPages}
+            onRemoveImage={removeImage}
+            onClearAll={clearAll}
+          />
+        )}
       </div>
     </div>
   );

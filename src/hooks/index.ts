@@ -5,6 +5,7 @@ export { useFileProcessor } from "./useFileProcessor";
 export { useStepper } from "./useStepper";
 export { useSignup } from "./useSignup";
 export { useSignupForm } from "./useSignupForm";
+export { usePDFAnnotation } from "./usePDFAnnotation";
 
 // Main composite hook
 export { useSignupFlow } from "./useSignupFlow";
