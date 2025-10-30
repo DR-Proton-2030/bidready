@@ -16,7 +16,7 @@ const TopBar: React.FC<TopBarProps> = ({
     <header className="flex-shrink-0 flex items-center justify-between px-16 py-4 bg-white mb-5">
       <div className="flex items-center space-x-4">
         <div>
-          <h1 className="text-3xl font-semibold text-gray-900">{blueprintDetails?.blueprint?.name || "Untitled Blueprint"}</h1>
+          <h1 className="text-3xl font-semibold text-gray-900">Quanitity Takeoff</h1>
           <p className="text-gray-500">Plan description is {blueprintDetails?.blueprint?.description || "No description available."}</p>
         </div>
         {/* <h1 className="text-xl font-semibold text-gray-800">
