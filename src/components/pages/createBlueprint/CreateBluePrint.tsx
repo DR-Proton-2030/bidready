@@ -19,6 +19,7 @@ import {
   buildFormParams,
 } from "@/utils/blueprintHelpers";
 import { ArrowRight, Loader2 } from "lucide-react";
+import Loader from "@/components/shared/loader/Loader";
 
 export default function CreateBlueprint({
   initialProjectId = "",
@@ -84,23 +85,7 @@ export default function CreateBlueprint({
     handleImageClick(index);
   };
 
-  // Handle SVG overlay updates from FullScreenImageViewer
-  const handleSvgOverlayUpdate = useCallback((imageId: string, svgData: string | null) => {
-    setSvgOverlays(prev => {
-      const current = prev.get(imageId);
-      if (current === svgData) return prev; // No change, avoid update
-      return new Map(prev.set(imageId, svgData));
-    });
-    
-    // Also update the processedImages array to include SVG overlay info
-    setProcessedImages(prev => 
-      prev.map(img => 
-        img.id === imageId 
-          ? { ...img, svgOverlay: svgData }
-          : img
-      )
-    );
-  }, []);
+ 
 
   const handleFileUpload = async (files: FileList) => {
     if (!files || files.length === 0) return;
@@ -209,6 +194,8 @@ export default function CreateBlueprint({
         setIsUploading(false);
         setError("");
         console.log("✅ Blueprint created (PDF)", data);
+        // Navigate to plans page after successful creation
+        router.push("/create-blueprint/plans");
       } else {
         const fd = await buildBlueprintFormData(form, processedImages, svgOverlays);
         console.log("=====>formdata body",fd)
@@ -230,11 +217,11 @@ export default function CreateBlueprint({
         }
 
         const data = await res.json().catch(() => null);
-        // Keep on the same page; optionally show a success message
+        // Navigate to plans page after successful creation
         setError("");
         setIsUploading(false);
-        // If you want to surface created blueprint data, update state or show toast
         console.log("Blueprint created", data);
+        router.push("/create-blueprint/plans");
       }
     } catch (err: unknown) {
       const message =
@@ -355,15 +342,10 @@ export default function CreateBlueprint({
       {/* no detection overlay */}
 
       {/* Full Screen Image Viewer */}
-      <FullScreenImageViewer
-        images={processedImages}
-        initialIndex={fullScreenIndex}
-        isOpen={isFullScreenOpen}
-        onClose={() => {
-          setIsFullScreenOpen(false);
-        }}
-        onImageChange={handleImageChange}
-      />
+     {
+      isUploading && 
+      <Loader/>
+     }
     </div>
   );
 }
