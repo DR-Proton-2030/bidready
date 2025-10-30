@@ -357,12 +357,12 @@ export default function BlueprintProcessingPage() {
     }
 
   
-    // ✅ Important: Don't set Content-Type manually for FormData!
-    const apiResponse = await fetch("http://localhost:8989/api/v1/blueprints/create-blueprint", {
+    // ✅ Send to our Next.js API route (SSR proxy) instead of hitting upstream directly
+    const apiResponse = await fetch("/api/blueprints/create-blueprint", {
       method: "POST",
-   
       body: formData,
-      credentials: "include", // optional if your API requires cookies/auth
+      // Cookies are sent automatically for same-origin; keep include if you rely on it
+      credentials: "include",
     });
 
     if (!apiResponse.ok) {
