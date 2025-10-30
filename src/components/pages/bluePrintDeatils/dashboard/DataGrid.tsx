@@ -9,9 +9,36 @@ import { useState } from "react";
 const ITEMS_PER_PAGE = 4;
 
 const DataGrid = ({ data }: any) => {
+
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(data.length / ITEMS_PER_PAGE);
   const paginatedData = data.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  // CSV download handler
+  const handleDownloadCSV = () => {
+    // CSV header
+    const header = ['Item Name', 'Quantity', 'Remarks'];
+    // CSV rows (all data)
+    const rows = data.map((item: any) => [
+      item.class,
+      Math.round(item.percentage),
+      'AI Content Creation App: Makes magic with the power of AI/ML',
+    ]);
+    // Build CSV string
+    const csvContent = [header, ...rows]
+      .map(row => row.map(String).map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    // Download
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'data.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="bg-gray-50 rounded-2xl shadow-sm p-6 w-2/3">
@@ -36,7 +63,10 @@ const DataGrid = ({ data }: any) => {
           <button className="flex items-center gap-2 bg-[#e16349] text-white border px-5 py-3 rounded-full text-sm">
             <Filter size={16} /> Filter
           </button>
-          <button className="flex items-center gap-2 px-5 py-3 bg-black/70 text-white -800 rounded-full text-sm font-medium hover:bg-gray-900 transition">
+          <button
+            className="flex items-center gap-2 px-5 py-3 bg-black/70 text-white -800 rounded-full text-sm font-medium hover:bg-gray-900 transition"
+            onClick={handleDownloadCSV}
+          >
             <Download className="w-4 h-4" /> Download csv
           </button>
         </div>
