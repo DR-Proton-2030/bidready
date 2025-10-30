@@ -15,22 +15,18 @@ const initializePdfjs = async (): Promise<typeof pdfjsLibType> => {
       pdfjsLib = await import("pdfjs-dist");
 
       // Set up the worker for PDF.js with multiple fallback options
-      const version = pdfjsLib.version || "5.4.149";
+      // Using version 2.16.105 which matches package.json
+      const version = "2.16.105";
       const workerUrls = [
         `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${version}/pdf.worker.min.js`,
         `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.js`,
         "/pdf.worker.min.js", // Local fallback
       ];
 
-      // Try to set worker URL with fallbacks
-      for (const url of workerUrls) {
-        try {
-          pdfjsLib.GlobalWorkerOptions.workerSrc = url;
-          break;
-        } catch (e) {
-          console.warn(`Failed to set worker URL: ${url}`, e);
-        }
-      }
+      // Set the first URL as default - it will be used
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrls[0];
+      
+      console.log(`PDF.js worker source set to: ${workerUrls[0]}`);
 
       isInitialized = true;
       console.log(
