@@ -194,7 +194,7 @@ export default function CreateBlueprint({
 
         setIsUploading(true);
 
-        const res = await fetch("http://localhost:8989/api/v1/blueprints/create-blueprint-only", {
+        const res = await fetch("/api/blueprints/create-blueprint-only", {
           method: "POST",
           body: fd,
           credentials: "include",
@@ -214,7 +214,7 @@ export default function CreateBlueprint({
         console.log("=====>formdata body",fd)
         // POST directly to the create-blueprint-only API (FormData)
         setIsUploading(true);
-        const res = await fetch("http://localhost:8989/api/v1/blueprints/create-blueprint-only", {
+        const res = await fetch("/api/blueprints/create-blueprint-only", {
           method: "POST",
           body: fd,
           // send cookies for authentication if present
