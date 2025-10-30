@@ -13,6 +13,7 @@ import {
   Trash2,
   X,
   Trash,
+  ArrowUpRight,
 } from "lucide-react";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import axios from "axios";
@@ -441,59 +442,21 @@ filteredImages
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">
-{blueprintData.name}
+                <h1 className="text-3xl font-semibold text-gray-900">
+                  {blueprintData.name}
                 </h1>
-                <p className="text-xs text-gray-600">Version :{blueprintData.version}</p>
+                <p className="text-md text-gray-600">Version :{blueprintData.version}</p>
               </div>
             </div>
 
-            <div className="mt-">
-              <div className="flex justify-start gap-44 text-sm text-gray-600 mb-2">
-                <span className="flex justify-start gap-2 item-center font-semibold">
-                  {getStatusIcon(jobStatus.status)}{" "}
-                  {jobStatus.progress.processed} of {jobStatus.progress.total}{" "}
-                  processed
-                </span>
-               
-              </div>
-              {/* <div className="w-96 bg-gray-200 rounded-full h-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${
-                      jobStatus.progress.total > 0
-                        ? (jobStatus.progress.processed /
-                            jobStatus.progress.total) *
-                          100
-                        : 0
-                    }%`,
-                  }}
-                ></div>
-              </div> */}
-            </div>
+        
+            
           </div>
 
           {/* Progress Bar */}
-        </div>
 
-        {/* Error Display */}
-        {jobStatus.error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <div className="flex">
-              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 mr-3" />
-              <div>
-                <h3 className="text-sm font-medium text-red-800">
-                  Processing Error
-                </h3>
-                <p className="text-sm text-red-700 mt-1">{jobStatus.error}</p>
-              </div>
-            </div>
-          </div>
-        )}
- {/* Tab Navigation */}
-  <div className="bg-white px-5 py-4 border border-gray-200 my-5 flex justify-between items-center rounded-xl">
-   <div className="flex">
+           <div className=" flex justify-between items-center rounded-xl">
+          <div className="flex mt-5">
             <div className="flex bg-gray-100 rounded-lg p-1 border border-gray-200">
               <button
                 onClick={() => setActiveTab("unprocessed")}
@@ -517,18 +480,42 @@ filteredImages
               </button>
             </div>
           </div>
-           {jobStatus.status === "completed" && filteredImages.length > 0 && (
-            <div className="flex space-x-3">
-             
-              <button
-                onClick={handleCreateBlueprint}
-                className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Create Blueprint
-              </button>
-            </div>
-          )}
+           {jobStatus.status === "completed" && filteredImages.length > 0 ? (
+              <div onClick={handleCreateBlueprint}  className="bg-orange-500 [#e16349] cursor-pointer shadow-sm mb-6 px-4 py-2 -mt-10 rounded-2xl 
+              items-center justify-between gap-3 flex -mt-10">
+                <h2 className={`text-lg font-medium text-gray-100 flex items-center gap-2`}>
+                  {/* <Map/> */}
+                 Create Blueprint
+                 </h2>
+                <div className={`flex items-center justify-center text-black w-10 h-10 bg-white rounded-full `}>
+                  <ArrowUpRight className={`w-4 h-4`} />
+                </div>
+      </div>
+            
+          ):
+          <>
+          Loading...
+          </>
+          }
 </div>
+        </div>
+
+        {/* Error Display */}
+        {jobStatus.error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex">
+              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 mr-3" />
+              <div>
+                <h3 className="text-sm font-medium text-red-800">
+                  Processing Error
+                </h3>
+                <p className="text-sm text-red-700 mt-1">{jobStatus.error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+ {/* Tab Navigation */}
+ 
        
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           {/* Tab Headers */}
@@ -561,16 +548,22 @@ filteredImages
                           viewMode === "fullscreen" ? "grid" : "fullscreen"
                         )
                       }
-                      className="inline-flex items-center px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
+                      className="inline-flex items-center cursor-pointer shadow-sm px-4 py-2  hover:bg-gray-300 gap-3 rounded-full text-lg text-black border border-gray-300"
                     >
                       {viewMode === "fullscreen" ? (
                         <>
-                          <Grid3x3 className="w-4 h-4 mr-1" />
+                        <div className={`flex items-center justify-center text-black w-10 h-10 bg-white rounded-full border border-gray-300`}>
+                 <Grid3x3 className="w-6 h-6" />
+                </div>
+                          
                           Grid View
                         </>
                       ) : (
                         <>
-                          <Eye className="w-4 h-4 mr-1" />
+                            <div className={`flex items-center justify-center text-black w-10 h-10 bg-white rounded-full  border border-gray-300`}>
+                 <Eye className="w-6 h-6" />
+                </div>
+                         
                           Full Screen
                         </>
                       )}
@@ -580,10 +573,10 @@ filteredImages
                   <button
                     onClick={handleViewDetection}
                     disabled={isDetecting}
-                    className={`inline-flex items-center px-4 py-2 rounded-md ${
+                    className={`inline-flex items-center text-lg rounded-full ${
                       isDetecting
                         ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-700"
+                        : "bg-black/70 -600 cursor-pointer shadow-sm px-4 py-2 text-white hover:bg-gray-600 gap-3"
                     }`}
                   >
                     {isDetecting ? (
@@ -593,8 +586,11 @@ filteredImages
                       </>
                     ) : (
                       <>
-                        <Eye className="w-4 h-4 mr-2" />
-                        Detect Current
+                       Detect Current
+                         <div className={`flex items-center justify-center text-black w-10 h-10 bg-white rounded-full `}>
+                  <ArrowUpRight className={`w-4 h-4`} />
+                </div>
+                       
                       </>
                     )}
                   </button>
