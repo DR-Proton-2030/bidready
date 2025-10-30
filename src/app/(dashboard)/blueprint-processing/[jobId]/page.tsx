@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import axios from "axios";
+import Loader from "@/components/shared/loader/Loader";
 
 interface ProcessedImage {
   id: string;
@@ -270,8 +271,10 @@ export default function BlueprintProcessingPage() {
         return "text-gray-600 bg-gray-50";
     }
   };
+// const [creating, setCreating] = useState(false);
 
  const handleCreateBlueprint = useCallback(async () => {
+  setLoading(true);
   try {
     if (filteredImages.length === 0) {
       alert("No images available to create blueprint");
@@ -373,44 +376,24 @@ export default function BlueprintProcessingPage() {
     const result = await apiResponse.json();
 
     console.log("✅ Blueprint created:", result);
-    // router.push("/blueprints");
+    router.push("/blueprints");
   } catch (error) {
     console.error("❌ Error creating blueprint:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     alert("Error creating blueprint: " + errorMessage);
-  } 
+  } finally{
+    setLoading(false);
+  }
 }, [
 filteredImages
 ]);
 
-  // Keep the original function for navigation to form
-  const handleContinueToForm = () => {
-    if (filteredImages.length > 0) {
-      // Pass the filtered images data to the blueprint creation form with SVG overlays
-      const imagesWithOverlays = filteredImages.map(image => ({
-        ...image,
-        svgOverlay: svgOverlays.get(image.id) || null
-      }));
-      
-      const imageData = encodeURIComponent(JSON.stringify(imagesWithOverlays));
-      router.push(
-        `/create-blueprint?processedImages=${imageData}&jobId=${jobId}`
-      );
-    }
-  };
+
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Clock className="w-12 h-12 text-blue-500 animate-spin w-7xl mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">
-            Loading job status...
-          </h2>
-          <p className="text-gray-600">
-            Please wait while we fetch the processing status.
-          </p>
-        </div>
+       <Loader/>
       </div>
     );
   }
@@ -536,12 +519,7 @@ filteredImages
           </div>
            {jobStatus.status === "completed" && filteredImages.length > 0 && (
             <div className="flex space-x-3">
-              <button
-                onClick={handleContinueToForm}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-gray-700 bg-white rounded-md hover:bg-gray-50"
-              >
-                Continue to Form
-              </button>
+             
               <button
                 onClick={handleCreateBlueprint}
                 className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -1130,6 +1108,12 @@ filteredImages
           console.log('SVG overlay updated for image:', imageId, svgData ? 'with data' : 'cleared');
         }}
       />
+      {
+        loading && (
+         <Loader/>
+        )
+      }
+      
     </div>
   );
 }
