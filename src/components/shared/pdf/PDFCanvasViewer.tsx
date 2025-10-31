@@ -25,6 +25,10 @@ interface PDFCanvasViewerProps {
   onAddText: (text: TextAnnotation) => void;
   onUpdateText: (textId: string, updates: Partial<TextAnnotation>) => void;
   onAnnotationSelect: (annotationId: string | null) => void;
+  // Notify parent with a snapshot of the canvas after an edit (blob or dataURL)
+  onCanvasEdit?: (pageId: number, image: Blob | string) => void;
+  // Inform parent that an edit has been committed and provide a File/Blob for saving
+  onSaveEdits?: (payload: { pageId: number; editedImage: File | Blob }) => void;
 }
 
 const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
@@ -43,6 +47,8 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
   onAddText,
   onUpdateText,
   onAnnotationSelect,
+  onCanvasEdit,
+  onSaveEdits,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -181,6 +187,8 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
     if (!canvas || !ctx || !overlayCanvas) return;
 
     const img = new Image();
+  // Try to allow cross-origin images where possible to avoid tainting the canvas
+  img.crossOrigin = "anonymous";
     img.onload = () => {
       // Use the actual image dimensions for high quality
       const imgWidth = img.naturalWidth;
@@ -390,6 +398,99 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
     return canvas.width / page.width;
   };
 
+  // Create a composite snapshot of the main canvas + overlay canvas to include
+  // in-progress overlay strokes. Returns a Blob via callback or a dataURL.
+  const snapshotCompositeCanvas = (
+    pageNumber: number,
+    cb?: (blobOrDataUrl: Blob | string) => void
+  ) => {
+    try {
+      try { console.log("snapshotCompositeCanvas: start", pageNumber); } catch {}
+      const main = canvasRef.current;
+      const overlay = overlayCanvasRef.current;
+      if (!main) return;
+
+      const w = main.width;
+      const h = main.height;
+
+      // Create an offscreen canvas to composite both
+      const temp = document.createElement("canvas");
+      temp.width = w;
+      temp.height = h;
+      const tctx = temp.getContext("2d");
+      if (!tctx) return;
+
+      // Draw main then overlay (overlay may contain current stroke)
+      try {
+        tctx.drawImage(main, 0, 0);
+        if (overlay) tctx.drawImage(overlay, 0, 0);
+      } catch (drawErr) {
+        // Drawing failed — likely due to a tainted source. We'll handle below when trying to export.
+        console.warn("snapshotCompositeCanvas: drawImage failed (possible tainted canvas)", drawErr);
+      }
+
+      if (typeof temp.toBlob === "function") {
+        try {
+          temp.toBlob((blob) => {
+            if (blob) {
+              try { console.log("snapshotCompositeCanvas: blob", pageNumber, blob.size); } catch {}
+              if (cb) cb(blob);
+              // Also provide a File to onSaveEdits if consumer expects a File
+              try {
+                if (onSaveEdits) {
+                  const file = new File([blob], `edited-page-${pageNumber}-${Date.now()}.png`, { type: blob.type });
+                  onSaveEdits({ pageId: pageNumber, editedImage: file });
+                }
+              } catch (err) {
+                console.warn("onSaveEdits failed", err);
+              }
+            }
+          }, "image/png");
+        } catch (exportErr: any) {
+          // toBlob may throw a SecurityError if the canvas is tainted. Fall back to safer behavior.
+          console.warn("snapshotCompositeCanvas: toBlob failed, canvas may be tainted", exportErr);
+          try {
+            // Fallback: use the page's original dataUrl (without overlay). Inform caller overlay couldn't be included.
+            if (cb) cb(page.dataUrl);
+            if (onSaveEdits) {
+              // Convert dataUrl to blob and provide as File
+              fetch(page.dataUrl)
+                .then((r) => r.blob())
+                .then((blob) => {
+                  const file = new File([blob], `edited-page-${pageNumber}-${Date.now()}.png`, { type: blob.type });
+                  onSaveEdits({ pageId: pageNumber, editedImage: file });
+                  console.warn("snapshotCompositeCanvas: fallback used original page image; overlay may be missing");
+                })
+                .catch((err) => console.warn("snapshotCompositeCanvas: fallback fetch failed", err));
+            }
+          } catch (fallbackErr) {
+            console.error("snapshotCompositeCanvas fallback failed", fallbackErr);
+          }
+        }
+      } else {
+        const d = temp.toDataURL("image/png");
+        try { console.log("snapshotCompositeCanvas: dataURL", pageNumber, d.length); } catch {}
+        if (cb) cb(d);
+        try {
+          if (onSaveEdits) {
+            // Convert dataURL to blob
+            fetch(d)
+              .then((r) => r.blob())
+              .then((blob) => {
+                const file = new File([blob], `edited-page-${pageNumber}-${Date.now()}.png`, { type: blob.type });
+                onSaveEdits({ pageId: pageNumber, editedImage: file });
+              })
+              .catch((err) => console.warn("onSaveEdits dataURL->blob failed", err));
+          }
+        } catch (err) {
+          console.warn("onSaveEdits failed", err);
+        }
+      }
+    } catch (err) {
+      console.error("snapshotCompositeCanvas failed", err);
+    }
+  };
+
   // Check if mouse is over a text annotation
   const getTextAtPosition = (point: Point): TextAnnotation | null => {
     const scale = getCanvasToPageScale();
@@ -522,7 +623,16 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
         width: toolWidth,
         opacity: selectedTool === "highlighter" ? 0.3 : toolOpacity,
       };
+      // Snapshot BEFORE committing (overlay still has stroke), wait a frame
+      requestAnimationFrame(() => {
+        snapshotCompositeCanvas(page.pageNumber, (blobOrDataUrl) => {
+          try { console.log("PDFCanvasViewer: snapshot (drawing)", page.pageNumber, blobOrDataUrl instanceof Blob ? `blob ${blobOrDataUrl.size}` : `dataURL ${String(blobOrDataUrl).length}`); } catch {}
+          onCanvasEdit?.(page.pageNumber, blobOrDataUrl);
+        });
+      });
+
       onAddDrawing(drawing);
+      try { console.log("PDFCanvasViewer: committed drawing", { page: page.pageNumber, points: drawing.points.length }); } catch {}
     } else if (
       selectedTool === "rectangle" ||
       selectedTool === "circle" ||
@@ -545,7 +655,16 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
           color: toolColor,
           width: toolWidth,
         };
+        // Snapshot BEFORE committing (overlay shows preview geometry)
+        requestAnimationFrame(() => {
+          snapshotCompositeCanvas(page.pageNumber, (blobOrDataUrl) => {
+            try { console.log("PDFCanvasViewer: snapshot (shape)", page.pageNumber, blobOrDataUrl instanceof Blob ? `blob ${blobOrDataUrl.size}` : `dataURL ${String(blobOrDataUrl).length}`); } catch {}
+            onCanvasEdit?.(page.pageNumber, blobOrDataUrl);
+          });
+        });
+
         onAddShape(shape);
+        try { console.log("PDFCanvasViewer: committed shape", { page: page.pageNumber, type: shape.type }); } catch {}
       }
     }
 
@@ -584,7 +703,15 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
       };
 
       console.log("Adding text annotation:", textAnnotation);
+      // Snapshot BEFORE committing
+      requestAnimationFrame(() => {
+        snapshotCompositeCanvas(page.pageNumber, (blobOrDataUrl) => {
+          try { console.log("PDFCanvasViewer: snapshot (text)", page.pageNumber, blobOrDataUrl instanceof Blob ? `blob ${blobOrDataUrl.size}` : `dataURL ${String(blobOrDataUrl).length}`); } catch {}
+          onCanvasEdit?.(page.pageNumber, blobOrDataUrl);
+        });
+      });
       onAddText(textAnnotation);
+      try { console.log("PDFCanvasViewer: committed text", { page: page.pageNumber, id: textAnnotation.id }); } catch {}
       setTextInput("");
       setShowTextInput(false);
       setTextPosition(null);

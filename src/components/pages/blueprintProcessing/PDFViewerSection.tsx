@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import PDFHandler from "@/components/shared/pdf/PDFHandler";
 import { FileText, ArrowLeft, Download, Delete, Trash } from "lucide-react";
 
@@ -10,6 +11,7 @@ interface PDFViewerSectionProps {
   onExportComplete?: (exportData: { blob: Blob; fileName: string }) => void;
   onError?: (error: string) => void;
   externalPDFHook?: any; // External PDF annotation hook
+  blueprintId?: string; // Newly created blueprint id for navigation
 }
 
 const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
@@ -19,12 +21,19 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
   onExportComplete,
   onError,
   externalPDFHook,
+  blueprintId,
 }) => {
+  const router = useRouter();
   const [hasAnnotations, setHasAnnotations] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState<{
     loaded: number;
     total: number;
   } | null>(null);
+  // Collected canvas edits: { pageId, image }
+  const [editCanvasArray, setEditCanvasArray] = useState<
+    { pageId: string; image: Blob | string }[]
+  >([]);
+  const [saving, setSaving] = useState(false);
 
   // Lock body scroll while the viewer is open (fullscreen experience)
   useEffect(() => {
@@ -60,6 +69,194 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
     if (onError) {
       onError(error);
     }
+  };
+
+  // Stable callback to receive loading progress from PDFHandler without
+  // causing re-renders due to a changing function identity.
+  const handleLoadingProgress = useCallback((loaded: number, total: number) => {
+    setLoadingProgress({ loaded, total });
+  }, []);
+
+  // Helper: compress image Blob or data URL to a JPEG data URL (base64)
+  const compressImageToDataUrl = async (
+    input: Blob | string,
+    maxWidth = 1600,
+    quality = 0.7
+  ): Promise<string> => {
+    // Convert string input (data URL) to Image directly, or Blob via object URL
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+
+    const src = typeof input === "string" ? input : URL.createObjectURL(input);
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = (e) => reject(e);
+      img.src = src as string;
+    });
+
+    // If we created an object URL, revoke it
+    if (typeof input !== "string") {
+      URL.revokeObjectURL(src as string);
+    }
+
+    const scale = Math.min(1, maxWidth / img.width);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get canvas context");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // Return full data URL (includes mime + base64)
+    return canvas.toDataURL("image/jpeg", quality);
+  };
+
+  // Called by external canvas/annotation layer to add/update a page edit
+  const addCanvasEdit = (pageId: string, image: Blob | string) => {
+    // Debug: log incoming edit details (type/size) to help trace why edits may not appear
+    try {
+      if (image instanceof Blob) {
+        // Blob may not have a reliable size property for some custom types, but usually does
+        // eslint-disable-next-line no-console
+        console.log("addCanvasEdit called (Blob):", pageId, "size=", image.size, image.type);
+      } else {
+        // string (likely dataURL)
+        // eslint-disable-next-line no-console
+        console.log("addCanvasEdit called (string):", pageId, "length=", String(image).length);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.log("addCanvasEdit called (unknown type):", pageId, typeof image, err);
+    }
+
+    setEditCanvasArray((prev) => {
+      const idx = prev.findIndex((p) => p.pageId === pageId);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = { pageId, image };
+        return copy;
+      }
+      return [...prev, { pageId, image }];
+    });
+  };
+
+  // Attach the handler to externalPDFHook so the PDF/canvas layer can call it
+  useEffect(() => {
+  if (!externalPDFHook) return;
+    // Attach a named handler to the external hook; this is a lightweight contract
+    // The external layer should call `externalPDFHook.registerCanvasEdit(pageId, image)`
+    // or `externalPDFHook.registerCanvasEdit(pageId, blobOrDataUrl)` when a canvas edit occurs.
+    // We also return a cleanup that removes the reference if it still points to our function.
+    // NOTE: this mutates the external hook object which is a common pattern for small integrations.
+    // If the external hook provides a registration API, prefer that instead.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    externalPDFHook.registerCanvasEdit = addCanvasEdit;
+    // eslint-disable-next-line no-console
+    console.log("externalPDFHook.registerCanvasEdit attached");
+
+    return () => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        if (externalPDFHook.registerCanvasEdit === addCanvasEdit) delete externalPDFHook.registerCanvasEdit;
+        // eslint-disable-next-line no-console
+        console.log("externalPDFHook.registerCanvasEdit detached");
+      } catch (err) {
+        /* noop */
+      }
+    };
+  }, [externalPDFHook]);
+
+  // Debug: log edits array changes so user can see when edits are collected
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log("editCanvasArray updated. count=", editCanvasArray.length, editCanvasArray.map((p) => p.pageId));
+  }, [editCanvasArray]);
+
+  // Handle SAVE: compress images sequentially (simulating streaming), log each chunk and the final payload
+  const handleSaveClick = async () => {
+    // If we don't have local collected edits, try to source edited images from the external hook state
+    let effectiveEdits = editCanvasArray;
+    if ((!effectiveEdits || effectiveEdits.length === 0) && externalPDFHook?.state?.pages) {
+      const pagesWithEdits = externalPDFHook.state.pages
+        .filter((p: any) => p.editedImage)
+        .map((p: any) => ({ pageId: String(p.pageNumber), image: p.editedImage }));
+      if (pagesWithEdits.length > 0) {
+        console.log("No local editCanvasArray entries; using external hook pages with editedImage", pagesWithEdits.map((p:any)=>p.pageId));
+        effectiveEdits = pagesWithEdits;
+      }
+    }
+
+    if (!effectiveEdits || effectiveEdits.length === 0) {
+      console.log("No edits to save");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload: { pageId: string; image: string }[] = [];
+
+      // Process sequentially to simulate streaming and to limit memory spikes
+      for (const e of effectiveEdits) {
+        try {
+          const dataUrl = await compressImageToDataUrl(e.image, 1600, 0.7);
+          const item = { pageId: e.pageId, image: dataUrl };
+          // Simulate streaming by logging each chunk as it's ready
+          console.log("Streaming chunk:", item);
+          payload.push(item);
+        } catch (err) {
+          console.error("Failed to compress image for page", e.pageId, err);
+        }
+      }
+
+      // Final payload (all edits) logged once complete
+      console.log("Final payload:", payload);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Handle edits saved from inner canvas viewer
+  const handleSaveEdits = (payload: { pageId: number; editedImage: File | Blob }) => {
+    const pageIdStr = String(payload.pageId);
+
+    // Update local array for streaming/compression flow as well
+    addCanvasEdit(pageIdStr, payload.editedImage);
+
+    // If external hook exposes setEditedImage, call it so the page object stores editedImage
+    try {
+      const hookAny = externalPDFHook as any;
+      if (hookAny?.setEditedImage) {
+        hookAny.setEditedImage(payload.pageId, payload.editedImage);
+        console.log("PDFViewerSection: setEditedImage on hook for page", payload.pageId);
+      } else {
+        // Try mutate state.pages directly as a fallback
+        if (hookAny?.state && Array.isArray(hookAny.state.pages)) {
+          const idx = hookAny.state.pages.findIndex((p: any) => p.pageNumber === payload.pageId);
+          if (idx >= 0) {
+            try {
+              hookAny.state.pages[idx].editedImage = payload.editedImage;
+              console.log("PDFViewerSection: mutated hook.state.pages editedImage for page", payload.pageId);
+            } catch (err) {
+              console.warn("Failed to mutate external hook state for editedImage", err);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("handleSaveEdits failed", err);
+    }
+  };
+
+  const handleNextClick = () => {
+    if (!blueprintId) {
+      console.log("No blueprintId available for navigation");
+      return;
+    }
+    // Navigate to the new detection route (dynamic segment)
+    router.push(`/blueprint_detection/${encodeURIComponent(blueprintId)}`);
   };
 
   if (!pdfFile) {
@@ -116,6 +313,16 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
+          {blueprintId && (
+            <button
+              onClick={handleNextClick}
+              title="Go to detection"
+              className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Next
+            </button>
+          )}
+         
         </div>
       </div>
 
@@ -127,6 +334,13 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
           <div className="px-3 pb-2">
             <div className="text-xs text-white/70">Pages ({loadingProgress?.loaded || 0}/{loadingProgress?.total || '–'})</div>
           </div>
+           <button
+            onClick={handleSaveClick}
+            title="Save annotations"
+            className="px-3 py-2 bg-white/6 text-white rounded hover:bg-white/10 inline-flex items-center gap-2"
+          >
+            {saving ? "Saving..." : "SAVE"}
+          </button>
           <div className="flex-1 overflow-auto px-3 pb-4 space-y-3">
             {/* Render thumbnails from external hook if available */}
             {externalPDFHook && externalPDFHook.state?.pages?.length ? (
@@ -231,7 +445,12 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                   onPagesChange={handlePDFExport}
                   onError={handleError}
                   externalPDFHook={externalPDFHook}
-                  onLoadingProgress={(loaded, total) => setLoadingProgress({ loaded, total })}
+                  onCanvasEdit={(pageId, image) => {
+                    // PDFHandler/PDFCanvasViewer provide pageId as number; coerce to string
+                    addCanvasEdit(String(pageId), image);
+                  }}
+                  onSaveEdits={handleSaveEdits}
+                  onLoadingProgress={handleLoadingProgress}
                 />
               </div>
             </div>

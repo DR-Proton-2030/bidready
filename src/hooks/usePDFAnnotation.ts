@@ -700,6 +700,23 @@ export const usePDFAnnotation = (
     }));
   }, [updatePageAnnotations]);
 
+  // Set edited image for a page
+  const setEditedImage = useCallback((pageNumber: number, file: File | Blob) => {
+    setState((prev) => {
+      const pageIndex = prev.pages.findIndex((p) => p.pageNumber === pageNumber);
+      if (pageIndex === -1) return prev;
+
+      const newPages = [...prev.pages];
+      newPages[pageIndex] = {
+        ...newPages[pageIndex],
+        // @ts-ignore allow storing File/Blob even if not in original type
+        editedImage: file,
+      };
+
+      return { ...prev, pages: newPages };
+    });
+  }, []);
+
   // Export functionality
   const exportPDF = useCallback(
     async (options: PDFExportOptions): Promise<Blob | null> => {
@@ -782,6 +799,7 @@ export const usePDFAnnotation = (
     redo,
     clearPageAnnotations,
     exportPDF,
+    setEditedImage,
     isLoading,
     error,
     allPagesLoaded,

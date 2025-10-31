@@ -61,6 +61,8 @@ export interface PDFPageData {
   annotations: PageAnnotation;
   thumbnailUrl?: string;
   imageId?: string;
+  // If the page was edited on canvas, editedImage can hold a File/Blob for upload
+  editedImage?: File | Blob;
   width: number;
   height: number;
 }
@@ -130,6 +132,8 @@ export interface UsePDFAnnotationReturn {
   redo: (pageNumber: number) => void;
   clearPageAnnotations: (pageNumber: number) => void;
   exportPDF: (options: PDFExportOptions) => Promise<Blob | null>;
+  // Set edited image for a page (e.g., when canvas edits are saved)
+  setEditedImage: (pageNumber: number, file: File | Blob) => void;
   isLoading: boolean;
   error: string | null;
   allPagesLoaded: boolean;

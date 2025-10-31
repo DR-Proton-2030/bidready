@@ -39,6 +39,7 @@ export default function CreateBlueprint({
     project_object_id: initialProjectId || "",
   });
   const [error, setError] = useState("");
+  const [isUploadingError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
@@ -54,6 +55,8 @@ export default function CreateBlueprint({
   const [streamingProgress, setStreamingProgress] = useState(0);
   const [showPdfHandler, setShowPdfHandler] = useState(false);
   const [blueprintId, setBlueprintId] = useState<string>("");
+
+
   const [pdfUrl, setPdfUrl] = useState<string>("");
   
   // PDF Annotation Hook
@@ -216,7 +219,7 @@ export default function CreateBlueprint({
           // Don't set Content-Type - browser will set it with boundary for multipart/form-data
         });
 
-        console.log("📡 Response status:", res.status);
+        console.log("📡 Response status:", res.body);
         console.log("📡 Response headers:", Object.fromEntries(res.headers.entries()));
 
         if (!res.ok) {
@@ -268,23 +271,48 @@ export default function CreateBlueprint({
                 try {
                   const data = JSON.parse(line);
                   console.log("📥 Streaming data [chunk", chunkCount + "]:", data);
-
+                
                   if (data.message === "Blueprint created, processing images...") {
                     // First response - show PDF Handler immediately
-                    console.log("🎯 First response received, showing PDF Handler");
-                    console.log("📋 Blueprint ID:", data.blueprint_id);
-                    console.log("📄 PDF URL:", data.file_url);
-                    
-                    setBlueprintId(data.blueprint_id);
-                    setPdfUrl(data.file_url);
+                    console.log("🎯 First response received, showing PDF Handler",data);
+
+
+                    // The backend may return the blueprint id in different shapes.
+                    // Try multiple locations safely: data.blueprint_id, data.blueprint._id, data.blueprint.id,
+                    // or nested under data.data.blueprint
+                    let newBlueprintId: string | undefined = undefined;
+                    let pdfFileUrl: string | undefined = undefined;
+
+                    try {
+                      newBlueprintId = data.blueprint_id || data.blueprint?._id || data.blueprint?.id || data.data?.blueprint?._id || data.data?.blueprint?.id || data.data?._id;
+                    } catch (e) {
+                      newBlueprintId = undefined;
+                    }
+
+                    try {
+                      pdfFileUrl = data.file_url || data.data?.file_url || data.data?.blueprint?.file_url || data.blueprint?.file_url;
+                    } catch (e) {
+                      pdfFileUrl = undefined;
+                    }
+
+                    console.log("📋 Resolved blueprint id:", newBlueprintId, "(raw payload)");
+                    console.log("📄 Resolved PDF URL:", pdfFileUrl || data.file_url || data.data?.file_url);
+
+                    if (newBlueprintId) setBlueprintId(newBlueprintId);
+
+                    if (pdfFileUrl) setPdfUrl(pdfFileUrl);
+
                     setIsUploading(false);
                     setShowPdfHandler(true);
-                    
+
                     // Load PDF from URL (non-blocking) - this will set totalPages
-                    loadPDFFromUrl(data.file_url).catch(err => {
-                      console.error("❌ Error loading PDF from URL:", err);
-                      setError("Failed to load PDF");
-                    });
+                    const tryLoadUrl = pdfFileUrl || data.file_url || data.data?.file_url || data.blueprint?.file_url;
+                    if (tryLoadUrl) {
+                      loadPDFFromUrl(tryLoadUrl).catch(err => {
+                        console.error("❌ Error loading PDF from URL:", err);
+                        setError("Failed to load PDF");
+                      });
+                    }
                   } else if (data.type === "image_processed") {
                     // Image processed, add to state
                     console.log(`📄 Adding page ${data} of ${data.total_pages}`,data);
@@ -403,6 +431,7 @@ export default function CreateBlueprint({
               setError(error);
             }}
             externalPDFHook={pdfAnnotationHook}
+            blueprintId={blueprintId}
           />
         </div>
       </div>

@@ -16,6 +16,10 @@ interface PDFHandlerProps {
   exportButtonText?: string;
   externalPDFHook?: ReturnType<typeof usePDFAnnotation>; // Allow external hook
   onLoadingProgress?: (loaded: number, total: number) => void;
+  // Provide canvas edit snapshots to parent (optional)
+  onCanvasEdit?: (pageId: number, image: Blob | string) => void;
+  // Provide saved edit files to parent
+  onSaveEdits?: (payload: { pageId: number; editedImage: File | Blob }) => void;
 }
 
 const PDFHandler: React.FC<PDFHandlerProps> = ({
@@ -27,6 +31,8 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
   exportButtonText,
   externalPDFHook,
   onLoadingProgress,
+  onCanvasEdit,
+  onSaveEdits,
 }) => {
   // Use external hook if provided, otherwise create internal one
   const internalHook = usePDFAnnotation();
@@ -70,85 +76,6 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
     return new File([blob], normalizedName, { type: blob.type });
   };
 
-  // Temporary detection view functionality
-  const viewDetection = async () => {
-    if (typeof window === "undefined" || isDetecting) return;
-
-    setDetectionError(null);
-
-    // Get the current page data
-    const currentPageData = state.pages.find(
-      (p) => p.pageNumber === state.currentPage
-    );
-
-    if (!currentPageData) {
-      setDetectionError("Current page is still loading. Please try again.");
-      return;
-    }
-
-    try {
-      setIsDetecting(true);
-
-      let payload = detectionCache.get(currentPageData.pageNumber);
-
-      if (!payload) {
-        const baseName = file?.name?.replace(/\.pdf$/i, "") || "blueprint";
-        const pageFileName = `${baseName}_page_${currentPageData.pageNumber}`;
-        const fileForDetection = await dataUrlToFile(
-          currentPageData.dataUrl,
-          pageFileName
-        );
-
-        const formData = new FormData();
-        formData.append("image", fileForDetection);
-
-        const response = await fetch("http://localhost:5050/detect", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error(`Detection failed with status ${response.status}`);
-        }
-
-        const detectionResult = await response.json();
-
-        payload = {
-          file_url: currentPageData.dataUrl,
-          svg_overlay_url: detectionResult,
-        };
-
-        setDetectionCache((prev) => {
-          const next = new Map(prev);
-          next.set(currentPageData.pageNumber, payload);
-          return next;
-        });
-      }
-
-      const key = `blueprint_detection_${Date.now()}_${Math.random()
-        .toString(36)
-        .slice(2, 8)}`;
-
-      try {
-        localStorage.setItem(key, JSON.stringify(payload));
-      } catch (err) {
-        const encoded = encodeURIComponent(JSON.stringify(payload));
-        const url = `/blueprint-detection?data=${encoded}`;
-        window.open(url, "_blank");
-        return;
-      }
-
-      const url = `/blueprint-detection?key=${encodeURIComponent(key)}`;
-      window.open(url, "_blank");
-    } catch (err) {
-      console.error("Failed to open detection page", err);
-      const message =
-        err instanceof Error ? err.message : "Unable to process detection";
-      setDetectionError(message);
-    } finally {
-      setIsDetecting(false);
-    }
-  };
 
   // Load PDF when file changes (only if not using external hook)
   useEffect(() => {
@@ -316,6 +243,29 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
             onAddText={(text) => addText(state.currentPage, text)}
             onUpdateText={(textId, updates) => updateText(state.currentPage, textId, updates)}
             onAnnotationSelect={() => {}}
+            onSaveEdits={(payload) => {
+              try { console.log("PDFHandler: onSaveEdits", payload); } catch {}
+              try { onSaveEdits?.(payload); } catch (err) { console.warn("onSaveEdits parent handler failed", err); }
+            }}
+            onCanvasEdit={(pageId, image) => {
+              try { console.log("PDFHandler: onCanvasEdit", { pageId, type: image instanceof Blob ? "Blob" : "DataURL", size: image instanceof Blob ? image.size : String(image).length }); } catch {}
+              // Bubble up to parent if provided
+              try {
+                onCanvasEdit?.(pageId, image);
+              } catch (err) {
+                console.error("onCanvasEdit handler failed", err);
+              }
+              // Also, if an external hook exposes a register function, call it
+              try {
+                const hookAny = externalPDFHook as any;
+                if (hookAny?.registerCanvasEdit) {
+                  // Ensure pageId matches external hook numbering if needed
+                  hookAny.registerCanvasEdit(String(pageId), image);
+                }
+              } catch (err) {
+                /* noop */
+              }
+            }}
           />
         </div>
       </div>
