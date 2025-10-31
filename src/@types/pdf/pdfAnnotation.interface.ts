@@ -109,6 +109,8 @@ export interface PDFHandlerProps {
 export interface UsePDFAnnotationReturn {
   state: PDFViewerState;
   loadPDF: (file: File) => Promise<void>;
+  loadPDFFromUrl: (pdfUrl: string) => Promise<void>;
+  addStreamedImage: (imageUrl: string, pageNumber: number) => void;
   setCurrentPage: (page: number) => void;
   setZoom: (zoom: number) => void;
   setTool: (tool: AnnotationTool) => void;

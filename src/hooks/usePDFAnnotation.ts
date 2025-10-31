@@ -80,6 +80,81 @@ export const usePDFAnnotation = (
     });
   }, []);
 
+  // Method to add streamed images to state
+  const addStreamedImage = useCallback((imageUrl: string, pageNumber: number) => {
+    const pageData: PDFPageData = {
+      pageNumber,
+      dataUrl: imageUrl,
+      rotation: 0,
+      annotations: {
+        pageNumber,
+        drawings: [],
+        texts: [],
+        shapes: [],
+      },
+      thumbnailUrl: imageUrl,
+      width: 800,
+      height: 1000,
+    };
+
+    setState((prev) => {
+      const existingPageIndex = prev.pages.findIndex(p => p.pageNumber === pageNumber);
+      const newPages = [...prev.pages];
+      
+      if (existingPageIndex >= 0) {
+        newPages[existingPageIndex] = pageData;
+      } else {
+        newPages.push(pageData);
+        newPages.sort((a, b) => a.pageNumber - b.pageNumber);
+      }
+
+      return {
+        ...prev,
+        pages: newPages,
+        totalPages: Math.max(prev.totalPages, pageNumber),
+      };
+    });
+
+    loadedPagesRef.current.add(pageNumber);
+    initializePageHistory(pageNumber);
+    
+    const newLoadedCount = loadedPagesRef.current.size;
+    setLoadedPagesCount(newLoadedCount);
+  }, [initializePageHistory]);
+
+  // Method to load PDF from URL
+  const loadPDFFromUrl = useCallback(async (pdfUrl: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const loadingTask = pdfjsLib.getDocument(pdfUrl);
+      const pdf = await loadingTask.promise;
+
+      pdfDocRef.current = pdf;
+      loadedPagesRef.current.clear();
+      setLoadedPagesCount(0);
+      setAllPagesLoaded(false);
+
+      const totalPages = pdf.numPages;
+
+      setState((prev) => ({
+        ...prev,
+        pages: [],
+        totalPages,
+        currentPage: 1,
+      }));
+
+      setIsLoading(false);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load PDF from URL";
+      setError(errorMessage);
+      setIsLoading(false);
+      console.error("PDF loading error:", err);
+    }
+  }, []);
+
   // Load a single page
   const loadSinglePage = useCallback(async (pageNum: number) => {
     if (!pdfDocRef.current || loadedPagesRef.current.has(pageNum)) {
@@ -686,6 +761,8 @@ export const usePDFAnnotation = (
   return {
     state,
     loadPDF,
+    loadPDFFromUrl,
+    addStreamedImage,
     setCurrentPage,
     setZoom,
     setTool,

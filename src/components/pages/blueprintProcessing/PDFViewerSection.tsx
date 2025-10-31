@@ -9,6 +9,7 @@ interface PDFViewerSectionProps {
   onBack: () => void;
   onExportComplete?: (exportData: { blob: Blob; fileName: string }) => void;
   onError?: (error: string) => void;
+  externalPDFHook?: any; // External PDF annotation hook
 }
 
 const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
@@ -17,6 +18,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
   onBack,
   onExportComplete,
   onError,
+  externalPDFHook,
 }) => {
   const [hasAnnotations, setHasAnnotations] = useState(false);
 
@@ -130,6 +132,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
           file={pdfFile}
           onPagesChange={handlePDFExport}
           onError={handleError}
+          externalPDFHook={externalPDFHook}
         />
       </div>
 

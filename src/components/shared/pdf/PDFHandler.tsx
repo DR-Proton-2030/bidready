@@ -14,6 +14,7 @@ interface PDFHandlerProps {
   onExport?: (annotatedPdfBlob: Blob, pages: any[]) => Promise<void>;
   showExportButton?: boolean;
   exportButtonText?: string;
+  externalPDFHook?: ReturnType<typeof usePDFAnnotation>; // Allow external hook
 }
 
 const PDFHandler: React.FC<PDFHandlerProps> = ({
@@ -23,7 +24,10 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
   onExport: customOnExport,
   showExportButton = true,
   exportButtonText,
+  externalPDFHook,
 }) => {
+  // Use external hook if provided, otherwise create internal one
+  const internalHook = usePDFAnnotation();
   const {
     state,
     loadPDF,
@@ -47,7 +51,7 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
     error,
     allPagesLoaded,
     loadedPagesCount,
-  } = usePDFAnnotation();
+  } = externalPDFHook || internalHook;
 
   const [isDrawing, setIsDrawing] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -144,12 +148,12 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
     }
   };
 
-  // Load PDF when file changes
+  // Load PDF when file changes (only if not using external hook)
   useEffect(() => {
-    if (file) {
+    if (file && !externalPDFHook) {
       loadPDF(file);
     }
-  }, [file, loadPDF]);
+  }, [file, loadPDF, externalPDFHook]);
 
   // Report errors to parent
   useEffect(() => {
