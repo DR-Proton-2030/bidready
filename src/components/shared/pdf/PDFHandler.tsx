@@ -15,6 +15,7 @@ interface PDFHandlerProps {
   showExportButton?: boolean;
   exportButtonText?: string;
   externalPDFHook?: ReturnType<typeof usePDFAnnotation>; // Allow external hook
+  onLoadingProgress?: (loaded: number, total: number) => void;
 }
 
 const PDFHandler: React.FC<PDFHandlerProps> = ({
@@ -25,6 +26,7 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
   showExportButton = true,
   exportButtonText,
   externalPDFHook,
+  onLoadingProgress,
 }) => {
   // Use external hook if provided, otherwise create internal one
   const internalHook = usePDFAnnotation();
@@ -162,6 +164,13 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
     }
   }, [error, onError]);
 
+  // Report loading progress to parent
+  useEffect(() => {
+    if (onLoadingProgress && state.totalPages > 0) {
+      onLoadingProgress(loadedPagesCount, state.totalPages);
+    }
+  }, [loadedPagesCount, state.totalPages, onLoadingProgress]);
+
   const currentPageData = state.pages.find(
     (p) => p.pageNumber === state.currentPage
   );
@@ -250,44 +259,6 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
 
   return (
     <div className="flex flex-col h-full bg-white rounded-lg shadow-lg overflow-hidden relative">
-      
-      {/* Temporary View Detection Button */}
-      <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
-        <button
-          onClick={viewDetection}
-          disabled={isDetecting}
-          className={`pl-3 pr-5 py-2 rounded-lg shadow-lg text-white text-sm font-medium flex items-center gap-2 transition-colors ${
-            isDetecting
-              ? "bg-green-400 cursor-not-allowed"
-              : "bg-green-600 hover:bg-green-700"
-          }`}
-        >
-          {isDetecting ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <ArrowUpRight className="w-4 h-4" />
-          )}
-          {isDetecting ? "Processing..." : "View Detection"}
-        </button>
-        {detectionError && (
-          <p className="text-xs text-red-600 bg-white bg-opacity-90 px-2 py-1 rounded shadow">
-            {detectionError}
-          </p>
-        )}
-      </div>
-
-      {/* Loading Progress Indicator */}
-      {!allPagesLoaded && state.totalPages > 0 && (
-        <div className="absolute top-4 right-4 z-50 bg-white rounded-lg shadow-lg px-4 py-2 border border-gray-200">
-          <div className="flex items-center gap-2">
-            <Loader2 size={16} className="text-blue-500 animate-spin" />
-            <span className="text-sm font-medium text-gray-700">
-              Loading pages: {loadedPagesCount} / {state.totalPages}
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Toolbar */}
       <PDFToolbar
         selectedTool={state.selectedTool}

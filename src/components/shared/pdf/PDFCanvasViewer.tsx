@@ -180,37 +180,61 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
 
     if (!canvas || !ctx || !overlayCanvas) return;
 
-    console.log("Rendering PDF with zoom:", zoom);
-
     const img = new Image();
     img.onload = () => {
-      const width = page.width * zoom;
-      const height = page.height * zoom;
+      // Use the actual image dimensions for high quality
+      const imgWidth = img.naturalWidth;
+      const imgHeight = img.naturalHeight;
 
-      console.log("Canvas dimensions:", width, "x", height);
+      console.log("Image natural dimensions:", imgWidth, "x", imgHeight);
+      console.log("Page dimensions:", page.width, "x", page.height);
+      console.log("Zoom:", zoom);
 
-      canvas.width = width;
-      canvas.height = height;
+      // Set canvas internal resolution to match image resolution for quality
+      canvas.width = imgWidth;
+      canvas.height = imgHeight;
+      
+      // Calculate display size to fit container while maintaining aspect ratio
+      const container = containerRef.current;
+      if (!container) return;
+      
+      const containerWidth = container.clientWidth - 32; // Account for padding
+      const containerHeight = container.clientHeight - 32;
+      
+      // Calculate scale to fit container
+      const scaleX = containerWidth / imgWidth;
+      const scaleY = containerHeight / imgHeight;
+      const fitScale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+      
+      // Apply zoom on top of fit scale
+      const finalScale = fitScale * zoom;
+      
+      const displayWidth = imgWidth * finalScale;
+      const displayHeight = imgHeight * finalScale;
+      
+      console.log("Display dimensions:", displayWidth, "x", displayHeight);
+      console.log("Fit scale:", fitScale, "Final scale:", finalScale);
+      
+      // Set canvas display size
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
 
-      // Apply rotation
+      // Draw image at full resolution
       ctx.save();
-      ctx.translate(width / 2, height / 2);
+      ctx.translate(imgWidth / 2, imgHeight / 2);
       ctx.rotate((page.rotation * Math.PI) / 180);
-      ctx.drawImage(img, -width / 2, -height / 2, width, height);
+      ctx.drawImage(img, -imgWidth / 2, -imgHeight / 2, imgWidth, imgHeight);
       ctx.restore();
 
-      // Draw existing annotations
-      drawAnnotations(ctx, zoom);
+      // Draw existing annotations (scale them to match image resolution)
+      const annotationScale = imgWidth / page.width;
+      drawAnnotations(ctx, annotationScale);
 
-      // Update overlay canvas to match displayed size
-      setTimeout(() => {
-        const displayedWidth = canvas.offsetWidth;
-        const displayedHeight = canvas.offsetHeight;
-        overlayCanvas.width = width;
-        overlayCanvas.height = height;
-        overlayCanvas.style.width = `${displayedWidth}px`;
-        overlayCanvas.style.height = `${displayedHeight}px`;
-      }, 0);
+      // Update overlay canvas to match display size
+      overlayCanvas.width = imgWidth;
+      overlayCanvas.height = imgHeight;
+      overlayCanvas.style.width = `${displayWidth}px`;
+      overlayCanvas.style.height = `${displayHeight}px`;
     };
 
     img.src = page.dataUrl;
@@ -224,15 +248,10 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
 
     if (!overlay || !ctx || !mainCanvas) return;
 
-    // Match overlay canvas to main canvas dimensions
-    overlay.width = mainCanvas.width;
-    overlay.height = mainCanvas.height;
-    
-    // Match overlay display size to main canvas display size
-    overlay.style.width = `${mainCanvas.offsetWidth}px`;
-    overlay.style.height = `${mainCanvas.offsetHeight}px`;
-
     ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+    // Calculate the scale factor for drawing (canvas resolution / display size)
+    const drawingScale = mainCanvas.width / mainCanvas.offsetWidth;
 
     if (isCurrentlyDrawing && currentPath.length > 0) {
       ctx.save();
@@ -240,14 +259,14 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
       if (selectedTool === "eraser") {
         // Show eraser cursor path
         ctx.strokeStyle = "#FF0000";
-        ctx.lineWidth = toolWidth * zoom * 2;
+        ctx.lineWidth = toolWidth * drawingScale * 2;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.globalAlpha = 0.3;
         ctx.setLineDash([5, 5]);
       } else {
         ctx.strokeStyle = toolColor;
-        ctx.lineWidth = toolWidth * zoom;
+        ctx.lineWidth = toolWidth * drawingScale;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.globalAlpha = selectedTool === "highlighter" ? 0.3 : toolOpacity;
@@ -270,7 +289,7 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
 
       ctx.save();
       ctx.strokeStyle = toolColor;
-      ctx.lineWidth = toolWidth * zoom;
+      ctx.lineWidth = toolWidth * drawingScale;
       ctx.globalAlpha = toolOpacity;
       ctx.beginPath();
 
@@ -305,7 +324,7 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
             endPoint.y - startPoint.y,
             endPoint.x - startPoint.x
           );
-          const arrowLength = 15 * zoom;
+          const arrowLength = 15 * drawingScale;
           const arrowAngle = Math.PI / 6;
 
           ctx.moveTo(endPoint.x, endPoint.y);
@@ -364,11 +383,19 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
     };
   };
 
+  // Get the scale factor for converting between canvas and page coordinates
+  const getCanvasToPageScale = (): number => {
+    const canvas = canvasRef.current;
+    if (!canvas) return 1;
+    return canvas.width / page.width;
+  };
+
   // Check if mouse is over a text annotation
   const getTextAtPosition = (point: Point): TextAnnotation | null => {
+    const scale = getCanvasToPageScale();
     const normalizedPoint = {
-      x: point.x / zoom,
-      y: point.y / zoom,
+      x: point.x / scale,
+      y: point.y / scale,
     };
 
     return page.annotations.texts.find(text => {
@@ -391,11 +418,12 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
     if (selectedTool === "select") {
       const clickedText = getTextAtPosition(point);
       if (clickedText) {
+        const scale = getCanvasToPageScale();
         setSelectedTextId(clickedText.id);
         setIsDraggingText(true);
         setDragOffset({
-          x: point.x - clickedText.position.x * zoom,
-          y: point.y - clickedText.position.y * zoom,
+          x: point.x - clickedText.position.x * scale,
+          y: point.y - clickedText.position.y * scale,
         });
         onAnnotationSelect(clickedText.id);
         return;
@@ -452,9 +480,10 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
     // Handle text drag completion
     if (isDraggingText && selectedTextId) {
       const point = getMousePosition(e);
+      const scale = getCanvasToPageScale();
       const newPosition = {
-        x: (point.x - dragOffset.x) / zoom,
-        y: (point.y - dragOffset.y) / zoom,
+        x: (point.x - dragOffset.x) / scale,
+        y: (point.y - dragOffset.y) / scale,
       };
       
       // Update text position using the callback
@@ -473,10 +502,11 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
 
     if (currentPath.length === 0) return;
 
-    // Convert screen coordinates to canvas coordinates
+    // Convert canvas coordinates to page coordinates
+    const scale = getCanvasToPageScale();
     const normalizedPath = currentPath.map((p) => ({
-      x: p.x / zoom,
-      y: p.y / zoom,
+      x: p.x / scale,
+      y: p.y / scale,
     }));
 
     if (
@@ -500,10 +530,11 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
       selectedTool === "arrow"
     ) {
       if (startPoint) {
-        const normalizedStart = { x: startPoint.x / zoom, y: startPoint.y / zoom };
+        const scale = getCanvasToPageScale();
+        const normalizedStart = { x: startPoint.x / scale, y: startPoint.y / scale };
         const normalizedEnd = {
-          x: currentPath[currentPath.length - 1].x / zoom,
-          y: currentPath[currentPath.length - 1].y / zoom,
+          x: currentPath[currentPath.length - 1].x / scale,
+          y: currentPath[currentPath.length - 1].y / scale,
         };
 
         const shape: ShapeAnnotation = {
@@ -538,9 +569,10 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
       const canvasX = (textPosition.x - rect.left) * scaleX;
       const canvasY = (textPosition.y - rect.top) * scaleY;
       
+      const pageScale = getCanvasToPageScale();
       const normalizedPosition = {
-        x: canvasX / zoom,
-        y: canvasY / zoom,
+        x: canvasX / pageScale,
+        y: canvasY / pageScale,
       };
 
       const textAnnotation: TextAnnotation = {
@@ -575,10 +607,6 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
           <canvas
             ref={canvasRef}
             className="border border-gray-300 bg-white shadow-lg block"
-            style={{ 
-              maxWidth: '100%',
-              height: 'auto'
-            }}
           />
           <canvas
             ref={overlayCanvasRef}
@@ -589,6 +617,8 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
           />
+
+          {/* <img src={page.dataUrl} alt={`PDF Page ${page.pageNumber}`}/> */}
 
           {/* Text Input Overlay */}
           {showTextInput && textPosition && (

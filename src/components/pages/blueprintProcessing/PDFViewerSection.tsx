@@ -21,6 +21,10 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
   externalPDFHook,
 }) => {
   const [hasAnnotations, setHasAnnotations] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState<{
+    loaded: number;
+    total: number;
+  } | null>(null);
 
   const handlePDFExport = (exportData: { blob: Blob; fileName: string }) => {
     console.log("PDF exported:", exportData.fileName);
@@ -102,28 +106,28 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
             </button>
           </div>
         </div>
-      </div>
-
-      {/* Info Banner */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <FileText className="h-5 w-5 text-blue-400" />
-          </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">
-              PDF Annotation Tools Available
-            </h3>
-            <div className="mt-2 text-sm text-blue-700">
-              <ul className="list-disc list-inside space-y-1">
-                <li>Draw with pen, highlighter, and shapes</li>
-                <li>Add text annotations and comments</li>
-                <li>Rotate, delete, or reorder pages</li>
-                <li>Export annotated PDF when finished</li>
-              </ul>
+        
+        {/* Progress Bar */}
+        {loadingProgress && loadingProgress.loaded < loadingProgress.total && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-gray-700">
+                Loading pages: {loadingProgress.loaded} / {loadingProgress.total}
+              </span>
+              <span className="text-xs text-gray-500">
+                {Math.round((loadingProgress.loaded / loadingProgress.total) * 100)}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                style={{
+                  width: `${(loadingProgress.loaded / loadingProgress.total) * 100}%`,
+                }}
+              />
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* PDF Handler Component */}
@@ -133,6 +137,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
           onPagesChange={handlePDFExport}
           onError={handleError}
           externalPDFHook={externalPDFHook}
+          onLoadingProgress={(loaded, total) => setLoadingProgress({ loaded, total })}
         />
       </div>
 
