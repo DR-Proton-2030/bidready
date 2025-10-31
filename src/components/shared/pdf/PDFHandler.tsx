@@ -289,14 +289,14 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
       {/* Main Content Area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Page Thumbnails Sidebar */}
-        <PageThumbnails
+        {/* <PageThumbnails
           pages={state.pages}
           currentPage={state.currentPage}
           onPageSelect={setCurrentPage}
           onReorderPages={reorderPages}
           onDuplicatePage={duplicatePage}
           onDeletePage={deletePage}
-        />
+        /> */}
 
         {/* PDF Canvas Viewer */}
         <div className="flex-1 overflow-hidden">
