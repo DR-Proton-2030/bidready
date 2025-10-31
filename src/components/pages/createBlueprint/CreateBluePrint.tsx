@@ -287,8 +287,10 @@ export default function CreateBlueprint({
                     });
                   } else if (data.type === "image_processed") {
                     // Image processed, add to state
-                    console.log(`📄 Adding page ${data.page} of ${data.total_pages}`);
-                    addStreamedImage(data.image_url, data.page);
+                    console.log(`📄 Adding page ${data} of ${data.total_pages}`,data);
+                    console.log("image id",data?.image_id)
+                    // Pass backend image_id so UI can display it
+                    addStreamedImage(data.image_url, data.page, data.image_id);
                     setStreamingProgress(data.progress);
                   } else if (data.type === "heartbeat") {
                     // Heartbeat - just log it

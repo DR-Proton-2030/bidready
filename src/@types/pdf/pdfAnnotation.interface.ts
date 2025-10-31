@@ -60,6 +60,7 @@ export interface PDFPageData {
   rotation: number; // 0, 90, 180, 270
   annotations: PageAnnotation;
   thumbnailUrl?: string;
+  imageId?: string;
   width: number;
   height: number;
 }
@@ -110,7 +111,7 @@ export interface UsePDFAnnotationReturn {
   state: PDFViewerState;
   loadPDF: (file: File) => Promise<void>;
   loadPDFFromUrl: (pdfUrl: string) => Promise<void>;
-  addStreamedImage: (imageUrl: string, pageNumber: number) => void;
+  addStreamedImage: (imageUrl: string, pageNumber: number, imageId?: string) => void;
   setCurrentPage: (page: number) => void;
   setZoom: (zoom: number) => void;
   setTool: (tool: AnnotationTool) => void;

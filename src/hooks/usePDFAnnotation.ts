@@ -81,7 +81,7 @@ export const usePDFAnnotation = (
   }, []);
 
   // Method to add streamed images to state
-  const addStreamedImage = useCallback((imageUrl: string, pageNumber: number) => {
+  const addStreamedImage = useCallback((imageUrl: string, pageNumber: number, imageId?: string) => {
     const pageData: PDFPageData = {
       pageNumber,
       dataUrl: imageUrl,
@@ -93,6 +93,7 @@ export const usePDFAnnotation = (
         shapes: [],
       },
       thumbnailUrl: imageUrl,
+      imageId: imageId ? String(imageId) : undefined,
       width: 800,
       height: 1000,
     };

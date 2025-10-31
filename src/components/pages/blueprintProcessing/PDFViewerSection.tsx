@@ -132,6 +132,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
             {externalPDFHook && externalPDFHook.state?.pages?.length ? (
               externalPDFHook.state.pages.map((p: any, idx: number) => {
                 const isActive = externalPDFHook.state.currentPage === p.pageNumber;
+               
                 return (
            <div
   key={p.pageNumber}
@@ -178,9 +179,16 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
       <span className="text-sm font-semibold text-white">
         Page {p.pageNumber}
       </span>
-      <span className="text-[11px] text-white/50 group-hover:text-white/80 transition">
-        Drag to reorder
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-white/50 group-hover:text-white/80 transition">
+          Drag to reorder
+        </span>
+        {p.imageId && (
+          <span title={p.imageId} className="text-[11px] text-white/40 italic">
+            ID: {String(p.imageId).slice(0, 8)}
+          </span>
+        )}
+      </div>
     </div>
   </button>
 
