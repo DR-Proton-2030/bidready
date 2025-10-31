@@ -3,15 +3,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBlueprints } from "@/hooks/useBlueprints/useBlueprints";
-import Header from "@/components/pages/createBlueprint/Header";
-import TitleField from "@/components/pages/createBlueprint/TitleField";
-import DescriptionField from "@/components/pages/createBlueprint/DescriptionField";
-import ScopeField from "@/components/pages/createBlueprint/ScopeField";
-import StatusBadges from "@/components/pages/createBlueprint/StatusBadges";
-import ErrorMessage from "@/components/pages/createBlueprint/ErrorMessage";
+import Header from "@/components/bluePrints/Header";
+import TitleField from "@/components/bluePrints/TitleField";
+import DescriptionField from "@/components/bluePrints/DescriptionField";
+import ScopeField from "@/components/bluePrints/ScopeField";
+import StatusBadges from "@/components/bluePrints/StatusBadges";
+import ErrorMessage from "@/components/bluePrints/ErrorMessage";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
-import FileUploadSection from "@/components/pages/createBlueprint/FileUploadSection";
-import ProcessedImagesSection from "@/components/pages/createBlueprint/ProcessedImagesSection";
+import FileUploadSection from "@/components/bluePrints/FileUploadSection";
+import ProcessedImagesSection from "@/components/bluePrints/ProcessedImagesSection";
 import {
   Upload,
   FileImage,

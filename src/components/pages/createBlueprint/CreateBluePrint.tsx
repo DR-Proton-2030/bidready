@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useBlueprints } from "@/hooks/useBlueprints/useBlueprints";
-import Header from "@/components/pages/createBlueprint/Header";
-import BlueprintFormFields from "@/components/pages/createBlueprint/BlueprintFormFields";
-import ErrorMessage from "@/components/pages/createBlueprint/ErrorMessage";
+import Header from "@/components/bluePrints/Header";
+import BlueprintFormFields from "@/components/bluePrints/BlueprintFormFields";
+import ErrorMessage from "@/components/bluePrints/ErrorMessage";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
-import FileUploadSection from "@/components/pages/createBlueprint/FileUploadSection";
-import ProcessedImagesSection from "@/components/pages/createBlueprint/ProcessedImagesSection";
+import FileUploadSection from "@/components/bluePrints/FileUploadSection";
+import ProcessedImagesSection from "@/components/bluePrints/ProcessedImagesSection";
 import PDFViewerSection from "@/components/pages/blueprintProcessing/PDFViewerSection";
 import { ProcessedImage, BlueprintFormData } from "@/@types/interface/blueprint.interface";
 import { BLUEPRINT_STATUS_OPTIONS, BLUEPRINT_FORM_DEFAULTS } from "@/constants/blueprints/blueprints.constant";
@@ -507,7 +507,7 @@ export default function CreateBlueprint({
                   }
                 `}
               >
-                <span>Create Blueprint</span>
+                <span>Create Bluesjjjprint</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
