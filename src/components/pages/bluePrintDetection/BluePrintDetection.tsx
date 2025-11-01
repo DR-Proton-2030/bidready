@@ -3,6 +3,9 @@ import React, { useState } from "react";
 import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
 import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
 import { Trash, Trash2, Trash2Icon } from "lucide-react";
+import ImageCard from "../../shared/imagecard/ImageCard";
+import OverviewPanel from "@/components/shared/overviewPanel/OverviewPanel";
+import Loader from "@/components/shared/loader/Loader";
 
 const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const { images, loading, error, refetch } = useBlueprintImages(propId ?? null);
@@ -30,16 +33,13 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
         await deleteImage(id);
         // refetch images after successful delete
         refetch();
-        // also remove id from selection if present
         setSelectedIds((prev) => {
           const next = new Set(prev);
           next.delete(id);
           return next;
         });
-        // if currently previewing deleted image, clear preview
         setSelected((s) => (s?.id === id ? null : s));
       } catch (err) {
-        // deleteImage hook sets error state; optionally show alert
         console.error("Failed to delete image", err);
         alert("Failed to delete image. See console for details.");
       }
@@ -48,56 +48,72 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
 
   return (
     <div className="flex h-[92vh]  overflow-hidden bg-white">
-      <div className="flex-1 p-4 overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Blueprint Images</h2>
-          <div className="flex items-center space-x-3">
-            <div className="text-sm text-gray-600">Selected: {selectedIds.size}</div>
-            <button
-              onClick={() => {
-                const allSelected = images.length > 0 && images.every((it) => selectedIds.has(it.id));
-                if (allSelected) clearSelection();
-                else setSelectedIds(new Set(images.map((it) => it.id)));
-              }}
-              disabled={images.length === 0}
-              className={`text-sm px-2 py-1 rounded ${images.length === 0 ? 'text-gray-300' : 'text-blue-600 hover:underline hover:bg-blue-50'}`}
-            >
-              {images.length > 0 && images.every((it) => selectedIds.has(it.id)) ? 'Unselect all' : 'Select all'}
-            </button>
-            {selectedIds.size > 0 && (
-              <button
-                className="text-sm text-red-600 hover:underline"
-                onClick={clearSelection}
-              >
-                Clear
-              </button>
-            )}
-            {/* placeholder bulk action - integrate later */}
-            <button
-              disabled={selectedIds.size === 0}
-              onClick={() => {
-                // placeholder: integrate your bulk action here
-                console.log('Performing action on', Array.from(selectedIds));
-              }}
-              className={`text-sm px-2 py-1 rounded ${selectedIds.size === 0 ? 'text-gray-300' : 'bg-green-600 text-white hover:bg-green-700'}`}
-              aria-disabled={selectedIds.size === 0}
-              title={selectedIds.size === 0 ? 'Select images to enable' : 'Perform action on selected images'}
-            >
-              Do something
-            </button>
-          </div>
-        </div>
+      <div className="flex-1 p-8 overflow-y-auto">
+       <div className="flex items-center justify-between mb-10 border-b-2 border-gray-200 pb-4">
+  {/* Left side */}
+  <div>
+    <h1 className="text-2xl font-semibold text-gray-900">Blue Print Foor Plans</h1>
+    <p className="text-sm text-gray-500">
+      Managing blueprint sheets & takeoff images
+    </p>
+  </div>
 
-        {loading && <div>Loading images...</div>}
-        {error && <div className="text-sm text-red-500">{error}</div>}
-        {!loading && !error && images.length === 0 && (
-          <div className="text-sm text-gray-500">No images found.</div>
-        )}
+  {/* Right side */}
+  <div className="flex items-center space-x-3">
+    <span className="text-sm text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
+      Selected: {selectedIds.size}
+    </span>
+
+    <button
+      onClick={() => {
+        const allSelected = images.length > 0 && images.every((it) => selectedIds.has(it.id));
+        if (allSelected) clearSelection();
+        else setSelectedIds(new Set(images.map((it) => it.id)));
+      }}
+      disabled={images.length === 0}
+      className={`text-sm px-3 py-1.5 rounded-md border ${
+        images.length === 0
+          ? "text-gray-300 border-gray-200"
+          : "text-blue-600 border-blue-200 hover:bg-blue-50"
+      }`}
+    >
+      {images.length > 0 && images.every((it) => selectedIds.has(it.id))
+        ? "Unselect All"
+        : "Select All"}
+    </button>
+
+    {selectedIds.size > 0 && (
+      <button
+        className="text-sm px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+        onClick={clearSelection}
+      >
+        Clear
+      </button>
+    )}
+
+    <button
+      disabled={selectedIds.size === 0}
+      onClick={() => console.log("Performing action on", Array.from(selectedIds))}
+      className={`text-sm px-3 py-1.5 rounded-md font-medium ${
+        selectedIds.size === 0
+          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+          : "bg-green-600 text-white hover:bg-green-700"
+      }`}
+    >
+      Process
+    </button>
+  </div>
+</div>
+
+     
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((img) => (
-            <div
+            <ImageCard
               key={img.id}
+              image={img}
+              selected={selected?.id === img.id}
+              deleting={deleting}
               draggable
               onDragStart={(e) => {
                 try {
@@ -106,110 +122,30 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
                   /* ignore */
                 }
               }}
-                className={`relative rounded-lg overflow-hidden bg-white  cursor-pointer border-2 border-gray-200
-                    transition transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                  selected?.id === img.id ? "ring-2 ring-blue-500" : ""
-                }`}
-                onClick={() => setSelected(img)}
-                tabIndex={0}
-                role="button"
-                aria-pressed={selected?.id === img.id}
-                onKeyDown={(e) => {
-                  // Enter => open preview; Space => toggle selection
-                  if (e.key === 'Enter') {
-                    setSelected(img);
-                  } else if (e.key === ' ') {
-                    e.preventDefault();
-                    toggleSelect(img.id);
-                  }
-                }}
-            >
-              {/* selection checkbox */}
-                <label className="absolute top-2 left-2 z-10 bg-white/90 rounded-full p-0.5" aria-hidden>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(img.id)}
-                    onChange={(e) => {
-                      e.stopPropagation();
-                      toggleSelect(img.id);
-                    }}
-                    aria-label={`Select image ${img.id}`}
-                    className="w-4 h-4"
-                  />
-                </label>
-              <img
-                src={img!.url ?? ""}
-                alt=""
-                className="w-full h-40 object-cover"
-              />
-
-              <button
-                onClick={(e) => {
-                  handleDelete(img.id);
-                }}
-                disabled={deleting}
-                aria-disabled={deleting}
-                className={`absolute top-2 right-2 text-white text-xs px-1 py-1 rounded-md ${deleting ? 'bg-gray-300' : 'bg-red-600/70 hover:bg-red-700'}`}
-              >
-                <Trash2 scale={16} />
-              </button>
-            </div>
+              onClick={(it) => setSelected(it)}
+              onToggleSelect={(id) => toggleSelect(id)}
+              onDelete={(id) => handleDelete(id)}
+            />
           ))}
         </div>
       </div>
-      <div
-        className={`w-[35%] border-l-2 border-gray-200 bg-white transition-colors ${
-          isDragOver ? "bg-blue-50" : "bg-white"
-        }`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragOver(true);
-        }}
-        onDragLeave={() => setIsDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setIsDragOver(false);
-          const id = e.dataTransfer?.getData("text/plain");
-          if (!id) return;
-          const found = images.find((it) => it.id === id);
-          if (found) setSelected(found);
-        }}
-      >
-        {selected ? (
-          <div className="h-full p-4 flex flex-col">
-            <h3 className="text-base font-semibold mb-3">Preview</h3>
-            <div className="flex-1 overflow-auto rounded-lg border-2 border-gray-200">
-              <img
-                src={selected.url ?? ""}
-                alt=""
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-              <button
-                className="py-2 bg-blue-600 rounded text-white font-medium hover:bg-blue-700"
-                onClick={() => toggleSelect(selected.id)}
-                aria-pressed={selectedIds.has(selected.id)}
-                aria-label={selectedIds.has(selected.id) ? 'Unselect image' : 'Select image'}
-              >
-                {selectedIds.has(selected.id) ? "Unselect" : "Select"}
-              </button>
-              <button
-                className={`py-2 rounded text-white font-medium ${deleting ? 'bg-gray-300' : 'bg-red-600 hover:bg-red-700'}`}
-                onClick={() => handleDelete(selected.id)}
-                disabled={deleting}
-                aria-disabled={deleting}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-            Drop an image here to preview
-          </div>
+    <OverviewPanel
+  selected={selected}
+  isDragOver={isDragOver}
+  setIsDragOver={setIsDragOver}
+  toggleSelect={toggleSelect}
+  selectedIds={selectedIds}
+  handleDelete={handleDelete}
+  onSelectImage={(id: string) => {
+    const found = images.find((it) => it.id === id);
+    if (found) setSelected(found);
+  }}
+/>
+   {loading && <Loader/>}
+        {error && <div className="text-sm text-red-500">{error}</div>}
+        {!loading && !error && images.length === 0 && (
+          <div className="text-sm text-gray-500">No images found.</div>
         )}
-      </div>
     </div>
   );
 };
