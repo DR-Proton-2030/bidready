@@ -7,6 +7,7 @@ import ImageCard from "../../shared/imagecard/ImageCard";
 import OverviewPanel from "@/components/shared/overviewPanel/OverviewPanel";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import Loader from "@/components/shared/loader/Loader";
+import { s } from "node_modules/framer-motion/dist/types.d-Cjd591yU";
 
 const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const { images, loading, error, refetch } = useBlueprintImages(propId ?? null);
@@ -22,6 +23,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [detectionCache] = useState<Map<string, any>>(() => new Map());
   const [detectedKeys, setDetectedKeys] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
 
   const toggleSelect = (id: string) => {
@@ -59,8 +61,8 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
     setProcessing(false);
   };
 
-  const handleSaveDetected = () => {
-    // Build array of objects { imgurl, detection } from detectedKeys using images list and detectionCache
+  const handleSaveDetected = async () => {
+    setSaving(true);
     const result = Array.from(detectedKeys)
       .map((key) => {
         const found = images.find((it) => it.id === key || it.url === key);
@@ -71,7 +73,39 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       })
       .filter((it): it is { _id: string | null; imgurl: string; detection: any } => it !== null);
 
-    console.log("Detected items:", result);
+    console.log("Detected items (batch):", result);
+
+    if (result.length === 0) {
+      alert("No detected items to save.");
+      return;
+    }
+
+    try {
+      // Send the plain array in the request body as the server accepts either an array or { items: [] }
+      const url = `http://localhost:8989/api/v1/blueprints/images/detections/bulk`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(result),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("Bulk save failed:", res.status, text);
+        alert(`Bulk save failed: ${res.status} ${text}`);
+        return;
+      }
+
+      const body = await res.json().catch(() => null);
+      console.log("Bulk save response:", body);
+    //   alert(`Bulk save successful: ${result.length} item(s) sent.`);
+    } catch (err: any) {
+      console.error("Bulk save error:", err);
+      alert("Bulk save error. See console for details.");
+    }
+    finally{
+        setSaving(false);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -312,6 +346,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
         />
       )}
    {loading && <Loader/>}
+   {saving && <Loader/>}
         {error && <div className="text-sm text-red-500">{error}</div>}
         {!loading && !error && images.length === 0 && (
           <div className="text-sm text-gray-500">No images found.</div>

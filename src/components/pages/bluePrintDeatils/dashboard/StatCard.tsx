@@ -12,7 +12,7 @@ interface StatCardProps {
 }
 
 const StatCard: React.FC<StatCardProps> = ({ title, value, delta, gradient = false, accentColorClass = "orange" }) => {
-  const gradientClass = gradient ? (accentColorClass === "orange" ? "bg-gradient-to-r from-[#e16349] to-[#ec8773]" : 
+  const gradientClass = gradient ? (accentColorClass === "orange" ? "bg-gradient-to-r from-orange-500 to-orange-400" : 
     "bg-gradient-to-r from-emerald-700 to-emerald-500") : "bg-gray-50";
 
   return (
