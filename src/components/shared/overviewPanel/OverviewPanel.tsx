@@ -11,6 +11,8 @@ interface Props {
   handleDelete: (id: string) => void;
   onSelectImage?: (id: string) => void;
   onDetect?: (imageUrl: string) => void;
+  detecting?: boolean;
+  hasCachedDetection?: boolean;
 }
 
 const OverviewPanel: React.FC<Props> = ({
@@ -22,6 +24,8 @@ const OverviewPanel: React.FC<Props> = ({
   handleDelete,
   onSelectImage,
   onDetect,
+  detecting = false,
+  hasCachedDetection = false,
 }) => {
   return (
     <div
@@ -56,11 +60,13 @@ const OverviewPanel: React.FC<Props> = ({
             </button>
             {selected?.url && (
               <button
-                className="py-2 bg-indigo-600 rounded text-white font-medium hover:bg-indigo-700"
+                className={`py-2 rounded text-white font-medium ${detecting ? 'bg-gray-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}
                 onClick={() => onDetect?.(selected.url ?? "")}
-                title="Run detection on this image"
+                title={hasCachedDetection ? 'View detection (cached)' : 'Run detection on this image'}
+                disabled={detecting}
+                aria-disabled={detecting}
               >
-                Detect
+                {hasCachedDetection ? 'View detection' : (detecting ? 'Detecting...' : 'Detect')}
               </button>
             )}
             <button

@@ -19,6 +19,8 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [viewerIndex, setViewerIndex] = useState(0);
   const [detectionResults, setDetectionResults] = useState<any | null>(null);
   const [detecting, setDetecting] = useState(false);
+  const [detectionCache] = useState<Map<string, any>>(() => new Map());
+  const [detectedKeys, setDetectedKeys] = useState<Set<string>>(new Set());
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -54,6 +56,20 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
 
   const handleDetect = async (imageUrl: string, imageId?: string) => {
     if (!imageUrl) return;
+    const cacheKey = imageId ?? imageUrl;
+
+    // If we have a cached result for this image (by id or url), use it and avoid API call
+    if (cacheKey && detectionCache.has(cacheKey)) {
+      const cached = detectionCache.get(cacheKey);
+      setDetectionResults(cached);
+      setViewerImages([{ id: cacheKey, name: cacheKey, path: imageUrl }]);
+      setViewerIndex(0);
+      setViewerOpen(true);
+      // ensure UI indicator knows this key is detected
+      setDetectedKeys((prev) => new Set(prev).add(cacheKey));
+      return;
+    }
+
     try {
       setDetecting(true);
       // call detection API
@@ -94,6 +110,12 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       };
 
       setDetectionResults(transformed);
+
+      // cache in-memory keyed by id or url and mark detected
+      if (cacheKey) {
+        detectionCache.set(cacheKey, transformed);
+        setDetectedKeys((prev) => new Set(prev).add(cacheKey));
+      }
 
       // open full screen viewer with this image
       setViewerImages([{ id: imageId ?? imageUrl, name: imageId ?? "image", path: imageUrl }]);
@@ -186,6 +208,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
               onClick={(it) => setSelected(it)}
               onToggleSelect={(id) => toggleSelect(id)}
               onDelete={(id) => handleDelete(id)}
+              hasDetection={!!(detectedKeys.has(img.id) || detectedKeys.has(img.url ?? ''))}
             />
           ))}
         </div>
@@ -202,6 +225,8 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
     if (found) setSelected(found);
   }}
   onDetect={(imageUrl: string) => handleDetect(imageUrl, selected?.id)}
+  detecting={detecting}
+  hasCachedDetection={!!(selected && (detectedKeys.has(selected.id ?? '') || detectedKeys.has(selected.url ?? '')))}
 />
       {viewerOpen && (
         <FullScreenImageViewer

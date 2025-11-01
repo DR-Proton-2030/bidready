@@ -13,6 +13,7 @@ interface ImageCardProps {
   onToggleSelect?: (id: string) => void;
   onDelete?: (id: string) => void;
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  hasDetection?: boolean;
 }
 
 export default function ImageCard({
@@ -25,6 +26,7 @@ export default function ImageCard({
   onToggleSelect,
   onDelete,
   onDragStart,
+  hasDetection = false,
 }: ImageCardProps) {
   return (
     <div
@@ -61,6 +63,13 @@ export default function ImageCard({
       </label>
 
       <img src={image.url ?? ""} alt="" className="w-full h-40 object-cover" />
+
+      {/* detection indicator */}
+      {hasDetection && (
+        <div className="absolute bottom-2 left-2 bg-green-600 text-white text-xs px-2 py-1 rounded-md shadow">
+          Detected
+        </div>
+      )}
 
       <button
         onClick={(e) => {
