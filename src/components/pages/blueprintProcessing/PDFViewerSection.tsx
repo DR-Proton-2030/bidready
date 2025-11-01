@@ -202,7 +202,21 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
       for (const e of effectiveEdits) {
         try {
           const dataUrl = await compressImageToDataUrl(e.image, 1600, 0.7);
-          const item = { pageId: e.pageId, image: dataUrl };
+          // Prefer imageId from externalPDFHook.state.pages when available
+          let payloadPageId: string = e.pageId;
+          try {
+            const pages = externalPDFHook?.state?.pages;
+            if (Array.isArray(pages)) {
+              const found = pages.find((p: any) => String(p.pageNumber) === String(e.pageId));
+              if (found && found.imageId) {
+                payloadPageId = String(found.imageId);
+              }
+            }
+          } catch (err) {
+            // ignore lookup errors and fall back to e.pageId
+          }
+
+          const item = { pageId: payloadPageId, image: dataUrl };
           // Simulate streaming by logging each chunk as it's ready
           console.log("Streaming chunk:", item);
           payload.push(item);
