@@ -5,6 +5,7 @@ import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
 import { Trash, Trash2, Trash2Icon } from "lucide-react";
 import ImageCard from "../../shared/imagecard/ImageCard";
 import OverviewPanel from "@/components/shared/overviewPanel/OverviewPanel";
+import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import Loader from "@/components/shared/loader/Loader";
 
 const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
@@ -13,6 +14,11 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [selected, setSelected] = useState<BlueprintImage | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState<Array<{ id: string; name: string; path: string }>>([]);
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [detectionResults, setDetectionResults] = useState<any | null>(null);
+  const [detecting, setDetecting] = useState(false);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -44,6 +50,61 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
         alert("Failed to delete image. See console for details.");
       }
     })();
+  };
+
+  const handleDetect = async (imageUrl: string, imageId?: string) => {
+    if (!imageUrl) return;
+    try {
+      setDetecting(true);
+      // call detection API
+      const res = await fetch("http://localhost:8000/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_url: imageUrl }),
+      });
+      if (!res.ok) throw new Error(`Detect API error ${res.status}`);
+      const data = await res.json();
+
+      // transform API detections (bbox x1,y1,x2,y2) -> predictions with center x/y and width/height
+      const predictions = (data?.detections || []).map((d: any, idx: number) => {
+        const x1 = Number(d?.bbox?.x1 ?? 0);
+        const y1 = Number(d?.bbox?.y1 ?? 0);
+        const x2 = Number(d?.bbox?.x2 ?? 0);
+        const y2 = Number(d?.bbox?.y2 ?? 0);
+        const width = Math.max(0, x2 - x1);
+        const height = Math.max(0, y2 - y1);
+        const cx = x1 + width / 2;
+        const cy = y1 + height / 2;
+        return {
+          id: d.id ?? `pred-${idx}`,
+          class: d.label ?? d?.label_name ?? "Unknown",
+          confidence: d.confidence ?? d.score ?? 0,
+          x: cx,
+          y: cy,
+          width,
+          height,
+        };
+      });
+
+      const transformed = {
+        success: data?.success ?? true,
+        total_detections: data?.total_detections ?? predictions.length,
+        object_counts: data?.object_counts ?? data?.object_counts ?? {},
+        predictions,
+      };
+
+      setDetectionResults(transformed);
+
+      // open full screen viewer with this image
+      setViewerImages([{ id: imageId ?? imageUrl, name: imageId ?? "image", path: imageUrl }]);
+      setViewerIndex(0);
+      setViewerOpen(true);
+    } catch (err: any) {
+      console.error("Detection failed", err);
+      alert("Detection failed. See console for details.");
+    } finally {
+      setDetecting(false);
+    }
   };
 
   return (
@@ -140,7 +201,18 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
     const found = images.find((it) => it.id === id);
     if (found) setSelected(found);
   }}
+  onDetect={(imageUrl: string) => handleDetect(imageUrl, selected?.id)}
 />
+      {viewerOpen && (
+        <FullScreenImageViewer
+          images={viewerImages}
+          initialIndex={viewerIndex}
+          isOpen={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+          onImageChange={() => {}}
+          detectionResults={detectionResults}
+        />
+      )}
    {loading && <Loader/>}
         {error && <div className="text-sm text-red-500">{error}</div>}
         {!loading && !error && images.length === 0 && (

@@ -10,6 +10,7 @@ interface Props {
   selectedIds: Set<string>;
   handleDelete: (id: string) => void;
   onSelectImage?: (id: string) => void;
+  onDetect?: (imageUrl: string) => void;
 }
 
 const OverviewPanel: React.FC<Props> = ({
@@ -20,6 +21,7 @@ const OverviewPanel: React.FC<Props> = ({
   selectedIds,
   handleDelete,
   onSelectImage,
+  onDetect,
 }) => {
   return (
     <div
@@ -52,6 +54,15 @@ const OverviewPanel: React.FC<Props> = ({
             >
               {selectedIds.has(selected.id) ? "Unselect" : "Select"}
             </button>
+            {selected?.url && (
+              <button
+                className="py-2 bg-indigo-600 rounded text-white font-medium hover:bg-indigo-700"
+                onClick={() => onDetect?.(selected.url ?? "")}
+                title="Run detection on this image"
+              >
+                Detect
+              </button>
+            )}
             <button
               className="py-2 rounded text-white font-medium bg-red-600 hover:bg-red-700"
               onClick={() => handleDelete(selected.id)}
