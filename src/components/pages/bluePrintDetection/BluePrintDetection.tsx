@@ -1,10 +1,12 @@
 "use client";
 import React, { useState } from "react";
 import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
+import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
 import { Trash, Trash2, Trash2Icon } from "lucide-react";
 
 const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
-  const { images, loading, error } = useBlueprintImages(propId ?? null);
+  const { images, loading, error, refetch } = useBlueprintImages(propId ?? null);
+  const { deleteImage, loading: deleting, error: deleteError } = useDeleteBlueprintImage();
   const [selected, setSelected] = useState<BlueprintImage | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -21,7 +23,27 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const clearSelection = () => setSelectedIds(new Set());
 
   const handleDelete = (id: string) => {
-    console.log("Delete image", id);
+    // call delete hook and refetch on success
+    if (!confirm("Delete this image? This action cannot be undone.")) return;
+    (async () => {
+      try {
+        await deleteImage(id);
+        // refetch images after successful delete
+        refetch();
+        // also remove id from selection if present
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        // if currently previewing deleted image, clear preview
+        setSelected((s) => (s?.id === id ? null : s));
+      } catch (err) {
+        // deleteImage hook sets error state; optionally show alert
+        console.error("Failed to delete image", err);
+        alert("Failed to delete image. See console for details.");
+      }
+    })();
   };
 
   return (
@@ -123,12 +145,13 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
 
               <button
                 onClick={(e) => {
-                  e.stopPropagation();
                   handleDelete(img.id);
                 }}
-                className="absolute top-2 right-2 bg-red-600/70 text-white text-xs px-1 py-1 rounded-md hover:bg-red-700"
+                disabled={deleting}
+                aria-disabled={deleting}
+                className={`absolute top-2 right-2 text-white text-xs px-1 py-1 rounded-md ${deleting ? 'bg-gray-300' : 'bg-red-600/70 hover:bg-red-700'}`}
               >
-                <Trash2 scale={16}/>
+                <Trash2 scale={16} />
               </button>
             </div>
           ))}
@@ -172,8 +195,10 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
                 {selectedIds.has(selected.id) ? "Unselect" : "Select"}
               </button>
               <button
-                className="py-2 bg-red-600 rounded text-white font-medium hover:bg-red-700"
+                className={`py-2 rounded text-white font-medium ${deleting ? 'bg-gray-300' : 'bg-red-600 hover:bg-red-700'}`}
                 onClick={() => handleDelete(selected.id)}
+                disabled={deleting}
+                aria-disabled={deleting}
               >
                 Delete
               </button>
