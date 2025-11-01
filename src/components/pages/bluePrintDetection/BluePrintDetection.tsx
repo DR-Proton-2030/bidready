@@ -59,6 +59,23 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
     setProcessing(false);
   };
 
+  const handleSaveDetected = () => {
+    // Build array of objects { imgurl, detection } from detectedKeys using images list and detectionCache
+    const result = Array.from(detectedKeys)
+      .map((key) => {
+        const found = images.find((it) => it.id === key || it.url === key);
+        const imgurl = found?.url ?? (typeof key === "string" && (key.startsWith("http://") || key.startsWith("https://")) ? key : undefined);
+        const detection = detectionCache.get(key) ?? null;
+        // include _id (image id) when available, otherwise null
+        return imgurl ? { _id: found?.id ?? null, imgurl, detection } : null;
+      })
+      .filter((it): it is { _id: string | null; imgurl: string; detection: any } => it !== null);
+
+    console.log("Detected items:", result);
+    // brief user feedback
+    alert(`Logged ${result.length} detected item(s) to console.`);
+  };
+
   const handleDelete = (id: string) => {
     // call delete hook and refetch on success
     if (!confirm("Delete this image? This action cannot be undone.")) return;
@@ -232,6 +249,15 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       }`}
     >
       {processing ? `Processing ${processedCount}/${selectedIds.size}` : "Process"}
+    </button>
+    <button
+      disabled={detectedKeys.size === 0}
+      onClick={handleSaveDetected}
+      className={`text-sm px-3 py-1.5 rounded-md font-medium ml-2 border ${
+        detectedKeys.size === 0 ? "text-gray-400 border-gray-200 bg-gray-100" : "text-blue-600 border-blue-200 hover:bg-blue-50"
+      }`}
+    >
+      Save
     </button>
   </div>
 </div>
