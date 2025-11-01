@@ -82,7 +82,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
 
     try {
       // Send the plain array in the request body as the server accepts either an array or { items: [] }
-      const url = `http://localhost:8989/api/v1/blueprints/images/detections/bulk`;
+      const url = `${process.env.NEXT_PUBLIC_BASE_URL}/blueprints/images/detections/bulk`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -538,7 +538,7 @@ export default function CreateBlueprint({
                   }
                 `}
               >
-                <span>Create Bluesjjjprint</span>
+                <span>Create Blueprint</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
