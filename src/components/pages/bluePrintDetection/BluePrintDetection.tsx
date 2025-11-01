@@ -21,6 +21,8 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [detecting, setDetecting] = useState(false);
   const [detectionCache] = useState<Map<string, any>>(() => new Map());
   const [detectedKeys, setDetectedKeys] = useState<Set<string>>(new Set());
+  const [processing, setProcessing] = useState(false);
+  const [processedCount, setProcessedCount] = useState(0);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -32,6 +34,30 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   };
 
   const clearSelection = () => setSelectedIds(new Set());
+
+  const handleProcessSelected = async () => {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    setProcessing(true);
+    setProcessedCount(0);
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      const img = images.find((it) => it.id === id);
+      if (!img || !img.url) {
+        setProcessedCount((c) => c + 1);
+        continue;
+      }
+      try {
+        // run detection but don't open viewer for bulk
+        await handleDetect(img.url, img.id, false);
+      } catch (err) {
+        console.error(`Bulk detect failed for ${id}`, err);
+      } finally {
+        setProcessedCount((c) => c + 1);
+      }
+    }
+    setProcessing(false);
+  };
 
   const handleDelete = (id: string) => {
     // call delete hook and refetch on success
@@ -54,7 +80,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
     })();
   };
 
-  const handleDetect = async (imageUrl: string, imageId?: string) => {
+  const handleDetect = async (imageUrl: string, imageId?: string, openViewer = true) => {
     if (!imageUrl) return;
     const cacheKey = imageId ?? imageUrl;
 
@@ -62,11 +88,13 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
     if (cacheKey && detectionCache.has(cacheKey)) {
       const cached = detectionCache.get(cacheKey);
       setDetectionResults(cached);
-      setViewerImages([{ id: cacheKey, name: cacheKey, path: imageUrl }]);
-      setViewerIndex(0);
-      setViewerOpen(true);
       // ensure UI indicator knows this key is detected
       setDetectedKeys((prev) => new Set(prev).add(cacheKey));
+      if (openViewer) {
+        setViewerImages([{ id: cacheKey, name: cacheKey, path: imageUrl }]);
+        setViewerIndex(0);
+        setViewerOpen(true);
+      }
       return;
     }
 
@@ -117,10 +145,12 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
         setDetectedKeys((prev) => new Set(prev).add(cacheKey));
       }
 
-      // open full screen viewer with this image
-      setViewerImages([{ id: imageId ?? imageUrl, name: imageId ?? "image", path: imageUrl }]);
-      setViewerIndex(0);
-      setViewerOpen(true);
+      // open full screen viewer with this image (unless caller asked not to)
+      if (openViewer) {
+        setViewerImages([{ id: imageId ?? imageUrl, name: imageId ?? "image", path: imageUrl }]);
+        setViewerIndex(0);
+        setViewerOpen(true);
+      }
     } catch (err: any) {
       console.error("Detection failed", err);
       alert("Detection failed. See console for details.");
@@ -175,15 +205,15 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
     )}
 
     <button
-      disabled={selectedIds.size === 0}
-      onClick={() => console.log("Performing action on", Array.from(selectedIds))}
+      disabled={selectedIds.size === 0 || processing}
+      onClick={handleProcessSelected}
       className={`text-sm px-3 py-1.5 rounded-md font-medium ${
-        selectedIds.size === 0
+        selectedIds.size === 0 || processing
           ? "bg-gray-200 text-gray-400 cursor-not-allowed"
           : "bg-green-600 text-white hover:bg-green-700"
       }`}
     >
-      Process
+      {processing ? `Processing ${processedCount}/${selectedIds.size}` : "Process"}
     </button>
   </div>
 </div>
