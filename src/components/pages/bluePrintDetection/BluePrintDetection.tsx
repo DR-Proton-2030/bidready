@@ -72,8 +72,6 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       .filter((it): it is { _id: string | null; imgurl: string; detection: any } => it !== null);
 
     console.log("Detected items:", result);
-    // brief user feedback
-    alert(`Logged ${result.length} detected item(s) to console.`);
   };
 
   const handleDelete = (id: string) => {
