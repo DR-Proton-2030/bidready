@@ -1,10 +1,11 @@
 "use client";
 import React, { useState } from "react";
-import useBlueprintImages from "../../../hooks/useBlueprintImages";
+import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
+import { Trash, Trash2, Trash2Icon } from "lucide-react";
 
 const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const { images, loading, error } = useBlueprintImages(propId ?? null);
-  const [selected, setSelected] = useState<any>(null);
+  const [selected, setSelected] = useState<BlueprintImage | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -24,7 +25,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   };
 
   return (
-    <div className="flex h-[92vh]  overflow-hidden bg-gray-50">
+    <div className="flex h-[92vh]  overflow-hidden bg-white">
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Blueprint Images</h2>
@@ -37,7 +38,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
                 else setSelectedIds(new Set(images.map((it) => it.id)));
               }}
               disabled={images.length === 0}
-              className={`text-sm ${images.length === 0 ? 'text-gray-300' : 'text-blue-600 hover:underline'}`}
+              className={`text-sm px-2 py-1 rounded ${images.length === 0 ? 'text-gray-300' : 'text-blue-600 hover:underline hover:bg-blue-50'}`}
             >
               {images.length > 0 && images.every((it) => selectedIds.has(it.id)) ? 'Unselect all' : 'Select all'}
             </button>
@@ -49,6 +50,19 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
                 Clear
               </button>
             )}
+            {/* placeholder bulk action - integrate later */}
+            <button
+              disabled={selectedIds.size === 0}
+              onClick={() => {
+                // placeholder: integrate your bulk action here
+                console.log('Performing action on', Array.from(selectedIds));
+              }}
+              className={`text-sm px-2 py-1 rounded ${selectedIds.size === 0 ? 'text-gray-300' : 'bg-green-600 text-white hover:bg-green-700'}`}
+              aria-disabled={selectedIds.size === 0}
+              title={selectedIds.size === 0 ? 'Select images to enable' : 'Perform action on selected images'}
+            >
+              Do something
+            </button>
           </div>
         </div>
 
@@ -58,7 +72,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
           <div className="text-sm text-gray-500">No images found.</div>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((img) => (
             <div
               key={img.id}
@@ -70,23 +84,37 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
                   /* ignore */
                 }
               }}
-              className={`relative rounded-lg overflow-hidden bg-white shadow-sm cursor-pointer transition hover:scale-[1.02] ${
-                selected?.id === img.id ? "ring-2 ring-blue-500" : ""
-              }`}
-              onClick={() => setSelected(img)}
+                className={`relative rounded-lg overflow-hidden bg-white  cursor-pointer border-2 border-gray-200
+                    transition transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                  selected?.id === img.id ? "ring-2 ring-blue-500" : ""
+                }`}
+                onClick={() => setSelected(img)}
+                tabIndex={0}
+                role="button"
+                aria-pressed={selected?.id === img.id}
+                onKeyDown={(e) => {
+                  // Enter => open preview; Space => toggle selection
+                  if (e.key === 'Enter') {
+                    setSelected(img);
+                  } else if (e.key === ' ') {
+                    e.preventDefault();
+                    toggleSelect(img.id);
+                  }
+                }}
             >
               {/* selection checkbox */}
-              <label className="absolute top-2 left-2 z-10 bg-white/90 rounded-full p-0.5">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(img.id)}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    toggleSelect(img.id);
-                  }}
-                  className="w-4 h-4"
-                />
-              </label>
+                <label className="absolute top-2 left-2 z-10 bg-white/90 rounded-full p-0.5" aria-hidden>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(img.id)}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      toggleSelect(img.id);
+                    }}
+                    aria-label={`Select image ${img.id}`}
+                    className="w-4 h-4"
+                  />
+                </label>
               <img
                 src={img!.url ?? ""}
                 alt=""
@@ -98,16 +126,16 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
                   e.stopPropagation();
                   handleDelete(img.id);
                 }}
-                className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded-md hover:bg-red-700"
+                className="absolute top-2 right-2 bg-red-600/70 text-white text-xs px-1 py-1 rounded-md hover:bg-red-700"
               >
-                Delete
+                <Trash2 scale={16}/>
               </button>
             </div>
           ))}
         </div>
       </div>
       <div
-        className={`w-[35%] border-l bg-white transition-colors ${
+        className={`w-[35%] border-l-2 border-gray-200 bg-white transition-colors ${
           isDragOver ? "bg-blue-50" : "bg-white"
         }`}
         onDragOver={(e) => {
@@ -127,9 +155,9 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
         {selected ? (
           <div className="h-full p-4 flex flex-col">
             <h3 className="text-base font-semibold mb-3">Preview</h3>
-            <div className="flex-1 overflow-auto rounded-lg border">
+            <div className="flex-1 overflow-auto rounded-lg border-2 border-gray-200">
               <img
-                src={selected.url}
+                src={selected.url ?? ""}
                 alt=""
                 className="w-full h-full object-contain"
               />
@@ -138,6 +166,8 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
               <button
                 className="py-2 bg-blue-600 rounded text-white font-medium hover:bg-blue-700"
                 onClick={() => toggleSelect(selected.id)}
+                aria-pressed={selectedIds.has(selected.id)}
+                aria-label={selectedIds.has(selected.id) ? 'Unselect image' : 'Select image'}
               >
                 {selectedIds.has(selected.id) ? "Unselect" : "Select"}
               </button>
