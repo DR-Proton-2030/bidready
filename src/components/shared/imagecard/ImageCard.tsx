@@ -14,6 +14,7 @@ interface ImageCardProps {
   onDelete?: (id: string) => void;
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
   hasDetection?: boolean;
+  selectable?: boolean;
 }
 
 export default function ImageCard({
@@ -27,6 +28,7 @@ export default function ImageCard({
   onDelete,
   onDragStart,
   hasDetection = false,
+  selectable = true,
 }: ImageCardProps) {
   return (
     <div
@@ -45,7 +47,7 @@ export default function ImageCard({
         if (e.key === "Enter") onClick?.(image);
         else if (e.key === " ") {
           e.preventDefault();
-          onToggleSelect?.(image.id);
+          if (selectable) onToggleSelect?.(image.id);
         }
       }}
     >
@@ -53,8 +55,10 @@ export default function ImageCard({
         <input
           type="checkbox"
           checked={selected}
+          disabled={!selectable}
           onChange={(e) => {
             e.stopPropagation();
+            if (!selectable) return;
             onToggleSelect?.(image.id);
           }}
           aria-label={`Select image ${image.id}`}

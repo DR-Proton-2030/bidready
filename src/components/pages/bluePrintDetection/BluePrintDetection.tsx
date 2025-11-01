@@ -90,6 +90,13 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       setDetectionResults(cached);
       // ensure UI indicator knows this key is detected
       setDetectedKeys((prev) => new Set(prev).add(cacheKey));
+      // remove from selectedIds so it becomes unchecked and unselectable
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (imageId) next.delete(imageId);
+        next.delete(imageUrl);
+        return next;
+      });
       if (openViewer) {
         setViewerImages([{ id: cacheKey, name: cacheKey, path: imageUrl }]);
         setViewerIndex(0);
@@ -143,6 +150,13 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       if (cacheKey) {
         detectionCache.set(cacheKey, transformed);
         setDetectedKeys((prev) => new Set(prev).add(cacheKey));
+        // after successful detection, remove from selectedIds so it can't be re-selected
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          if (imageId) next.delete(imageId);
+          next.delete(imageUrl);
+          return next;
+        });
       }
 
       // open full screen viewer with this image (unless caller asked not to)
@@ -181,7 +195,11 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       onClick={() => {
         const allSelected = images.length > 0 && images.every((it) => selectedIds.has(it.id));
         if (allSelected) clearSelection();
-        else setSelectedIds(new Set(images.map((it) => it.id)));
+        else {
+          // only select images that are not yet detected
+          const selectableIds = images.filter((it) => !detectedKeys.has(it.id) && !detectedKeys.has(it.url ?? "")).map((it) => it.id);
+          setSelectedIds(new Set(selectableIds));
+        }
       }}
       disabled={images.length === 0}
       className={`text-sm px-3 py-1.5 rounded-md border ${
@@ -225,7 +243,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
             <ImageCard
               key={img.id}
               image={img}
-              selected={selected?.id === img.id}
+              selected={selectedIds.has(img.id)}
               deleting={deleting}
               draggable
               onDragStart={(e) => {
@@ -239,6 +257,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
               onToggleSelect={(id) => toggleSelect(id)}
               onDelete={(id) => handleDelete(id)}
               hasDetection={!!(detectedKeys.has(img.id) || detectedKeys.has(img.url ?? ''))}
+              selectable={!detectedKeys.has(img.id) && !detectedKeys.has(img.url ?? '')}
             />
           ))}
         </div>
