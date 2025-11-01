@@ -227,6 +227,31 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
 
       // Final payload (all edits) logged once complete
       console.log("Final payload:", payload);
+
+      // POST the payload to the bulk image upload endpoint
+      try {
+        const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:8989";
+        const url = `http://localhost:8989/api/v1/blueprints/images/upload-urls/bulk`;
+        console.log("Posting payload to", url);
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.error("Bulk upload failed", res.status, text);
+          alert(`Bulk upload failed: ${res.status} ${text}`);
+        } else {
+          const body = await res.json().catch(() => null);
+          console.log("Bulk upload response:", body);
+          alert(`Bulk upload successful: ${payload.length} item(s) sent.`);
+        }
+      } catch (err: any) {
+        console.error("Bulk upload error:", err);
+        alert("Bulk upload error. See console for details.");
+      }
     } finally {
       setSaving(false);
     }

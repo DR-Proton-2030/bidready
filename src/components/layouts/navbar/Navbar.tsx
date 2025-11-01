@@ -98,9 +98,9 @@ const Navbar = () => {
             </button>
 
             <div className="hidden sm:block">
-              <h1 className="text-xl font-semibold text-gray-900">
+              {/* <h1 className="text-xl font-semibold text-gray-900">
                 {getPageTitle(pathname)}
-              </h1>
+              </h1> */}
             </div>
           </div>
 
