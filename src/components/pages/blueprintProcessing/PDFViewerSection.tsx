@@ -3,6 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PDFHandler from "@/components/shared/pdf/PDFHandler";
 import { FileText, ArrowLeft, Download, Delete, Trash } from "lucide-react";
+import useBulkImageUpload from "@/hooks/useBulkImageUpload";
 
 interface PDFViewerSectionProps {
   pdfFile: File | null;
@@ -34,6 +35,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
     { pageId: string; image: Blob | string }[]
   >([]);
   const [saving, setSaving] = useState(false);
+  const { uploadBulk, isUploading: isUploadingBulk } = useBulkImageUpload();
 
   // Lock body scroll while the viewer is open (fullscreen experience)
   useEffect(() => {
@@ -228,29 +230,14 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
       // Final payload (all edits) logged once complete
       console.log("Final payload:", payload);
 
-      // POST the payload to the bulk image upload endpoint
+      // POST the payload to the bulk image upload endpoint using hook
       try {
-        const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:8989";
-        const url = `http://localhost:8989/api/v1/blueprints/images/upload-urls/bulk`;
-        console.log("Posting payload to", url);
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          console.error("Bulk upload failed", res.status, text);
-          alert(`Bulk upload failed: ${res.status} ${text}`);
-        } else {
-          const body = await res.json().catch(() => null);
-          console.log("Bulk upload response:", body);
-          alert(`Bulk upload successful: ${payload.length} item(s) sent.`);
-        }
+        const body = await uploadBulk(payload);
+        console.log("Bulk upload response:", body);
+        alert(`Bulk upload successful: ${payload.length} item(s) sent.`);
       } catch (err: any) {
         console.error("Bulk upload error:", err);
-        alert("Bulk upload error. See console for details.");
+        alert(`Bulk upload failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     } finally {
       setSaving(false);

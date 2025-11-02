@@ -2,11 +2,13 @@
 import React, { useState } from "react";
 import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
 import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
+import useBulkDetectionsUpload from "@/hooks/useBulkDetectionsUpload";
 import { Trash, Trash2, Trash2Icon } from "lucide-react";
 import ImageCard from "../../shared/imagecard/ImageCard";
 import OverviewPanel from "@/components/shared/overviewPanel/OverviewPanel";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import Loader from "@/components/shared/loader/Loader";
+import useImageDetect from "@/hooks/useImageDetect";
 import { s } from "node_modules/framer-motion/dist/types.d-Cjd591yU";
 
 const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
@@ -20,11 +22,13 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
   const [viewerIndex, setViewerIndex] = useState(0);
   const [detectionResults, setDetectionResults] = useState<any | null>(null);
   const [detecting, setDetecting] = useState(false);
+  const { detectImage, loading: detectLoading } = useImageDetect();
   const [detectionCache] = useState<Map<string, any>>(() => new Map());
   const [detectedKeys, setDetectedKeys] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
+  const { uploadDetections, isUploading: isUploadingDetections } = useBulkDetectionsUpload();
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -81,30 +85,15 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
     }
 
     try {
-      // Send the plain array in the request body as the server accepts either an array or { items: [] }
-      const url = `${process.env.NEXT_PUBLIC_BASE_URL}/blueprints/images/detections/bulk`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(result),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.error("Bulk save failed:", res.status, text);
-        alert(`Bulk save failed: ${res.status} ${text}`);
-        return;
-      }
-
-      const body = await res.json().catch(() => null);
+      // Use hook to upload bulk detections
+      const body = await uploadDetections(result);
       console.log("Bulk save response:", body);
-    //   alert(`Bulk save successful: ${result.length} item(s) sent.`);
+      // alert(`Bulk save successful: ${result.length} item(s) sent.`);
     } catch (err: any) {
       console.error("Bulk save error:", err);
-      alert("Bulk save error. See console for details.");
-    }
-    finally{
-        setSaving(false);
+      alert(`Bulk save failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -156,43 +145,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
 
     try {
       setDetecting(true);
-      // call detection API
-      const res = await fetch("http://localhost:8000/detect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_url: imageUrl }),
-      });
-      if (!res.ok) throw new Error(`Detect API error ${res.status}`);
-      const data = await res.json();
-
-      // transform API detections (bbox x1,y1,x2,y2) -> predictions with center x/y and width/height
-      const predictions = (data?.detections || []).map((d: any, idx: number) => {
-        const x1 = Number(d?.bbox?.x1 ?? 0);
-        const y1 = Number(d?.bbox?.y1 ?? 0);
-        const x2 = Number(d?.bbox?.x2 ?? 0);
-        const y2 = Number(d?.bbox?.y2 ?? 0);
-        const width = Math.max(0, x2 - x1);
-        const height = Math.max(0, y2 - y1);
-        const cx = x1 + width / 2;
-        const cy = y1 + height / 2;
-        return {
-          id: d.id ?? `pred-${idx}`,
-          class: d.label ?? d?.label_name ?? "Unknown",
-          confidence: d.confidence ?? d.score ?? 0,
-          x: cx,
-          y: cy,
-          width,
-          height,
-        };
-      });
-
-      const transformed = {
-        success: data?.success ?? true,
-        total_detections: data?.total_detections ?? predictions.length,
-        object_counts: data?.object_counts ?? data?.object_counts ?? {},
-        predictions,
-      };
-
+      const transformed = await detectImage(imageUrl);
       setDetectionResults(transformed);
 
       // cache in-memory keyed by id or url and mark detected
@@ -216,7 +169,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       }
     } catch (err: any) {
       console.error("Detection failed", err);
-      alert("Detection failed. See console for details.");
+      alert(`Detection failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setDetecting(false);
     }
@@ -228,7 +181,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
        <div className="flex items-center justify-between mb-10 border-b-2 border-gray-200 pb-4">
   {/* Left side */}
   <div>
-    <h1 className="text-2xl font-semibold text-gray-900">Blue Print Foor Plans</h1>
+    <h1 className="text-2xl font-semibold text-gray-900">AI Blueprint Detection</h1>
     <p className="text-sm text-gray-500">
       Managing blueprint sheets & takeoff images
     </p>

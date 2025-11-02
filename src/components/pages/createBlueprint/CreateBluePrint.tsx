@@ -22,6 +22,7 @@ import {
 import { ArrowRight, Loader2 } from "lucide-react";
 import Loader from "@/components/shared/loader/Loader";
 import { usePDFAnnotation } from "@/hooks/usePDFAnnotation";
+import useCreateBlueprint from "@/hooks/useCreateBlueprint";
 
 export default function CreateBlueprint({
   initialProjectId = "",
@@ -62,6 +63,8 @@ export default function CreateBlueprint({
   // PDF Annotation Hook
   const pdfAnnotationHook = usePDFAnnotation();
   const { loadPDFFromUrl, addStreamedImage, state: pdfState } = pdfAnnotationHook;
+  // Create-blueprint streaming hook
+  const { createBlueprintWithStreaming } = useCreateBlueprint();
 
   // Check if we have processed images from URL params (coming from processing page)
 //   useEffect(() => {
@@ -123,7 +126,7 @@ export default function CreateBlueprint({
         // Keep the PDF in state but DO NOT navigate/open the editor automatically.
         // The user can choose to open the PDF editor manually if desired.
         setPdfFile(pdfFile);
-  // Do not auto-open editor on upload
+        // Do not auto-open editor on upload
         return;
       }
     } catch (error) {
@@ -196,158 +199,56 @@ export default function CreateBlueprint({
         setIsUploading(true);
         setIsStreaming(true);
 
-        // Call backend API directly to avoid Next.js buffering
-        const BACKEND_URL = process.env.NEXT_PUBLIC_BASE_URL || 
-                           process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL || 
-                           'http://localhost:8989';
-        
-        console.log("🔗 Calling backend directly:", `${BACKEND_URL}/blueprints/create-blueprint`);
+        // Use the createBlueprintWithStreaming hook to handle the multipart streaming
+        setIsUploading(true);
+        setIsStreaming(true);
 
-        // Get auth token from localStorage
-        const token = typeof window !== "undefined" ? localStorage.getItem("@token") : null;
-        const headers: Record<string, string> = {};
-        
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
+        createBlueprintWithStreaming(fd, {
+          onFirstResponse: (data) => {
+            try {
+              const newBlueprintId = data?.blueprint_id || data?.blueprint?._id || data?.blueprint?.id || data?.data?.blueprint?._id || data?.data?._id;
+              const pdfFileUrl = data?.file_url || data?.data?.file_url || data?.data?.blueprint?.file_url || data?.blueprint?.file_url;
 
-        const res = await fetch(`${BACKEND_URL}/blueprints/create-blueprint`, {
-          method: "POST",
-          body: fd,
-          credentials: "include",
-          headers,
-          // Don't set Content-Type - browser will set it with boundary for multipart/form-data
-        });
+              if (newBlueprintId) setBlueprintId(newBlueprintId);
+              if (pdfFileUrl) setPdfUrl(pdfFileUrl);
 
-        console.log("📡 Response status:", res.body);
-        console.log("📡 Response headers:", Object.fromEntries(res.headers.entries()));
+              setIsUploading(false);
+              setShowPdfHandler(true);
 
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => null);
-          throw new Error(errBody?.message || `Failed to create blueprint (${res.status})`);
-        }
-
-        if (!res.body) {
-          throw new Error("Response body is null - streaming not supported");
-        }
-
-        // Handle streaming response
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-
-        console.log("🌊 Starting stream processing...");
-        let firstChunkReceived = false;
-
-        // Process stream in background, don't await
-        const processStream = async () => {
-          let buffer = "";
-          let chunkCount = 0;
-          
-          try {
-            while (true) {
-              const startTime = Date.now();
-              const { done, value } = await reader.read();
-              const readTime = Date.now() - startTime;
-              
-              if (done) {
-                console.log("✅ Stream completed. Total chunks:", chunkCount);
-                setIsStreaming(false);
-                break;
+              const tryLoadUrl = pdfFileUrl || data?.file_url || data?.data?.file_url || data?.blueprint?.file_url;
+              if (tryLoadUrl) {
+                loadPDFFromUrl(tryLoadUrl).catch(err => {
+                  console.error("❌ Error loading PDF from URL:", err);
+                  setError("Failed to load PDF");
+                });
               }
-
-              chunkCount++;
-              if (!firstChunkReceived) {
-                console.log("⚡ First chunk received! (read time:", readTime, "ms)");
-                firstChunkReceived = true;
-              }
-
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split("\n");
-              buffer = lines.pop() || "";
-
-              for (const line of lines) {
-                if (!line.trim()) continue;
-
-                try {
-                  const data = JSON.parse(line);
-                  console.log("📥 Streaming data [chunk", chunkCount + "]:", data);
-                
-                  if (data.message === "Blueprint created, processing images...") {
-                    // First response - show PDF Handler immediately
-                    console.log("🎯 First response received, showing PDF Handler",data);
-
-
-                    // The backend may return the blueprint id in different shapes.
-                    // Try multiple locations safely: data.blueprint_id, data.blueprint._id, data.blueprint.id,
-                    // or nested under data.data.blueprint
-                    let newBlueprintId: string | undefined = undefined;
-                    let pdfFileUrl: string | undefined = undefined;
-
-                    try {
-                      newBlueprintId = data.blueprint_id || data.blueprint?._id || data.blueprint?.id || data.data?.blueprint?._id || data.data?.blueprint?.id || data.data?._id;
-                    } catch (e) {
-                      newBlueprintId = undefined;
-                    }
-
-                    try {
-                      pdfFileUrl = data.file_url || data.data?.file_url || data.data?.blueprint?.file_url || data.blueprint?.file_url;
-                    } catch (e) {
-                      pdfFileUrl = undefined;
-                    }
-
-                    console.log("📋 Resolved blueprint id:", newBlueprintId, "(raw payload)");
-                    console.log("📄 Resolved PDF URL:", pdfFileUrl || data.file_url || data.data?.file_url);
-
-                    if (newBlueprintId) setBlueprintId(newBlueprintId);
-
-                    if (pdfFileUrl) setPdfUrl(pdfFileUrl);
-
-                    setIsUploading(false);
-                    setShowPdfHandler(true);
-
-                    // Load PDF from URL (non-blocking) - this will set totalPages
-                    const tryLoadUrl = pdfFileUrl || data.file_url || data.data?.file_url || data.blueprint?.file_url;
-                    if (tryLoadUrl) {
-                      loadPDFFromUrl(tryLoadUrl).catch(err => {
-                        console.error("❌ Error loading PDF from URL:", err);
-                        setError("Failed to load PDF");
-                      });
-                    }
-                  } else if (data.type === "image_processed") {
-                    // Image processed, add to state
-                    console.log(`📄 Adding page ${data} of ${data.total_pages}`,data);
-                    console.log("image id",data?.image_id)
-                    // Pass backend image_id so UI can display it
-                    addStreamedImage(data.image_url, data.page, data.image_id);
-                    setStreamingProgress(data.progress);
-                  } else if (data.type === "heartbeat") {
-                    // Heartbeat - just log it
-                    console.log("💓 Heartbeat:", data.message);
-                  } else if (data.type === "complete") {
-                    // Processing complete
-                    console.log("✅ Blueprint processing complete", data);
-                    setIsStreaming(false);
-                  } else if (data.type === "error") {
-                    // Error occurred
-                    console.error("❌ Stream error:", data);
-                    throw new Error(data.message || "Processing failed");
-                  }
-                } catch (parseError) {
-                  console.error("Error parsing streaming response:", parseError, line);
-                }
-              }
+            } catch (e) {
+              console.error("onFirstResponse handler error:", e);
             }
-          } catch (streamError) {
-            console.error("Stream processing error:", streamError);
-            setError(streamError instanceof Error ? streamError.message : "Stream failed");
+          },
+          onImageProcessed: (data) => {
+            try {
+              addStreamedImage(data.image_url, data.page, data.image_id);
+              setStreamingProgress(typeof data.progress === 'number' ? data.progress : streamingProgress);
+            } catch (e) {
+              console.error("onImageProcessed handler error:", e);
+            }
+          },
+          onHeartbeat: (d) => {
+            // optional: keep a small log
+            console.debug("createBlueprint heartbeat", d);
+          },
+          onComplete: () => {
             setIsStreaming(false);
+            setIsUploading(false);
+          },
+          onError: (err) => {
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message);
+            setIsStreaming(false);
+            setIsUploading(false);
           }
-        };
-
-        // Start processing stream in background
-        processStream();
-
-        setError("");
+        });
       } else {
         // Handle non-PDF blueprint creation
         const fd = await buildBlueprintFormData(form, processedImages, svgOverlays);
