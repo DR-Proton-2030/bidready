@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
 import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
 import useBulkDetectionsUpload from "@/hooks/useBulkDetectionsUpload";
@@ -11,8 +12,16 @@ import Loader from "@/components/shared/loader/Loader";
 import useImageDetect from "@/hooks/useImageDetect";
 import { s } from "node_modules/framer-motion/dist/types.d-Cjd591yU";
 
-const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
+const BluePrintDetection = ({ id: propId }:any) => {
+  const resolveIdFromWindow = (propId?: string | null): string | null => {
+  if (propId) return propId;
+  if (typeof window === "undefined") return null;
+  const path = window.location.pathname || "";
+  const m = path.match(/\/blueprint_detection\/([^\/\?]+)/);
+  return m ? m[1] : null;
+};
   const { images, loading, error, refetch } = useBlueprintImages(propId ?? null);
+  const router = useRouter();
   const { deleteImage, loading: deleting, error: deleteError } = useDeleteBlueprintImage();
   const [selected, setSelected] = useState<BlueprintImage | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -81,6 +90,8 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
 
     if (result.length === 0) {
       alert("No detected items to save.");
+       router.push(`/blueprints/${resolveIdFromWindow(propId)}`);
+      setSaving(false);
       return;
     }
 
@@ -88,6 +99,7 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       // Use hook to upload bulk detections
       const body = await uploadDetections(result);
       console.log("Bulk save response:", body);
+      router.push(`/blueprints/${propId}`);
       // alert(`Bulk save successful: ${result.length} item(s) sent.`);
     } catch (err: any) {
       console.error("Bulk save error:", err);
@@ -234,6 +246,12 @@ const BluePrintDetection: React.FC<{ id?: string }> = ({ id: propId }) => {
       }`}
     >
       {processing ? `Processing ${processedCount}/${selectedIds.size}` : "Process"}
+    </button>
+    <button
+      onClick={() => router.back()}
+      className={`text-sm px-3 py-1.5 rounded-md font-medium ml-2 border bg-gray-50 text-gray-700 hover:bg-gray-100`}
+    >
+      Back
     </button>
     <button
       disabled={detectedKeys.size === 0}
