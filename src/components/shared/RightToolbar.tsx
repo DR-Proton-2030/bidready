@@ -27,6 +27,7 @@ import {
   Square,
   Triangle,
   Eraser,
+  Pentagon,
 } from "lucide-react";
 
 interface ToolButtonProps {
@@ -168,6 +169,15 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
             onAnnotate?.();
           }}
           tooltip="Markup"
+        />
+
+        {/* Polygon annotation tool */}
+        <ToolButton
+          icon={Pentagon}
+          label="polygon"
+          activeTool={activeTool}
+          onClick={() => setTool("polygon")}
+          tooltip="Polygon Annotation"
         />
 
         {/* Erase annotations */}

@@ -12,7 +12,6 @@ import {
   Share2,
   DownloadCloud,
   Search,
-  Plus,
   Save,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
@@ -34,6 +33,8 @@ interface Detection {
   confidence?: number;
   color: string;
   id: string;
+  // optional polygon points (in image pixel coords)
+  points?: Array<{ x: number; y: number }>;
 }
 
 interface FullScreenImageViewerProps {
@@ -90,6 +91,9 @@ export default function FullScreenImageViewer({
   const [startPoint, setStartPoint] = useState({ x: 0, y: 0 });
   const [currentBox, setCurrentBox] = useState<any>(null);
   const [userAnnotations, setUserAnnotations] = useState<Detection[]>([]);
+  const [polygonPoints, setPolygonPoints] = useState<Array<{ x: number; y: number }>>([]);
+  const [draggingPointIndex, setDraggingPointIndex] = useState<number | null>(null);
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
   const [showClassSelector, setShowClassSelector] = useState(false);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [selectedAnnotationClass, setSelectedAnnotationClass] = useState("");
@@ -212,6 +216,30 @@ export default function FullScreenImageViewer({
       onImageChange(currentImage, currentIndex);
     }
   }, [currentIndex, isOpen]); // Removed currentImage and onImageChange from dependencies to avoid infinite loops
+
+  // Load user annotations from detectionResults when detection data changes
+  useEffect(() => {
+    if (detectionResults?.predictions) {
+      // Extract user annotations (those with source="User") from predictions
+      const userAnns = detectionResults.predictions
+        .filter((pred: any) => pred.source === "User")
+        .map((pred: any) => ({
+          x: pred.x || 0,
+          y: pred.y || 0,
+          width: pred.width || 0,
+          height: pred.height || 0,
+          class: pred.class,
+          confidence: pred.confidence,
+          color: getColorForClass(pred.class || "Unknown"),
+          id: pred.id || `user-annotation-${Date.now()}-${Math.random()}`,
+          points: pred.points || undefined,
+        }));
+      
+      if (userAnns.length > 0) {
+        setUserAnnotations(userAnns);
+      }
+    }
+  }, [detectionResults, currentIndex]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -347,6 +375,56 @@ export default function FullScreenImageViewer({
         x: e.clientX - imagePosition.x,
         y: e.clientY - imagePosition.y,
       });
+    } else if (activeTool === "polygon") {
+      // Add or start-dragging a polygon point (convert to image pixel coordinates)
+      const imageRect = (e.currentTarget as Element).getBoundingClientRect();
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+        const x = (e.clientX - imageRect.left) * scaleX;
+        const y = (e.clientY - imageRect.top) * scaleY;
+
+        // If clicking near an existing point, start dragging that point
+        const hitIndex = polygonPoints.findIndex((p) => {
+          const dx = p.x - x;
+          const dy = p.y - y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          return dist <= 12; // hit radius in image pixels
+        });
+
+        if (hitIndex !== -1) {
+          setDraggingPointIndex(hitIndex);
+        } else {
+          setPolygonPoints((prev) => [...prev, { x, y }]);
+        }
+      }
+    } else {
+      // Check if clicking on a saved polygon annotation's corner point to edit it
+      const imageRect = (e.currentTarget as Element).getBoundingClientRect();
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+        const x = (e.clientX - imageRect.left) * scaleX;
+        const y = (e.clientY - imageRect.top) * scaleY;
+
+        // Find if clicking on a corner point of any saved polygon annotation
+        for (const annotation of userAnnotations) {
+          if (annotation.points && annotation.points.length > 0) {
+            const hitIndex = annotation.points.findIndex((p) => {
+              const dx = p.x - x;
+              const dy = p.y - y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              return dist <= 12;
+            });
+
+            if (hitIndex !== -1) {
+              setEditingAnnotationId(annotation.id);
+              setDraggingPointIndex(hitIndex);
+              break;
+            }
+          }
+        }
+      }
     }
   };
 
@@ -368,6 +446,38 @@ export default function FullScreenImageViewer({
           height: Math.abs(currentY - startPoint.y),
         });
       }
+    } else if (draggingPointIndex !== null) {
+      // move the dragged polygon point
+      const imageRect = e.currentTarget.getBoundingClientRect();
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+        const x = (e.clientX - imageRect.left) * scaleX;
+        const y = (e.clientY - imageRect.top) * scaleY;
+        
+        if (editingAnnotationId) {
+          // Edit a saved annotation's point
+          setUserAnnotations((prev) => prev.map((ann) => {
+            if (ann.id === editingAnnotationId && ann.points) {
+              const newPoints = [...ann.points];
+              if (draggingPointIndex >= 0 && draggingPointIndex < newPoints.length) {
+                newPoints[draggingPointIndex] = { x, y };
+              }
+              return { ...ann, points: newPoints };
+            }
+            return ann;
+          }));
+        } else {
+          // Edit in-progress polygon points
+          setPolygonPoints((prev) => {
+            const next = prev.slice();
+            if (draggingPointIndex! >= 0 && draggingPointIndex! < next.length) {
+              next[draggingPointIndex!] = { x, y };
+            }
+            return next;
+          });
+        }
+      }
     } else if (isDragging && zoom > 1) {
       setImagePosition({
         x: e.clientX - dragStart.x,
@@ -388,6 +498,11 @@ export default function FullScreenImageViewer({
     } else {
       setIsDragging(false);
     }
+    // stop dragging polygon points when mouse is released
+    if (draggingPointIndex !== null) {
+      setDraggingPointIndex(null);
+      setEditingAnnotationId(null);
+    }
   };
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -401,23 +516,27 @@ export default function FullScreenImageViewer({
   const getDetectionBoxes = (): Detection[] => {
     if (!detectionResults?.predictions || !showDetections) return [];
 
-    const allBoxes = detectionResults.predictions.map(
-      (detection: any, index: number): Detection => {
-        const className = detection.class || "Unknown";
-        const color = getColorForClass(className);
+    const allBoxes = detectionResults.predictions
+      // Filter out user annotations - they're handled separately in userAnnotations state
+      .filter((detection: any) => detection.source !== "User")
+      .map(
+        (detection: any, index: number): Detection => {
+          const className = detection.class || "Unknown";
+          const color = getColorForClass(className);
 
-        return {
-          x: detection.x || 0,
-          y: detection.y || 0,
-          width: detection.width || 0,
-          height: detection.height || 0,
-          class: detection.class,
-          confidence: detection.confidence,
-          color,
-          id: detection.id ? String(detection.id) : `detection-${index}`,
-        };
-      }
-    );
+          return {
+            x: detection.x || 0,
+            y: detection.y || 0,
+            width: detection.width || 0,
+            height: detection.height || 0,
+            class: detection.class,
+            confidence: detection.confidence,
+            color,
+            id: detection.id ? String(detection.id) : `detection-${index}`,
+            points: detection.points || undefined, // Preserve points if present
+          };
+        }
+      );
 
     // Remove dismissed detections
     const visibleBoxes = allBoxes.filter((box: Detection) => !dismissedDetections.has(box.id));
@@ -434,9 +553,12 @@ export default function FullScreenImageViewer({
   const getClassCounts = (): { [key: string]: number } => {
     const counts: { [key: string]: number } = {};
 
-    // Count original detections
+    // Count original detections (exclude user annotations - they're counted separately)
     if (detectionResults?.predictions) {
       detectionResults.predictions.forEach((detection: any, index: number) => {
+        // Skip user annotations (they're in userAnnotations state)
+        if (detection.source === "User") return;
+        
         const detId = detection.id ? String(detection.id) : `detection-${index}`;
         if (dismissedDetections.has(detId)) return; // skip dismissed
         const className = detection.class || "Unknown";
@@ -516,6 +638,8 @@ export default function FullScreenImageViewer({
         confidence: 1.0,
         color: getColorForClass(className),
         id: `user-annotation-${Date.now()}`,
+        // Explicitly preserve points if they exist
+        points: pendingAnnotation.points || undefined,
       };
 
       setUserAnnotations((prev) => [...prev, newAnnotation]);
@@ -523,6 +647,41 @@ export default function FullScreenImageViewer({
       setShowClassSelector(false);
       setSelectedAnnotationClass("");
     }
+  };
+
+  // Finish polygon: convert polygonPoints into a pendingAnnotation then open class selector
+  const finishPolygon = () => {
+    if (!polygonPoints || polygonPoints.length < 3) {
+      console.warn('Not enough points to create polygon:', polygonPoints.length);
+      return;
+    }
+    // compute bounding box and centroid
+    const xs = polygonPoints.map((p) => p.x);
+    const ys = polygonPoints.map((p) => p.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const centroidX = xs.reduce((a, b) => a + b, 0) / xs.length;
+    const centroidY = ys.reduce((a, b) => a + b, 0) / ys.length;
+
+    const ann = {
+      x: centroidX,
+      y: centroidY,
+      width,
+      height,
+      points: [...polygonPoints], // Create a copy of the points array
+    } as any;
+
+    setPendingAnnotation(ann);
+    setShowClassSelector(true);
+    setPolygonPoints([]);
+  };
+
+  const cancelPolygon = () => {
+    setPolygonPoints([]);
   };
 
   // Handle creating new class for annotation
@@ -539,6 +698,8 @@ export default function FullScreenImageViewer({
         confidence: 1.0,
         color: getColorForClass(selectedAnnotationClass.trim()),
         id: `user-annotation-${Date.now()}`,
+        // Explicitly preserve points if they exist
+        points: pendingAnnotation.points || undefined,
       };
 
       setUserAnnotations((prev) => [...prev, newAnnotation]);
@@ -713,6 +874,9 @@ export default function FullScreenImageViewer({
   }> => {
     const ai = (detectionResults?.predictions || [])
       .filter((det: any, index: number) => {
+        // Skip user annotations - they're handled separately below
+        if (det.source === "User") return false;
+        
         const detId = det.id ? String(det.id) : `detection-${index}`;
         return !dismissedDetections.has(detId);
       })
@@ -738,6 +902,7 @@ export default function FullScreenImageViewer({
       width: a.width,
       height: a.height,
       pageNumber: currentImage?.pageNumber,
+      points: a.points ?? undefined,
     }));
 
     return [...ai, ...user];
@@ -875,10 +1040,9 @@ export default function FullScreenImageViewer({
     <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-50 bg-[#1C2931] bg-opacity-50 px-4 py-2">
-        <div className="flex justify-between items-center text-white">
-          <div>
+        <div className="flex items-center justify-between text-white">
+          <div className="flex-1">
             <h3 className="text-lg font-medium truncate max-w-md">
-              {/* <CompanyLogo width={150} /> */}
               {currentImage.name} Blue Print
             </h3>
             <p className="text-sm text-gray-900">
@@ -887,8 +1051,7 @@ export default function FullScreenImageViewer({
             </p>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-2">
             <button
               onClick={zoomOut}
               className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
@@ -917,52 +1080,53 @@ export default function FullScreenImageViewer({
 
             <button
               onClick={resetView}
-              className="px-3 py-1 text-md  hover:bg-gray-700 mr-4 transition-colors"
+              className="px-3 py-1 text-md  hover:bg-gray-700 mr-2 transition-colors"
               title="Reset View"
             >
               Reset
             </button>
+
             <button
               onClick={handleExportPdf}
               className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
               title="Export PDF"
             >
               <DownloadCloud size={18} />
-              Export PDF
             </button>
+
             <button
               onClick={handleExportCsv}
               className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
               title="Export Annotations CSV"
             >
               <Download size={18} />
-              Export CSV
             </button>
+
             <button
-                   onClick={onClose}
+              onClick={onClose}
               className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
-              title="Download Pdf"
+              title="Close Viewer"
             >
               <Save size={18} />
-              Save Details
             </button>
-            
-            {/* {detectionResults?.predictions && (
-              <button
-                onClick={() => setShowDetections(!showDetections)}
-                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
-                  showDetections
-                    ? "bg-green-600 bg-opacity-80 text-white"
-                    : "hover:bg-white hover:bg-opacity-20"
-                }`}
-                title="Toggle Detection Overlay"
-              >
-                {showDetections ? "Hide" : "Show"} Detections
-              </button>
-            )} */}
-            {/* Toggle classes/sidebar button */}
 
-           
+            {/* Polygon finish/cancel controls */}
+            {polygonPoints.length > 0 && (
+              <div className="flex items-center space-x-2 ml-2">
+                <button
+                  onClick={finishPolygon}
+                  className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Finish Polygon
+                </button>
+                <button
+                  onClick={cancelPolygon}
+                  className="px-3 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1012,7 +1176,7 @@ export default function FullScreenImageViewer({
           onMouseLeave={activeTool !== "annotate" ? handleMouseUp : undefined}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+            <img
             src={currentImage.path}
             alt={currentImage.name}
             className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
@@ -1031,7 +1195,7 @@ export default function FullScreenImageViewer({
             }}
             onLoad={handleImageLoad}
             onMouseDown={
-              activeTool === "annotate" ? handleMouseDown : undefined
+              activeTool === "annotate" || activeTool === "polygon" ? handleMouseDown : undefined
             }
             onMouseMove={
               activeTool === "annotate" ? handleMouseMove : undefined
@@ -1105,51 +1269,119 @@ export default function FullScreenImageViewer({
                          }
                        }}
                     >
-                      {/* Bounding box rectangle */}
-                      <rect
-                        x={xRect}
-                        y={yRect}
-                        width={detection.width}
-                        height={detection.height}
-                        fill="none"
-                        stroke={isSelected ? "#22c55e" : detection.color}
-                        strokeWidth={isSelected ? 2 : 1}
-                        strokeOpacity="0.7"
-                      />
-                      <rect
-                        x={xRect}
-                        y={yRect}
-                        width={detection.width}
-                        height={detection.height}
-                        fill={detection.color}
-                        fillOpacity={isSelected ? 0.2 : 0.3}
-                      />
+                      {/* Bounding box rectangle OR polygon */}
+                      {detection.points && detection.points.length > 0 ? (
+                        <>
+                          {/* Render polygon shape */}
+                          <polygon
+                            points={detection.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                            fill={detection.color}
+                            fillOpacity={isSelected ? 0.25 : 0.2}
+                            stroke={isSelected ? "#22c55e" : detection.color}
+                            strokeWidth={isSelected ? 3 : 2}
+                            strokeOpacity={0.9}
+                          />
+                          {/* Show corner handles for user annotations */}
+                          {isUserAnnotation && detection.points.map((p, idx) => (
+                            <g key={`handle-${idx}`}>
+                              <circle 
+                                cx={p.x} 
+                                cy={p.y} 
+                                r={6} 
+                                fill="white" 
+                                stroke={detection.color}
+                                strokeWidth={2}
+                                style={{ pointerEvents: 'auto', cursor: 'move' }}
+                              />
+                              <circle 
+                                cx={p.x} 
+                                cy={p.y} 
+                                r={2.5} 
+                                fill={detection.color}
+                                style={{ pointerEvents: 'none' }}
+                              />
+                            </g>
+                          ))}
+                        </>
+                      ) : (
+                        <>
+                          <rect
+                            x={xRect}
+                            y={yRect}
+                            width={detection.width}
+                            height={detection.height}
+                            fill="none"
+                            stroke={isSelected ? "#22c55e" : detection.color}
+                            strokeWidth={isSelected ? 2 : 1}
+                            strokeOpacity="0.7"
+                          />
+                          <rect
+                            x={xRect}
+                            y={yRect}
+                            width={detection.width}
+                            height={detection.height}
+                            fill={detection.color}
+                            fillOpacity={isSelected ? 0.2 : 0.3}
+                          />
+                        </>
+                      )}
                       {isUserAnnotation && activeTool !== "erase" && (
                         <g>
                           {/* Small delete chip at top-right */}
-                          <rect
-                            x={xRect + detection.width - 18}
-                            y={yRect - 18}
-                            width={18}
-                            height={18}
-                            rx={3}
-                            ry={3}
-                            fill="#ef4444"
-                            opacity="0.9"
-                            style={{ pointerEvents: "auto" }}
-                            onClick={(e) => { e.stopPropagation(); deleteUserAnnotation(detection.id); }}
-                          />
-                          <text
-                            x={xRect + detection.width - 9}
-                            y={yRect - 5}
-                            textAnchor="middle"
-                            fontSize="12"
-                            fontFamily="Arial, sans-serif"
-                            fill="#ffffff"
-                            style={{ pointerEvents: "none" }}
-                          >
-                            ×
-                          </text>
+                          {/* delete chip position: for polygons place at first point's position */}
+                          {detection.points && detection.points.length > 0 ? (
+                            <>
+                              <rect
+                                x={detection.points[0].x - 9}
+                                y={detection.points[0].y - 9}
+                                width={18}
+                                height={18}
+                                rx={3}
+                                ry={3}
+                                fill="#ef4444"
+                                opacity="0.9"
+                                style={{ pointerEvents: "auto" }}
+                                onClick={(e) => { e.stopPropagation(); deleteUserAnnotation(detection.id); }}
+                              />
+                              <text
+                                x={detection.points[0].x}
+                                y={detection.points[0].y + 4}
+                                textAnchor="middle"
+                                fontSize="12"
+                                fontFamily="Arial, sans-serif"
+                                fill="#ffffff"
+                                style={{ pointerEvents: "none" }}
+                              >
+                                ×
+                              </text>
+                            </>
+                          ) : (
+                            <>
+                              <rect
+                                x={xRect + detection.width - 18}
+                                y={yRect - 18}
+                                width={18}
+                                height={18}
+                                rx={3}
+                                ry={3}
+                                fill="#ef4444"
+                                opacity="0.9"
+                                style={{ pointerEvents: "auto" }}
+                                onClick={(e) => { e.stopPropagation(); deleteUserAnnotation(detection.id); }}
+                              />
+                              <text
+                                x={xRect + detection.width - 9}
+                                y={yRect - 5}
+                                textAnchor="middle"
+                                fontSize="12"
+                                fontFamily="Arial, sans-serif"
+                                fill="#ffffff"
+                                style={{ pointerEvents: "none" }}
+                              >
+                                ×
+                              </text>
+                            </>
+                          )}
                         </g>
                       )}
                      
@@ -1180,6 +1412,41 @@ export default function FullScreenImageViewer({
                     fill="#3b82f6"
                     fillOpacity="0.1"
                   />
+                </g>
+              )}
+
+              {/* Polygon in-progress drawing */}
+              {polygonPoints.length > 0 && (
+                <g>
+                  {/* Semi-transparent fill */}
+                  <polygon
+                    points={polygonPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+                    fill="#60a5fa"
+                    fillOpacity={0.2}
+                    stroke="#60a5fa"
+                    strokeWidth={2}
+                    strokeOpacity={0.9}
+                  />
+                  {/* Corner point handles - larger circles with white fill and colored border */}
+                  {polygonPoints.map((p, idx) => (
+                    <g key={idx}>
+                      <circle 
+                        cx={p.x} 
+                        cy={p.y} 
+                        r={8} 
+                        fill="white" 
+                        stroke="#60a5fa"
+                        strokeWidth={3}
+                        style={{ cursor: 'move' }}
+                      />
+                      <circle 
+                        cx={p.x} 
+                        cy={p.y} 
+                        r={3} 
+                        fill="#60a5fa"
+                      />
+                    </g>
+                  ))}
                 </g>
               )}
 
@@ -1279,8 +1546,7 @@ export default function FullScreenImageViewer({
                 className="w-1/4 flex items-center justify-center gap-2 mb-4 px-2 py-2  mt-3
                 bg-black text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
               >
-                <Plus className="w-4 h-4" />
-                Add
+                +
               </button>
             </div>
           </div>

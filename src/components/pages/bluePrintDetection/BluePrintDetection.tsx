@@ -327,6 +327,7 @@ const BluePrintDetection = ({ id: propId }:any) => {
                 width: typeof d.width === "number" ? d.width : 0,
                 height: typeof d.height === "number" ? d.height : 0,
                 source: d.source ?? "User",
+                points: d.points ?? undefined,
               }));
 
               // store merged data so save can include both api predictions and user annotations
