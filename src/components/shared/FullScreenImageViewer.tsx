@@ -44,6 +44,7 @@ interface FullScreenImageViewerProps {
   onImageChange?: (image: Image, index: number) => void;
   detectionResults?: any;
   onSvgOverlayUpdate?: (imageId: string, svgData: string | null) => void;
+  onDetectionsChange?: (imageId: string, combinedDetections: Array<any>) => void;
 }
 
 export default function FullScreenImageViewer({
@@ -54,6 +55,7 @@ export default function FullScreenImageViewer({
   onImageChange,
   detectionResults,
   onSvgOverlayUpdate,
+  onDetectionsChange,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
@@ -647,6 +649,7 @@ export default function FullScreenImageViewer({
       onSvgOverlayUpdate(currentImage.id, svgData);
     }
   }, [generateSvgOverlay, currentImage?.id, onSvgOverlayUpdate]);
+  
 
   // Toolbar action handlers
   const handleDownload = () => {
@@ -739,6 +742,21 @@ export default function FullScreenImageViewer({
 
     return [...ai, ...user];
   };
+
+  // Notify parent when the combined detections (AI + user annotations) change
+  useEffect(() => {
+    if (onDetectionsChange && currentImage) {
+      try {
+        const combined = getAllDetectionsForExport();
+        onDetectionsChange(currentImage.id, combined);
+      } catch (e) {
+        // swallow errors here; parent doesn't need to crash the viewer
+        // eslint-disable-next-line no-console
+        console.error("onDetectionsChange error:", e);
+      }
+    }
+    // We intentionally list userAnnotations and detectionResults to trigger updates
+  }, [currentImage?.id, onDetectionsChange, userAnnotations, detectionResults, selectedClasses, dismissedDetections]);
 
   // Export: draw base image + overlay to canvas, embed into PDF, download; also allow CSV export
   const handleExportPdf = async () => {

@@ -314,6 +314,31 @@ const BluePrintDetection = ({ id: propId }:any) => {
           onClose={() => setViewerOpen(false)}
           onImageChange={() => {}}
           detectionResults={detectionResults}
+          onDetectionsChange={(imageId: string, combinedDetections: Array<any>) => {
+            try {
+              const existing = detectionCache.get(imageId) ?? {};
+              // Normalize combined detections into a predictions array compatible with API shape
+              const normalized = combinedDetections.map((d: any) => ({
+                id: d.id ?? undefined,
+                class: d.className ?? d.class ?? "Unknown",
+                confidence: typeof d.confidence === "number" ? d.confidence : undefined,
+                x: typeof d.x === "number" ? d.x : 0,
+                y: typeof d.y === "number" ? d.y : 0,
+                width: typeof d.width === "number" ? d.width : 0,
+                height: typeof d.height === "number" ? d.height : 0,
+                source: d.source ?? "User",
+              }));
+
+              // store merged data so save can include both api predictions and user annotations
+              detectionCache.set(imageId, { ...existing, predictions: normalized, combined_export: combinedDetections });
+
+              // mark as detected so Save will include this image
+              setDetectedKeys((prev) => new Set(prev).add(imageId));
+            } catch (e) {
+              // eslint-disable-next-line no-console
+              console.error('Failed to store combined detections:', e);
+            }
+          }}
         />
       )}
    {loading && <Loader/>}
