@@ -13,6 +13,7 @@ import {
   DownloadCloud,
   Search,
   Save,
+  Zap,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
@@ -74,6 +75,7 @@ export default function FullScreenImageViewer({
     height: 0,
   });
   const [showDetections, setShowDetections] = useState(true);
+  const [showElectrical, setShowElectrical] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(
     new Set()
   );
@@ -234,7 +236,7 @@ export default function FullScreenImageViewer({
           id: pred.id || `user-annotation-${Date.now()}-${Math.random()}`,
           points: pred.points || undefined,
         }));
-      
+
       if (userAnns.length > 0) {
         setUserAnnotations(userAnns);
       }
@@ -454,7 +456,7 @@ export default function FullScreenImageViewer({
         const scaleY = imageDimensions.height / imageRect.height;
         const x = (e.clientX - imageRect.left) * scaleX;
         const y = (e.clientY - imageRect.top) * scaleY;
-        
+
         if (editingAnnotationId) {
           // Edit a saved annotation's point
           setUserAnnotations((prev) => prev.map((ann) => {
@@ -558,10 +560,18 @@ export default function FullScreenImageViewer({
       detectionResults.predictions.forEach((detection: any, index: number) => {
         // Skip user annotations (they're in userAnnotations state)
         if (detection.source === "User") return;
-        
+
         const detId = detection.id ? String(detection.id) : `detection-${index}`;
         if (dismissedDetections.has(detId)) return; // skip dismissed
         const className = detection.class || "Unknown";
+        counts[className] = (counts[className] || 0) + 1;
+      });
+    }
+
+    // Count electrical model predictions when electrical view is enabled
+    if (showElectrical && detectionResults?.electricalPredictions) {
+      (detectionResults.electricalPredictions || []).forEach((p: any, idx: number) => {
+        const className = p.class || "Electrical";
         counts[className] = (counts[className] || 0) + 1;
       });
     }
@@ -721,6 +731,31 @@ export default function FullScreenImageViewer({
       );
     }
 
+    // Build electrical boxes
+    let electricalBoxes: Detection[] = [];
+    if (detectionResults?.electricalPredictions) {
+      electricalBoxes = (detectionResults.electricalPredictions || []).map((p: any, i: number) => ({
+        x: p.x || 0,
+        y: p.y || 0,
+        width: p.width || 0,
+        height: p.height || 0,
+        class: p.class || "Electrical",
+        confidence: p.confidence,
+        color: getColorForClass(`electrical:${p.class || 'Electrical'}`),
+        id: p.id ? String(p.id) : `electrical-${i}`,
+        points: undefined,
+      }));
+
+      if (selectedClasses.size > 0) {
+        electricalBoxes = electricalBoxes.filter((b: Detection) => selectedClasses.has(b.class || "Unknown"));
+      }
+    }
+
+    // If electrical-only mode is enabled, return only electrical boxes
+    if (showElectrical) {
+      return electricalBoxes;
+    }
+
     return [...originalBoxes, ...filteredUserAnnotations];
   };
 
@@ -730,9 +765,9 @@ export default function FullScreenImageViewer({
 
     // Get detection boxes directly here to avoid dependency issues
     let allDetections: Detection[] = [];
-    
+
     // Get original detections
-    if (detectionResults?.predictions && showDetections) {
+    if (detectionResults?.predictions && showDetections && !showElectrical) {
       const originalBoxes = detectionResults.predictions.map(
         (detection: any, index: number): Detection => {
           const className = detection.class || "Unknown";
@@ -761,6 +796,26 @@ export default function FullScreenImageViewer({
       }
     }
 
+    // If electrical-only mode is enabled, add only electrical predictions
+    if (showElectrical && detectionResults?.electricalPredictions) {
+      const elBoxes = (detectionResults.electricalPredictions || []).map((p: any, i: number): Detection => ({
+        x: p.x || 0,
+        y: p.y || 0,
+        width: p.width || 0,
+        height: p.height || 0,
+        class: p.class || "Electrical",
+        confidence: p.confidence,
+        color: getColorForClass(`electrical:${p.class || 'Electrical'}`),
+        id: p.id ? String(p.id) : `electrical-${i}`,
+      }));
+
+      if (selectedClasses.size === 0) {
+        allDetections = [...allDetections, ...elBoxes];
+      } else {
+        allDetections = [...allDetections, ...elBoxes.filter((b: Detection) => selectedClasses.has(b.class || "Unknown"))];
+      }
+    }
+
     // Add user annotations
     let filteredUserAnnotations = userAnnotations;
     if (selectedClasses.size > 0) {
@@ -778,8 +833,8 @@ export default function FullScreenImageViewer({
            height="${imageDimensions.height}" 
            viewBox="0 0 ${imageDimensions.width} ${imageDimensions.height}">
         ${allDetections.map(detection => `
-          <rect x="${detection.x - detection.width/2}" 
-                y="${detection.y - detection.height/2}" 
+          <rect x="${detection.x - detection.width / 2}" 
+                y="${detection.y - detection.height / 2}" 
                 width="${detection.width}" 
                 height="${detection.height}" 
                 fill="none" 
@@ -787,8 +842,8 @@ export default function FullScreenImageViewer({
                 stroke-width="2" 
                 opacity="0.8"/>
           ${detection.class ? `
-            <text x="${detection.x - detection.width/2}" 
-                  y="${detection.y - detection.height/2 - 5}" 
+            <text x="${detection.x - detection.width / 2}" 
+                  y="${detection.y - detection.height / 2 - 5}" 
                   font-family="Arial, sans-serif" 
                   font-size="12" 
                   fill="${detection.color}" 
@@ -810,7 +865,7 @@ export default function FullScreenImageViewer({
       onSvgOverlayUpdate(currentImage.id, svgData);
     }
   }, [generateSvgOverlay, currentImage?.id, onSvgOverlayUpdate]);
-  
+
 
   // Toolbar action handlers
   const handleDownload = () => {
@@ -876,7 +931,7 @@ export default function FullScreenImageViewer({
       .filter((det: any, index: number) => {
         // Skip user annotations - they're handled separately below
         if (det.source === "User") return false;
-        
+
         const detId = det.id ? String(det.id) : `detection-${index}`;
         return !dismissedDetections.has(detId);
       })
@@ -1103,6 +1158,14 @@ export default function FullScreenImageViewer({
             </button>
 
             <button
+              onClick={() => setShowElectrical((s) => !s)}
+              className={`px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showElectrical ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}`}
+              title={showElectrical ? "Hide Electrical Detections" : "Show Electrical Detections"}
+            >
+              <Zap size={16} />
+            </button>
+
+            <button
               onClick={onClose}
               className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
               title="Close Viewer"
@@ -1152,20 +1215,19 @@ export default function FullScreenImageViewer({
 
       {/* Image Container */}
       <div
-        className={`flex-1 flex items-center justify-center relative ${
-          leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
-        }`}
+        className={`flex-1 flex items-center justify-center relative ${leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
+          }`}
         style={{
           cursor:
             activeTool === "annotate"
               ? "crosshair"
               : activeTool === "erase"
-              ? "pointer"
-              : zoom > 1
-              ? isDragging
-                ? "grabbing"
-                : "grab"
-              : "default",
+                ? "pointer"
+                : zoom > 1
+                  ? isDragging
+                    ? "grabbing"
+                    : "grab"
+                  : "default",
         }}
       >
         <div
@@ -1176,22 +1238,21 @@ export default function FullScreenImageViewer({
           onMouseLeave={activeTool !== "annotate" ? handleMouseUp : undefined}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+          <img
             src={currentImage.path}
             alt={currentImage.name}
             className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
             style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
-                imagePosition.x / zoom
-              }px, ${imagePosition.y / zoom}px)`,
+              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom
+                }px, ${imagePosition.y / zoom}px)`,
               cursor:
                 activeTool === "annotate"
                   ? "crosshair"
                   : zoom > 1
-                  ? isDragging
-                    ? "grabbing"
-                    : "grab"
-                  : "default",
+                    ? isDragging
+                      ? "grabbing"
+                      : "grab"
+                    : "default",
             }}
             onLoad={handleImageLoad}
             onMouseDown={
@@ -1212,11 +1273,10 @@ export default function FullScreenImageViewer({
           {/* Detection Overlay */}
           {imageDimensions.width > 0 && (
             <svg
-              className={`absolute inset-0 ${
-                activeTool === "annotate"
-                  ? "pointer-events-none"
-                  : "pointer-events-none"
-              }`}
+              className={`absolute inset-0 ${activeTool === "annotate"
+                ? "pointer-events-none"
+                : "pointer-events-none"
+                }`}
               style={{
                 width: "100%",
                 height: "100%",
@@ -1255,19 +1315,19 @@ export default function FullScreenImageViewer({
 
                   return (
                     <g key={detection.id} style={{ pointerEvents: isUserAnnotation || activeTool === "erase" ? "auto" : "none", cursor: activeTool === "erase" ? "not-allowed" : isUserAnnotation ? "pointer" : "default" }}
-                       onClick={() => {
-                         if (activeTool === "erase") {
-                           removeOverlayWithUndo(detection.id, !!isUserAnnotation);
-                         } else if (isUserAnnotation) {
-                           setSelectedOverlayId(detection.id);
-                         }
-                       }}
-                       onContextMenu={(e) => {
-                         if (isUserAnnotation || activeTool === "erase") {
-                           e.preventDefault();
-                           removeOverlayWithUndo(detection.id, !!isUserAnnotation);
-                         }
-                       }}
+                      onClick={() => {
+                        if (activeTool === "erase") {
+                          removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                        } else if (isUserAnnotation) {
+                          setSelectedOverlayId(detection.id);
+                        }
+                      }}
+                      onContextMenu={(e) => {
+                        if (isUserAnnotation || activeTool === "erase") {
+                          e.preventDefault();
+                          removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                        }
+                      }}
                     >
                       {/* Bounding box rectangle OR polygon */}
                       {detection.points && detection.points.length > 0 ? (
@@ -1284,19 +1344,19 @@ export default function FullScreenImageViewer({
                           {/* Show corner handles for user annotations */}
                           {isUserAnnotation && detection.points.map((p, idx) => (
                             <g key={`handle-${idx}`}>
-                              <circle 
-                                cx={p.x} 
-                                cy={p.y} 
-                                r={6} 
-                                fill="white" 
+                              <circle
+                                cx={p.x}
+                                cy={p.y}
+                                r={6}
+                                fill="white"
                                 stroke={detection.color}
                                 strokeWidth={2}
                                 style={{ pointerEvents: 'auto', cursor: 'move' }}
                               />
-                              <circle 
-                                cx={p.x} 
-                                cy={p.y} 
-                                r={2.5} 
+                              <circle
+                                cx={p.x}
+                                cy={p.y}
+                                r={2.5}
                                 fill={detection.color}
                                 style={{ pointerEvents: 'none' }}
                               />
@@ -1384,8 +1444,8 @@ export default function FullScreenImageViewer({
                           )}
                         </g>
                       )}
-                     
-                     
+
+
                     </g>
                   );
                 })}
@@ -1430,19 +1490,19 @@ export default function FullScreenImageViewer({
                   {/* Corner point handles - larger circles with white fill and colored border */}
                   {polygonPoints.map((p, idx) => (
                     <g key={idx}>
-                      <circle 
-                        cx={p.x} 
-                        cy={p.y} 
-                        r={8} 
-                        fill="white" 
+                      <circle
+                        cx={p.x}
+                        cy={p.y}
+                        r={8}
+                        fill="white"
                         stroke="#60a5fa"
                         strokeWidth={3}
                         style={{ cursor: 'move' }}
                       />
-                      <circle 
-                        cx={p.x} 
-                        cy={p.y} 
-                        r={3} 
+                      <circle
+                        cx={p.x}
+                        cy={p.y}
+                        r={3}
                         fill="#60a5fa"
                       />
                     </g>
@@ -1469,11 +1529,10 @@ export default function FullScreenImageViewer({
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  index === currentIndex
-                    ? "bg-white"
-                    : "bg-white bg-opacity-50 hover:bg-opacity-75"
-                }`}
+                className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
+                  ? "bg-white"
+                  : "bg-white bg-opacity-50 hover:bg-opacity-75"
+                  }`}
               />
             ))}
           </div>
@@ -1584,18 +1643,17 @@ export default function FullScreenImageViewer({
                               {className}
                               <span
                                 className="text-xs font-bold px-1 py-0.5 rounded-full bg-gray-100 ml-2 border border-gray-300 text-black "
-                                // style={{ backgroundColor: classColor }}
+                              // style={{ backgroundColor: classColor }}
                               >
                                 {count}
                               </span>
                             </span>
                           </div>
                           <div
-                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-                              isSelected
-                                ? "border-blue-500 bg-blue-500"
-                                : "border-gray-300 bg-white"
-                            }`}
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${isSelected
+                              ? "border-blue-500 bg-blue-500"
+                              : "border-gray-300 bg-white"
+                              }`}
                           >
                             {isSelected && (
                               <svg

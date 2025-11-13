@@ -10,16 +10,17 @@ import OverviewPanel from "@/components/shared/overviewPanel/OverviewPanel";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import Loader from "@/components/shared/loader/Loader";
 import useImageDetect from "@/hooks/useImageDetect";
+import axios from "axios";
 import { s } from "node_modules/framer-motion/dist/types.d-Cjd591yU";
 
-const BluePrintDetection = ({ id: propId }:any) => {
+const BluePrintDetection = ({ id: propId }: any) => {
   const resolveIdFromWindow = (propId?: string | null): string | null => {
-  if (propId) return propId;
-  if (typeof window === "undefined") return null;
-  const path = window.location.pathname || "";
-  const m = path.match(/\/blueprint_detection\/([^\/\?]+)/);
-  return m ? m[1] : null;
-};
+    if (propId) return propId;
+    if (typeof window === "undefined") return null;
+    const path = window.location.pathname || "";
+    const m = path.match(/\/blueprint_detection\/([^\/\?]+)/);
+    return m ? m[1] : null;
+  };
   const { images, loading, error, refetch } = useBlueprintImages(propId ?? null);
   const router = useRouter();
   const { deleteImage, loading: deleting, error: deleteError } = useDeleteBlueprintImage();
@@ -90,7 +91,7 @@ const BluePrintDetection = ({ id: propId }:any) => {
 
     if (result.length === 0) {
       alert("No detected items to save.");
-       router.push(`/blueprints/${resolveIdFromWindow(propId)}`);
+      router.push(`/blueprints/${resolveIdFromWindow(propId)}`);
       setSaving(false);
       return;
     }
@@ -160,9 +161,47 @@ const BluePrintDetection = ({ id: propId }:any) => {
       const transformed = await detectImage(imageUrl);
       setDetectionResults(transformed);
 
+      // Also call the Roboflow electrical model and store the normalized response for later integration
+      let electricalPreds: any[] | undefined = undefined;
+      try {
+        const rfResp = await axios({
+          method: "POST",
+          url: "https://serverless.roboflow.com/electrical-42wl4/2",
+          params: {
+            api_key: "ShBtUdx8mVaP10M9vPB9",
+            image: imageUrl,
+            confidence: 0,
+          },
+        });
+        // Normalize electrical predictions to a consistent shape
+        const raw = rfResp.data?.predictions ?? [];
+        electricalPreds = raw.map((p: any) => ({
+          id: p.detection_id ?? undefined,
+          class: p.class ?? p.label ?? "Unknown",
+          confidence: typeof p.confidence === "number" ? p.confidence : undefined,
+          x: typeof p.x === "number" ? p.x : 0,
+          y: typeof p.y === "number" ? p.y : 0,
+          width: typeof p.width === "number" ? p.width : 0,
+          height: typeof p.height === "number" ? p.height : 0,
+          source: "Electrical",
+          // Roboflow won't provide polygon points — leave undefined
+        }));
+
+        console.log("Electrical model response (normalized) for", cacheKey, electricalPreds);
+      } catch (rfErr: any) {
+        console.error("Electrical model error:", rfErr?.message ?? rfErr);
+      }
+
       // cache in-memory keyed by id or url and mark detected
       if (cacheKey) {
-        detectionCache.set(cacheKey, transformed);
+        // store transformed detectionResults and electrical predictions together
+        const toCache = {
+          ...transformed,
+          electricalPredictions: electricalPreds ?? [],
+        };
+        detectionCache.set(cacheKey, toCache);
+        // update current detectionResults so viewer can access electrical preds immediately
+        setDetectionResults(toCache);
         setDetectedKeys((prev) => new Set(prev).add(cacheKey));
         // after successful detection, remove from selectedIds so it can't be re-selected
         setSelectedIds((prev) => {
@@ -190,82 +229,79 @@ const BluePrintDetection = ({ id: propId }:any) => {
   return (
     <div className="flex h-[92vh]  overflow-hidden bg-white">
       <div className="flex-1 p-8 overflow-y-auto">
-       <div className="flex items-center justify-between mb-10 border-b-2 border-gray-200 pb-4">
-  {/* Left side */}
-  <div>
-    <h1 className="text-2xl font-semibold text-gray-900">AI Blueprint Detection</h1>
-    <p className="text-sm text-gray-500">
-      Managing blueprint sheets & takeoff images
-    </p>
-  </div>
+        <div className="flex items-center justify-between mb-10 border-b-2 border-gray-200 pb-4">
+          {/* Left side */}
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">AI Blueprint Detection</h1>
+            <p className="text-sm text-gray-500">
+              Managing blueprint sheets & takeoff images
+            </p>
+          </div>
 
-  {/* Right side */}
-  <div className="flex items-center space-x-3">
-    <span className="text-sm text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
-      Selected: {selectedIds.size}
-    </span>
+          {/* Right side */}
+          <div className="flex items-center space-x-3">
+            <span className="text-sm text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
+              Selected: {selectedIds.size}
+            </span>
 
-    <button
-      onClick={() => {
-        const allSelected = images.length > 0 && images.every((it) => selectedIds.has(it.id));
-        if (allSelected) clearSelection();
-        else {
-          // only select images that are not yet detected
-          const selectableIds = images.filter((it) => !detectedKeys.has(it.id) && !detectedKeys.has(it.url ?? "")).map((it) => it.id);
-          setSelectedIds(new Set(selectableIds));
-        }
-      }}
-      disabled={images.length === 0}
-      className={`text-sm px-3 py-1.5 rounded-md border ${
-        images.length === 0
-          ? "text-gray-300 border-gray-200"
-          : "text-blue-600 border-blue-200 hover:bg-blue-50"
-      }`}
-    >
-      {images.length > 0 && images.every((it) => selectedIds.has(it.id))
-        ? "Unselect All"
-        : "Select All"}
-    </button>
+            <button
+              onClick={() => {
+                const allSelected = images.length > 0 && images.every((it) => selectedIds.has(it.id));
+                if (allSelected) clearSelection();
+                else {
+                  // only select images that are not yet detected
+                  const selectableIds = images.filter((it) => !detectedKeys.has(it.id) && !detectedKeys.has(it.url ?? "")).map((it) => it.id);
+                  setSelectedIds(new Set(selectableIds));
+                }
+              }}
+              disabled={images.length === 0}
+              className={`text-sm px-3 py-1.5 rounded-md border ${images.length === 0
+                ? "text-gray-300 border-gray-200"
+                : "text-blue-600 border-blue-200 hover:bg-blue-50"
+                }`}
+            >
+              {images.length > 0 && images.every((it) => selectedIds.has(it.id))
+                ? "Unselect All"
+                : "Select All"}
+            </button>
 
-    {selectedIds.size > 0 && (
-      <button
-        className="text-sm px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
-        onClick={clearSelection}
-      >
-        Clear
-      </button>
-    )}
+            {selectedIds.size > 0 && (
+              <button
+                className="text-sm px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
+                onClick={clearSelection}
+              >
+                Clear
+              </button>
+            )}
 
-    <button
-      disabled={selectedIds.size === 0 || processing}
-      onClick={handleProcessSelected}
-      className={`text-sm px-3 py-1.5 rounded-md font-medium ${
-        selectedIds.size === 0 || processing
-          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-          : "bg-green-600 text-white hover:bg-green-700"
-      }`}
-    >
-      {processing ? `Processing ${processedCount}/${selectedIds.size}` : "Process"}
-    </button>
-    <button
-      onClick={() => router.back()}
-      className={`text-sm px-3 py-1.5 rounded-md font-medium ml-2 border bg-gray-50 text-gray-700 hover:bg-gray-100`}
-    >
-      Back
-    </button>
-    <button
-      disabled={detectedKeys.size === 0}
-      onClick={handleSaveDetected}
-      className={`text-sm px-3 py-1.5 rounded-md font-medium ml-2 border ${
-        detectedKeys.size === 0 ? "text-gray-400 border-gray-200 bg-gray-100" : "text-blue-600 border-blue-200 hover:bg-blue-50"
-      }`}
-    >
-      Save
-    </button>
-  </div>
-</div>
+            <button
+              disabled={selectedIds.size === 0 || processing}
+              onClick={handleProcessSelected}
+              className={`text-sm px-3 py-1.5 rounded-md font-medium ${selectedIds.size === 0 || processing
+                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "bg-green-600 text-white hover:bg-green-700"
+                }`}
+            >
+              {processing ? `Processing ${processedCount}/${selectedIds.size}` : "Process"}
+            </button>
+            <button
+              onClick={() => router.back()}
+              className={`text-sm px-3 py-1.5 rounded-md font-medium ml-2 border bg-gray-50 text-gray-700 hover:bg-gray-100`}
+            >
+              Back
+            </button>
+            <button
+              disabled={detectedKeys.size === 0}
+              onClick={handleSaveDetected}
+              className={`text-sm px-3 py-1.5 rounded-md font-medium ml-2 border ${detectedKeys.size === 0 ? "text-gray-400 border-gray-200 bg-gray-100" : "text-blue-600 border-blue-200 hover:bg-blue-50"
+                }`}
+            >
+              Save
+            </button>
+          </div>
+        </div>
 
-     
+
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((img) => (
@@ -275,6 +311,7 @@ const BluePrintDetection = ({ id: propId }:any) => {
               selected={selectedIds.has(img.id)}
               deleting={deleting}
               draggable
+
               onDragStart={(e) => {
                 try {
                   e.dataTransfer?.setData("text/plain", img.id);
@@ -291,28 +328,28 @@ const BluePrintDetection = ({ id: propId }:any) => {
           ))}
         </div>
       </div>
-    <OverviewPanel
-  selected={selected}
-  isDragOver={isDragOver}
-  setIsDragOver={setIsDragOver}
-  toggleSelect={toggleSelect}
-  selectedIds={selectedIds}
-  handleDelete={handleDelete}
-  onSelectImage={(id: string) => {
-    const found = images.find((it) => it.id === id);
-    if (found) setSelected(found);
-  }}
-  onDetect={(imageUrl: string) => handleDetect(imageUrl, selected?.id)}
-  detecting={detecting}
-  hasCachedDetection={!!(selected && (detectedKeys.has(selected.id ?? '') || detectedKeys.has(selected.url ?? '')))}
-/>
+      <OverviewPanel
+        selected={selected}
+        isDragOver={isDragOver}
+        setIsDragOver={setIsDragOver}
+        toggleSelect={toggleSelect}
+        selectedIds={selectedIds}
+        handleDelete={handleDelete}
+        onSelectImage={(id: string) => {
+          const found = images.find((it) => it.id === id);
+          if (found) setSelected(found);
+        }}
+        onDetect={(imageUrl: string) => handleDetect(imageUrl, selected?.id)}
+        detecting={detecting}
+        hasCachedDetection={!!(selected && (detectedKeys.has(selected.id ?? '') || detectedKeys.has(selected.url ?? '')))}
+      />
       {viewerOpen && (
         <FullScreenImageViewer
           images={viewerImages}
           initialIndex={viewerIndex}
           isOpen={viewerOpen}
           onClose={() => setViewerOpen(false)}
-          onImageChange={() => {}}
+          onImageChange={() => { }}
           detectionResults={detectionResults}
           onDetectionsChange={(imageId: string, combinedDetections: Array<any>) => {
             try {
@@ -342,12 +379,12 @@ const BluePrintDetection = ({ id: propId }:any) => {
           }}
         />
       )}
-   {loading && <Loader/>}
-   {saving && <Loader/>}
-        {error && <div className="text-sm text-red-500">{error}</div>}
-        {!loading && !error && images.length === 0 && (
-          <div className="text-sm text-gray-500">No images found.</div>
-        )}
+      {loading && <Loader />}
+      {saving && <Loader />}
+      {error && <div className="text-sm text-red-500">{error}</div>}
+      {!loading && !error && images.length === 0 && (
+        <div className="text-sm text-gray-500">No images found.</div>
+      )}
     </div>
   );
 };
