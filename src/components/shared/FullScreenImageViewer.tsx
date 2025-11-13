@@ -555,7 +555,18 @@ export default function FullScreenImageViewer({
   const getClassCounts = (): { [key: string]: number } => {
     const counts: { [key: string]: number } = {};
 
-    // Count original detections (exclude user annotations - they're counted separately)
+    // If electrical-only mode is enabled, count ONLY electrical predictions
+    if (showElectrical) {
+      if (detectionResults?.electricalPredictions) {
+        (detectionResults.electricalPredictions || []).forEach((p: any) => {
+          const className = p.class || "Electrical";
+          counts[className] = (counts[className] || 0) + 1;
+        });
+      }
+      return counts;
+    }
+
+    // Normal mode: Count original detections (exclude user annotations - they're counted separately)
     if (detectionResults?.predictions) {
       detectionResults.predictions.forEach((detection: any, index: number) => {
         // Skip user annotations (they're in userAnnotations state)
@@ -564,14 +575,6 @@ export default function FullScreenImageViewer({
         const detId = detection.id ? String(detection.id) : `detection-${index}`;
         if (dismissedDetections.has(detId)) return; // skip dismissed
         const className = detection.class || "Unknown";
-        counts[className] = (counts[className] || 0) + 1;
-      });
-    }
-
-    // Count electrical model predictions when electrical view is enabled
-    if (showElectrical && detectionResults?.electricalPredictions) {
-      (detectionResults.electricalPredictions || []).forEach((p: any, idx: number) => {
-        const className = p.class || "Electrical";
         counts[className] = (counts[className] || 0) + 1;
       });
     }
