@@ -3,9 +3,9 @@ import React from "react";
 
 const ProjectCompleted: React.FC = () => {
     const total = 100;
-    const done = 50;
-    const progress = 25;
-    const backlog = 15;
+    const done = 50; // completed
+    const progress = 25; // in-progress
+    const remainder = Math.max(0, total - done - progress); // little grey dust
 
     const radius = 16;
     const circumference = 2 * Math.PI * radius;
@@ -77,11 +77,11 @@ const ProjectCompleted: React.FC = () => {
                             cx="20"
                             cy="20"
                             r={radius}
-                            stroke="#60a5fa"
+                            stroke="#e6e9ee"
                             strokeWidth="4"
                             fill="none"
                             strokeLinecap="round"
-                            strokeDasharray={`${percentToDash(backlog)} ${circumference}`}
+                            strokeDasharray={`${percentToDash(remainder)} ${circumference}`}
                             strokeDashoffset={-(percentToDash(done) + percentToDash(progress))}
                         />
                     </svg>
@@ -89,8 +89,8 @@ const ProjectCompleted: React.FC = () => {
                     {/* Center */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <div className="w-24 h-24 rounded-full bg-white/80 backdrop-blur-sm shadow-md flex flex-col items-center justify-center">
-                            <p className="text-lg font-bold text-gray-900">{done + progress + backlog}%</p>
-                            <p className="text-[10px] text-gray-500 uppercase tracking-widest -mt-1">Completed</p>
+                            <p className="text-lg font-bold text-gray-900">{done + progress}%</p>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest -mt-1">Tracked</p>
                         </div>
                     </div>
                 </div>
