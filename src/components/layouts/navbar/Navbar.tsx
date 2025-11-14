@@ -85,17 +85,19 @@ const Navbar = () => {
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0  h-16">
+    <nav className="bg-white border-b border-gray-200 sticky top-0  h-18">
       <div className="px-6 h-full">
         <div className="flex items-center justify-between h-full">
           {/* Left side */}
           <div className="flex items-center space-x-4">
-            <button
-              onClick={toggleSidebar}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-4">
+              <button
+                onClick={toggleSidebar}
+                className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-50 hover:bg-gray-200 transition-all border border-gray-200"
+              >
+                <Menu className="w-5 h-5 text-gray-700" />
+              </button>
+            </div>
 
             <div className="hidden sm:block">
               {/* <h1 className="text-xl font-semibold text-gray-900">
@@ -117,11 +119,11 @@ const Navbar = () => {
             <div className="relative">
               <button
                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200 relative"
+                className="h-10 w-10 rounded-xl bg-gray-50 hover:bg-gray-200 flex items-center justify-center transition-all border border-gray-200  relative"
               >
-                <Bell className="w-5 h-5" />
+                <Bell className="w-5 h-5 text-gray-700" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                     {unreadCount}
                   </span>
                 )}
@@ -129,122 +131,101 @@ const Navbar = () => {
 
               {/* Notification dropdown */}
               {isNotificationOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                  <div className="px-4 py-2 border-b border-gray-200">
+                <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
+                  <div className="p-4 border-b border-gray-100">
                     <h3 className="text-sm font-semibold text-gray-900">
                       Notifications
                     </h3>
                   </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    {notifications.map((notification) => (
+
+                  <div className="max-h-72 overflow-y-auto">
+                    {notifications.map((n) => (
                       <div
-                        key={notification.id}
-                        className={`px-4 py-3 hover:bg-gray-50 cursor-pointer ${
-                          notification.unread ? "bg-blue-50" : ""
-                        }`}
+                        key={n.id}
+                        className={`px-4 py-3 transition-colors cursor-pointer ${n.unread ? "bg-blue-50/60" : "hover:bg-gray-50"
+                          }`}
                       >
-                        <div className="flex items-start">
-                          <div className="flex-1">
-                            <p className="text-sm text-gray-900">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              {notification.time}
-                            </p>
-                          </div>
-                          {notification.unread && (
-                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                          )}
-                        </div>
+                        <p className="text-sm text-gray-900">{n.message}</p>
+                        <p className="text-xs text-gray-500 mt-1">{n.time}</p>
                       </div>
                     ))}
-                  </div>
-                  <div className="px-4 py-2 border-t border-gray-200">
-                    <button className="text-sm text-blue-600 hover:text-blue-800">
-                      View all notifications
-                    </button>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Settings */}
-            <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200">
-              <Settings className="w-5 h-5" />
+            <button className="h-10 w-10 rounded-xl bg-gray-50 hover:bg-gray-200 flex items-center justify-center transition-all border border-gray-200  relative"
+            >
+              <Settings className="w-5 h-5 text-gray-700" />
             </button>
+
 
             {/* User menu */}
             <div className="relative">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center space-x-3 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+                className="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-200 transition-all border border-gray-200"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">
+                <div className="w-8 h-8 rounded-full overflow-hidden">
                   {user?.profile_picture ? (
                     <Image
                       src={user.profile_picture}
-                      alt={user?.full_name || "avatar"}
                       width={32}
                       height={32}
-                      className="rounded-full object-cover"
+                      alt="avatar"
+                      className="object-cover"
                     />
                   ) : (
-                    <div className="w-8 h-8" />
+                    <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600" />
                   )}
                 </div>
-                <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium text-gray-900">
+
+                <div className="hidden sm:flex flex-col items-start">
+                  <span className="text-sm font-medium text-gray-900">
                     {user?.full_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
+                  </span>
+                  <span className="text-xs text-gray-500 -mt-1">
                     {user?.company_details?.company_name}
-                  </p>
+                  </span>
                 </div>
-                <ChevronDown className="w-4 h-4" />
+
+                <ChevronDown className="w-4 h-4 text-gray-600" />
               </button>
 
               {/* User dropdown */}
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                  <div className="px-4 py-3 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900">
+                <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl py-2 z-50 animate-fade-in">
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <p className="text-sm font-semibold text-gray-900">
                       {user?.full_name}
                     </p>
-                    <p className="text-sm text-gray-500">{user?.email}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
                   </div>
 
-                  <div className="py-2">
-                    <a
-                      href="#"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <User className="w-4 h-4 mr-3" />
+                  <div className="py-1">
+                    <a className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      <User className="w-4 h-4" />
                       Profile
                     </a>
-                    <a
-                      href="#"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <Settings className="w-4 h-4 mr-3" />
+                    <a className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      <Settings className="w-4 h-4" />
                       Settings
                     </a>
-                    <a
-                      href="#"
-                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    >
-                      <HelpCircle className="w-4 h-4 mr-3" />
-                      Help & Support
+                    <a className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                      <HelpCircle className="w-4 h-4" />
+                      Help
                     </a>
                   </div>
 
-                  <div className="border-t border-gray-200 py-2">
-                    <div
+                  <div className="border-t border-gray-100 py-1">
+                    <button
                       onClick={handleLogout}
-                      className="flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50"
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full"
                     >
-                      <LogOut className="w-4 h-4 mr-3" />
+                      <LogOut className="w-4 h-4" />
                       Sign out
-                    </div>
+                    </button>
                   </div>
                 </div>
               )}

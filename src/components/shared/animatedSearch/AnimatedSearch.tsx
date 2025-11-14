@@ -21,7 +21,7 @@ export const AnimatedSearch = () => {
           <input
             type="text"
             readOnly
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none text-sm cursor-pointer"
+            className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-2xl leading-5 bg-gray-50 placeholder-gray-500 focus:outline-none text-sm cursor-pointer"
             placeholder="Search projects, users, blueprints..."
           />
         </div>
