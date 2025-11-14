@@ -12,14 +12,14 @@ const ProjectCompleted: React.FC = () => {
     const percentToDash = (val: number) => (val / total) * circumference;
 
     return (
-        <div className="rounded-3xl border border-white/30 bg-white/10 backdrop-blur-2xl p-8 shadow-[0_12px_40px_rgba(0,0,0,0.12)] hover:shadow-[0_16px_50px_rgba(0,0,0,0.18)] transition-all">
+        <div className="rounded-3xl border-2 border-white/80 bg-white/10 backdrop-blur-2xl p-8 shadow-[0_12px_40px_rgba(0,0,0,0.12)] hover:shadow-[0_16px_50px_rgba(0,0,0,0.18)] transition-all">
             {/* Header */}
             <div className="space-y-1">
                 <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Project Completed</h3>
                 <p className="text-sm text-gray-500">Total projects: 100</p>
             </div>
 
-            <div className="flex items-center gap-10 mt-10">
+            <div className="flex items-center gap-10 mt-6">
                 {/* Labels with gradient bullets */}
                 <div className="flex-1 space-y-6">
                     <div className="flex items-center gap-4">
@@ -38,13 +38,7 @@ const ProjectCompleted: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <span className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 shadow-inner" />
-                        <div>
-                            <p className="text-sm text-gray-500 uppercase tracking-wide">Backlog</p>
-                            <p className="text-xl font-semibold text-gray-900">{backlog}%</p>
-                        </div>
-                    </div>
+
                 </div>
 
                 {/* Donut Chart */}

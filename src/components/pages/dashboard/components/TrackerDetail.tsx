@@ -15,7 +15,7 @@ const TrackerDetail: React.FC<{ bars?: Bar[] }> = ({ bars = defaultBars }) => {
     const maxHeight = 140; // height of the bar area
 
     return (
-        <div className="rounded-3xl border border-white/50 bg-white/20 backdrop-blur-xl p-8 shadow-lg hover:shadow-xl transition-all">
+        <div className="rounded-3xl border-2 border-white/80 bg-white/20 backdrop-blur-xl p-8 shadow-lg hover:shadow-xl transition-all">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <h4 className="text-xl font-semibold text-gray-800">Tracker Detail</h4>
