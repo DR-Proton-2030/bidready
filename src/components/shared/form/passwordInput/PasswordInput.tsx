@@ -12,8 +12,8 @@ const PasswordInput: React.FC<IInputProps> = ({
 }) => {
   const { showPassword, handleTooglePasswordShow } = useTooglePassword();
   return (
-    <div id={input.id} className="mt-3">
-      <label className="text-gray-600 text-sm">{placeholder?? "Your Password" }</label>
+    <div id={input.id} className="mt-6">
+      <label className="text-gray-600 text-sm pl-3">{placeholder ?? "Your Password"}</label>
       <div className="relative">
         <input
           type={showPassword ? "text" : "password"}
@@ -21,7 +21,7 @@ const PasswordInput: React.FC<IInputProps> = ({
           value={value}
           onChange={handleChange}
           placeholder="Password"
-          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+          className="w-full px-4 py-3 border border-gray-300 rounded-full bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
         />
         <button
           type="button"

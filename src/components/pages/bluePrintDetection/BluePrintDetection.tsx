@@ -170,7 +170,8 @@ const BluePrintDetection = ({ id: propId }: any) => {
           params: {
             api_key: "ShBtUdx8mVaP10M9vPB9",
             image: imageUrl,
-            confidence: 6,
+            confidence: 20,
+            overlap: 30
           },
         });
         // Normalize electrical predictions to a consistent shape
