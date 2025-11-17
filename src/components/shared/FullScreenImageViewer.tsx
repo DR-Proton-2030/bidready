@@ -49,6 +49,10 @@ interface FullScreenImageViewerProps {
   onDetectionsChange?: (imageId: string, combinedDetections: Array<any>) => void;
 }
 
+const areaFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 2,
+});
+
 export default function FullScreenImageViewer({
   images,
   initialIndex = 0,
@@ -1292,26 +1296,43 @@ export default function FullScreenImageViewer({
           {/* Dimension Shapes Overlay */}
           {showDimensions && detectionResults?.shapes && imageDimensions.width > 0 && (
             <svg
-              className="absolute top-0 left-0 pointer-events-none"
+              className="absolute top-0 left-0"
               style={{
                 width: "100%",
                 height: "100%",
                 transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                pointerEvents: "auto",
               }}
               viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
               preserveAspectRatio="xMidYMid meet"
             >
-              {detectionResults.shapes.map((shape: any, idx: number) => (
-                <path
-                  key={`dim-shape-${idx}`}
-                  d={shape.path}
-                  fill={shape.color || "#00ff00"}
-                  fillOpacity={1.25}
-                  stroke={shape.color || "#00ff00"}
-                  strokeWidth={3}
-                  strokeOpacity={1}
-                />
-              ))}
+              {detectionResults.shapes.map((shape: any, idx: number) => {
+                const fillColor = shape.color || "#00ff00";
+                const numericArea = typeof shape.area === "number"
+                  ? shape.area
+                  : typeof shape.meta?.area === "number"
+                    ? shape.meta.area
+                    : undefined;
+                const areaLabel = typeof numericArea === "number"
+                  ? `${areaFormatter.format(numericArea)} sq units`
+                  : undefined;
+
+                return (
+                  <path
+                    key={`dim-shape-${idx}`}
+                    d={shape.path}
+                    fill={fillColor}
+                    fillOpacity={0.12}
+                    stroke={fillColor}
+                    strokeWidth={2}
+                    strokeOpacity={0.85}
+                    style={{ pointerEvents: "visiblePainted", cursor: areaLabel ? "help" : "default" }}
+                    aria-label={areaLabel ? `Dimension shape with area ${areaLabel}` : undefined}
+                  >
+                    {areaLabel && <title>{`Area: ${areaLabel}`}</title>}
+                  </path>
+                );
+              })}
             </svg>
           )}
 
