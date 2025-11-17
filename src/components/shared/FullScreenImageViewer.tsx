@@ -14,9 +14,11 @@ import {
   Search,
   Save,
   Zap,
+  Bot,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
+import AskAISidePanel from "./AskAISidePanel";
 
 interface Image {
   id: string;
@@ -51,6 +53,38 @@ interface MeasurementOverlay {
   label: string;
   hasCalibration: boolean;
 }
+
+type NormalizedDetectionSummary = {
+  id: string | null;
+  label: string;
+  confidence: number | null;
+  source: string;
+  center: { x: number; y: number };
+  size: { width: number; height: number };
+  polygon: Array<{ x: number; y: number }> | null;
+  pageNumber: number | null;
+};
+
+type NormalizedAnnotationSummary = {
+  id: string;
+  label: string;
+  confidence: number | null;
+  center: { x: number; y: number };
+  size: { width: number; height: number };
+  polygon: Array<{ x: number; y: number }> | null;
+  meta: Record<string, any> | null;
+};
+
+type MeasurementSummary = {
+  id: string;
+  start: MeasurementPoint;
+  end: MeasurementPoint;
+  lengthPx: number;
+  value: number;
+  unit: string;
+  label: string;
+  calibrated: boolean;
+};
 
 interface FullScreenImageViewerProps {
   images: Image[];
@@ -130,6 +164,7 @@ export default function FullScreenImageViewer({
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddClassModal, setShowAddClassModal] = useState(false);
+  const [askAiOpen, setAskAiOpen] = useState(false);
   const [newClassName, setNewClassName] = useState("");
   const [customClasses, setCustomClasses] = useState<string[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -424,6 +459,7 @@ export default function FullScreenImageViewer({
     setMeasurements([]);
     setMeasurementDraft(null);
     setIsMeasuring(false);
+    setAskAiOpen(false);
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
@@ -449,6 +485,7 @@ export default function FullScreenImageViewer({
     if (!isOpen) {
       setIsMeasuring(false);
       setMeasurementDraft(null);
+      setAskAiOpen(false);
     }
   }, [isOpen]);
 
@@ -664,6 +701,108 @@ export default function FullScreenImageViewer({
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
   };
+
+  const detectionContext = useMemo(() => {
+    if (!currentImage) return null;
+
+    const rawPredictions = Array.isArray(detectionResults?.predictions)
+      ? detectionResults?.predictions ?? []
+      : [];
+
+    const normalizedPredictions: NormalizedDetectionSummary[] = rawPredictions
+      .map((pred: any): NormalizedDetectionSummary => ({
+        id: pred?.id ?? null,
+        label: pred?.class ?? "Unknown",
+        confidence: typeof pred?.confidence === "number" ? Number(pred.confidence.toFixed(4)) : null,
+        source: pred?.source ?? "AI",
+        center: {
+          x: typeof pred?.x === "number" ? pred.x : 0,
+          y: typeof pred?.y === "number" ? pred.y : 0,
+        },
+        size: {
+          width: typeof pred?.width === "number" ? pred.width : 0,
+          height: typeof pred?.height === "number" ? pred.height : 0,
+        },
+        polygon: Array.isArray(pred?.points)
+          ? (pred.points as Array<{ x: number; y: number }>).slice(0, 20).map((pt) => ({
+            x: typeof pt?.x === "number" ? pt.x : 0,
+            y: typeof pt?.y === "number" ? pt.y : 0,
+          }))
+          : null,
+        pageNumber: pred?.pageNumber ?? currentImage.pageNumber ?? null,
+      }))
+      .slice(0, 200);
+
+    const normalizedAnnotations: NormalizedAnnotationSummary[] = userAnnotations.map((ann) => ({
+      id: ann.id,
+      label: ann.class ?? "Unknown",
+      confidence: typeof ann.confidence === "number" ? Number(ann.confidence.toFixed(4)) : null,
+      center: { x: ann.x, y: ann.y },
+      size: { width: ann.width, height: ann.height },
+      polygon: ann.points ? ann.points.slice(0, 20) : null,
+      meta: ann.meta ?? null,
+    }));
+
+    const measurementSummaries: MeasurementSummary[] = measurements.map((measurement) => ({
+      id: measurement.id,
+      start: measurement.start,
+      end: measurement.end,
+      lengthPx: Number(measurement.lengthPx.toFixed(2)),
+      value: Number(measurement.value.toFixed(4)),
+      unit: measurement.unit,
+      label: measurement.label,
+      calibrated: measurement.hasCalibration,
+    }));
+
+    const dimensionShapes = Array.isArray(detectionResults?.shapes)
+      ? (detectionResults?.shapes as Array<any>).slice(0, 80).map((shape, index) => ({
+        id: shape?.id ?? `shape-${index}`,
+        type: shape?.type ?? "polygon",
+        label: shape?.label ?? shape?.name ?? null,
+        points: Array.isArray(shape?.points)
+          ? (shape.points as Array<{ x: number; y: number }>).slice(0, 40)
+          : null,
+        area: typeof shape?.area === "number" ? Number(shape.area.toFixed(2)) : null,
+        meta: shape?.meta ?? null,
+      }))
+      : [];
+
+    const classBreakdown: Record<string, number> = {};
+    normalizedPredictions.forEach((pred) => {
+      const key = pred.label ?? "Unknown";
+      classBreakdown[key] = (classBreakdown[key] ?? 0) + 1;
+    });
+    normalizedAnnotations.forEach((ann) => {
+      const key = ann.label ?? "Unknown";
+      classBreakdown[key] = (classBreakdown[key] ?? 0) + 1;
+    });
+
+    return {
+      image: {
+        id: currentImage.id,
+        name: currentImage.name,
+        pageNumber: currentImage.pageNumber ?? null,
+      },
+      generatedAt: new Date().toISOString(),
+      calibration: calibrationInfo
+        ? {
+          unit: calibrationInfo.unit,
+          unitsPerPixel: calibrationInfo.unitsPerPixel,
+          pixelsPerUnit: calibrationInfo.pixelsPerUnit,
+        }
+        : null,
+      stats: {
+        totalPredictions: normalizedPredictions.length,
+        totalUserAnnotations: normalizedAnnotations.length,
+        totalMeasurements: measurements.length,
+        classBreakdown,
+      },
+      predictions: normalizedPredictions,
+      userAnnotations: normalizedAnnotations,
+      measurements: measurementSummaries,
+      dimensionShapes,
+    };
+  }, [currentImage, detectionResults, userAnnotations, measurements, calibrationInfo]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1512,13 +1651,10 @@ export default function FullScreenImageViewer({
       <div className="absolute top-0 left-0 right-0 z-50 bg-[#1C2931] bg-opacity-50 px-4 py-2">
         <div className="flex items-center justify-between text-white">
           <div className="flex-1">
-            <h3 className="text-lg font-medium truncate max-w-md">
+            <h3 className="text-sm font-medium truncate max-w-md">
               {currentImage.name} Blue Print
             </h3>
-            <p className="text-sm text-gray-900">
-              {currentIndex + 1} of {images.length}
-              {currentImage.pageNumber && ` • Page ${currentImage.pageNumber}`}
-            </p>
+
           </div>
 
           <div className="flex items-center gap-2">
@@ -1569,7 +1705,7 @@ export default function FullScreenImageViewer({
               className="px-3 py-2 flex justify-center items-center gap-2 rounded text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
               title="Export Annotations CSV"
             >
-              <Download size={18} /> Download Csv
+              <Download size={18} /> Download
             </button>
 
             <button
@@ -1596,11 +1732,19 @@ export default function FullScreenImageViewer({
             </button>
 
             <button
+              onClick={() => setAskAiOpen(true)}
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded text-md bg-sky-600 text-white transition-colors hover:bg-sky-500"
+              title="Ask AI about this blueprint"
+            >
+              <Bot size={16} /> Ask AI
+            </button>
+
+            <button
               onClick={onClose}
               className="px-3 py-2 flex justify-center items-center gap-2 rounded text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
               title="Close Viewer"
             >
-              <Save size={18} /> Save Edits
+              <Save size={18} /> Save
             </button>
 
             {/* Polygon finish/cancel controls */}
@@ -2272,8 +2416,8 @@ export default function FullScreenImageViewer({
 
       {/* Detection Results Panel (collapsible sidebar) */}
       {detectionResults && sidebarOpen && (
-        <div className="absolute w-96 top-0 right-0 z-10 bg-white bg-opacity-95 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto shadow-2xl border border-gray-300">
-          <div className="flex items-center justify-between mb-4 pt-6">
+        <div className="absolute w-96 top-10 right-0 z-10 bg-white bg-opacity-95 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto shadow-2xl border border-gray-300">
+          {/* <div className="flex items-center justify-between mb-4 pt-6">
             <h4 className="text-xl font-bold text-gray-800">
               Detection Results
             </h4>
@@ -2284,7 +2428,7 @@ export default function FullScreenImageViewer({
             >
               <X className="w-4 h-4" />
             </button>
-          </div>
+          </div> */}
 
           {/* Search Bar */}
           <div className="relative mb-4">
@@ -2446,6 +2590,13 @@ export default function FullScreenImageViewer({
           )}
         </div>
       )}
+
+      <AskAISidePanel
+        open={askAiOpen}
+        onClose={() => setAskAiOpen(false)}
+        imageName={currentImage.name}
+        detectionContext={detectionContext}
+      />
 
       {/* Class Selector Modal for Annotations */}
       {showClassSelector && (
