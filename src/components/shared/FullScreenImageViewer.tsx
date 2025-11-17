@@ -148,10 +148,10 @@ export default function FullScreenImageViewer({
     "#3ed1c8ff", // Teal
     "#45b7d1ff", // Blue
     "#59dc9fff", // Green
-    "#f9d869ff", // Yellow
+    "#ffb74dff", // Yellow
     "#d85fd8ff", // Magenta
     "#66d8bbff", // Light Teal
-    "#f6d450ff", // Gold
+    "#ffb74dff", // Gold
     "#a953ceff", // Purple
     "#f342e7ff", // Sky Blue
     "#ff8a80ff", // Light Red
