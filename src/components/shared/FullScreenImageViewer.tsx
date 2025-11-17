@@ -81,6 +81,7 @@ export default function FullScreenImageViewer({
   const [showDetections, setShowDetections] = useState(true);
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
+  const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(
     new Set()
   );
@@ -1316,17 +1317,21 @@ export default function FullScreenImageViewer({
                 const areaLabel = typeof numericArea === "number"
                   ? `${areaFormatter.format(numericArea)} sq units`
                   : undefined;
+                const shapeId = String(shape.id ?? `dim-shape-${idx}`);
+                const isHovered = hoveredShapeId === shapeId;
 
                 return (
                   <path
-                    key={`dim-shape-${idx}`}
+                    key={shapeId}
                     d={shape.path}
                     fill={fillColor}
-                    fillOpacity={0.12}
+                    fillOpacity={isHovered ? 0.35 : 0.12}
                     stroke={fillColor}
-                    strokeWidth={2}
-                    strokeOpacity={0.85}
-                    style={{ pointerEvents: "visiblePainted", cursor: areaLabel ? "help" : "default" }}
+                    strokeWidth={isHovered ? 3 : 2}
+                    strokeOpacity={isHovered ? 1 : 0.85}
+                    style={{ pointerEvents: "visiblePainted", cursor: areaLabel ? "help" : "default", transition: "fill-opacity 120ms ease, stroke-opacity 120ms ease, stroke-width 120ms ease" }}
+                    onMouseEnter={() => setHoveredShapeId(shapeId)}
+                    onMouseLeave={() => setHoveredShapeId((prev) => (prev === shapeId ? null : prev))}
                     aria-label={areaLabel ? `Dimension shape with area ${areaLabel}` : undefined}
                   >
                     {areaLabel && <title>{`Area: ${areaLabel}`}</title>}
