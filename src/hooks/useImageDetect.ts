@@ -1,10 +1,22 @@
 import { useState, useCallback } from "react";
 
+type DetectionShape = {
+  id?: string;
+  path: string;
+  color?: string;
+  area?: number;
+  label?: string;
+  [key: string]: unknown;
+};
+
 type DetectionResult = {
   success: boolean;
   total_detections: number;
   object_counts: Record<string, number>;
   predictions: Array<any>;
+  shapes?: DetectionShape[];
+  dimension_candidates?: Array<any>;
+  dimension_calibration?: Record<string, unknown> | null;
 };
 
 export default function useImageDetect() {
@@ -26,6 +38,33 @@ export default function useImageDetect() {
         throw new Error(`Detect API error ${res.status} ${text}`);
       }
       const data = await res.json().catch(() => null);
+
+      const normalizeShape = (shape: any, idx: number): DetectionShape | null => {
+        if (!shape) return null;
+        const path = typeof shape.path === "string" ? shape.path.trim() : null;
+        if (!path) return null;
+
+        const normalized: DetectionShape = {
+          ...shape,
+          id: shape.id ?? `shape-${idx}`,
+          path,
+        };
+
+        if (typeof shape.color === "string") normalized.color = shape.color;
+        if (typeof shape.area === "number") normalized.area = shape.area;
+        if (typeof shape.label === "string") normalized.label = shape.label;
+
+        return normalized;
+      };
+
+      const rawShapeSource = Array.isArray(data?.shapes)
+        ? data.shapes
+        : Array.isArray(data?.dimension_candidates)
+          ? data.dimension_candidates
+          : [];
+      const shapes = rawShapeSource
+        .map((shape: any, idx: number) => normalizeShape(shape, idx))
+        .filter((shape): shape is DetectionShape => !!shape);
 
       const predictions = (data?.detections || []).map((d: any, idx: number) => {
         const x1 = Number(d?.bbox?.x1 ?? 0);
@@ -52,6 +91,9 @@ export default function useImageDetect() {
         total_detections: data?.total_detections ?? predictions.length,
         object_counts: data?.object_counts ?? {},
         predictions,
+        shapes,
+        dimension_candidates: Array.isArray(data?.dimension_candidates) ? data.dimension_candidates : undefined,
+        dimension_calibration: data?.dimension_calibration ?? null,
       };
 
       return transformed;

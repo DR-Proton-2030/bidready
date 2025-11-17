@@ -76,6 +76,7 @@ export default function FullScreenImageViewer({
   });
   const [showDetections, setShowDetections] = useState(true);
   const [showElectrical, setShowElectrical] = useState(false);
+  const [showDimensions, setShowDimensions] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(
     new Set()
   );
@@ -199,6 +200,7 @@ export default function FullScreenImageViewer({
     setCurrentBox(null);
     setShowClassSelector(false);
     setPendingAnnotation(null);
+    setShowDimensions(false); // Reset dimensions on image change
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
@@ -978,8 +980,8 @@ export default function FullScreenImageViewer({
         console.error("onDetectionsChange error:", e);
       }
     }
-    // We intentionally list userAnnotations and detectionResults to trigger updates
-  }, [currentImage?.id, onDetectionsChange, userAnnotations, detectionResults, selectedClasses, dismissedDetections]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentImage?.id, userAnnotations, detectionResults, selectedClasses, dismissedDetections]);
 
   // Export: draw base image + overlay to canvas, embed into PDF, download; also allow CSV export
   const handleExportPdf = async () => {
@@ -1169,6 +1171,20 @@ export default function FullScreenImageViewer({
             </button>
 
             <button
+              onClick={() => setShowDimensions((s) => !s)}
+              className={`px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showDimensions ? "bg-purple-500 text-white" : "bg-gray-700 text-white"}`}
+              title={showDimensions ? "Hide Dimensions" : "Show Dimensions"}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 3h18v18H3z" />
+                <path d="M9 3v18" />
+                <path d="M15 3v18" />
+                <path d="M3 9h18" />
+                <path d="M3 15h18" />
+              </svg>
+            </button>
+
+            <button
               onClick={onClose}
               className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
               title="Close Viewer"
@@ -1272,6 +1288,32 @@ export default function FullScreenImageViewer({
             }}
             draggable={false}
           />
+
+          {/* Dimension Shapes Overlay */}
+          {showDimensions && detectionResults?.shapes && imageDimensions.width > 0 && (
+            <svg
+              className="absolute top-0 left-0 pointer-events-none"
+              style={{
+                width: "100%",
+                height: "100%",
+                transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+              }}
+              viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {detectionResults.shapes.map((shape: any, idx: number) => (
+                <path
+                  key={`dim-shape-${idx}`}
+                  d={shape.path}
+                  fill={shape.color || "#00ff00"}
+                  fillOpacity={1.25}
+                  stroke={shape.color || "#00ff00"}
+                  strokeWidth={3}
+                  strokeOpacity={1}
+                />
+              ))}
+            </svg>
+          )}
 
           {/* Detection Overlay */}
           {imageDimensions.width > 0 && (
