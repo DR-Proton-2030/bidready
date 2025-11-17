@@ -170,7 +170,7 @@ const BluePrintDetection = ({ id: propId }: any) => {
           params: {
             api_key: "ShBtUdx8mVaP10M9vPB9",
             image: imageUrl,
-            confidence: 20,
+            confidence: 5,
             overlap: 30
           },
         });

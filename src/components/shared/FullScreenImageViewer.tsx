@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   X,
   ChevronLeft,
@@ -1194,33 +1194,33 @@ export default function FullScreenImageViewer({
               Reset
             </button>
 
-            <button
+            {/* <button
               onClick={handleExportPdf}
               className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
               title="Export PDF"
             >
               <DownloadCloud size={18} />
-            </button>
+            </button> */}
 
             <button
               onClick={handleExportCsv}
-              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
               title="Export Annotations CSV"
             >
-              <Download size={18} />
+              <Download size={18} /> Download Csv
             </button>
 
             <button
               onClick={() => setShowElectrical((s) => !s)}
-              className={`px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showElectrical ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}`}
+              className={`px-3 py-2 flex justify-center items-center gap-2 rounded text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showElectrical ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}`}
               title={showElectrical ? "Hide Electrical Detections" : "Show Electrical Detections"}
             >
-              <Zap size={16} />
+              <Zap size={16} /> Electrical Detection
             </button>
 
             <button
               onClick={() => setShowDimensions((s) => !s)}
-              className={`px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showDimensions ? "bg-purple-500 text-white" : "bg-gray-700 text-white"}`}
+              className={`px-3 py-2 flex justify-center items-center gap-2 rounded text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showDimensions ? "bg-purple-500 text-white" : "bg-gray-700 text-white"}`}
               title={showDimensions ? "Hide Dimensions" : "Show Dimensions"}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1230,14 +1230,15 @@ export default function FullScreenImageViewer({
                 <path d="M3 9h18" />
                 <path d="M3 15h18" />
               </svg>
+              Show Dimentions
             </button>
 
             <button
               onClick={onClose}
-              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
+              className="px-3 py-2 flex justify-center items-center gap-2 rounded text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
               title="Close Viewer"
             >
-              <Save size={18} />
+              <Save size={18} /> Save Edits
             </button>
 
             {/* Polygon finish/cancel controls */}
