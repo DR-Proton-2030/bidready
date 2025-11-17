@@ -36,6 +36,20 @@ interface Detection {
   id: string;
   // optional polygon points (in image pixel coords)
   points?: Array<{ x: number; y: number }>;
+  meta?: Record<string, any>;
+}
+
+type MeasurementPoint = { x: number; y: number };
+
+interface MeasurementOverlay {
+  id: string;
+  start: MeasurementPoint;
+  end: MeasurementPoint;
+  lengthPx: number;
+  value: number;
+  unit: string;
+  label: string;
+  hasCalibration: boolean;
 }
 
 interface FullScreenImageViewerProps {
@@ -52,6 +66,13 @@ interface FullScreenImageViewerProps {
 const areaFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
+
+const lengthFormatter = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 2,
+});
+
+const measurementColor = "#38bdf8";
+const measurementDraftColor = "#60a5fa";
 
 export default function FullScreenImageViewer({
   images,
@@ -100,7 +121,13 @@ export default function FullScreenImageViewer({
   const [activeTool, setActiveTool] = useState("select");
   const [showGrid, setShowGrid] = useState(false);
   const [annotations, setAnnotations] = useState<any[]>([]);
-  const [measurements, setMeasurements] = useState<any[]>([]);
+  const [measurements, setMeasurements] = useState<MeasurementOverlay[]>([]);
+  const [measurementDraft, setMeasurementDraft] = useState<{
+    id: string;
+    start: MeasurementPoint;
+    end: MeasurementPoint;
+  } | null>(null);
+  const [isMeasuring, setIsMeasuring] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [newClassName, setNewClassName] = useState("");
@@ -122,6 +149,181 @@ export default function FullScreenImageViewer({
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
   const snackbarTimerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const calibrationInfo = useMemo(() => {
+    const cal = detectionResults?.dimension_calibration;
+    if (!cal || typeof cal !== "object") return null;
+    if (typeof cal.error === "string" && cal.error.length > 0) return null;
+
+    const unit =
+      (typeof cal.unit === "string" && cal.unit) ||
+      (typeof cal.units === "string" && cal.units) ||
+      (typeof cal.unit_name === "string" && cal.unit_name) ||
+      (typeof cal.measurement_unit === "string" && cal.measurement_unit) ||
+      (typeof cal.display_unit === "string" && cal.display_unit) ||
+      "units";
+
+    const numeric = (value: unknown) =>
+      typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+
+    let pixelsPerUnit =
+      numeric((cal as any).pixels_per_unit) ??
+      numeric((cal as any).px_per_unit) ??
+      numeric((cal as any).pixel_per_unit) ??
+      numeric((cal as any).pixelsPerUnit) ??
+      numeric((cal as any).pixelPerUnit) ??
+      null;
+
+    let unitsPerPixel =
+      numeric((cal as any).unit_per_pixel) ??
+      numeric((cal as any).units_per_pixel) ??
+      numeric((cal as any).unitPerPixel) ??
+      numeric((cal as any).unitsPerPixel) ??
+      null;
+
+    if (!unitsPerPixel && pixelsPerUnit) {
+      unitsPerPixel = 1 / pixelsPerUnit;
+    }
+
+    if (!unitsPerPixel && cal.reference && typeof cal.reference === "object") {
+      const ref: any = cal.reference;
+      const pixelDistance =
+        numeric(ref.pixels) ??
+        numeric(ref.pixel_distance) ??
+        numeric(ref.pixelLength) ??
+        numeric(ref.pixel_value) ??
+        null;
+      const realDistance =
+        numeric(ref.real) ??
+        numeric(ref.units) ??
+        numeric(ref.real_distance) ??
+        numeric(ref.realLength) ??
+        numeric(ref.value) ??
+        null;
+      if (pixelDistance && realDistance) {
+        unitsPerPixel = realDistance / pixelDistance;
+      }
+    }
+
+    if (!unitsPerPixel && Array.isArray((cal as any).references)) {
+      const refCandidate = (cal as any).references.find((entry: any) => {
+        const pixelDistance = numeric(entry?.pixels);
+        const realDistance = numeric(entry?.real);
+        return pixelDistance && realDistance;
+      });
+      if (refCandidate) {
+        unitsPerPixel =
+          numeric(refCandidate.real) && numeric(refCandidate.pixels)
+            ? (refCandidate.real as number) / (refCandidate.pixels as number)
+            : null;
+      }
+    }
+
+    if (!unitsPerPixel && numeric((cal as any).scale)) {
+      const scaleValue = numeric((cal as any).scale);
+      if (scaleValue) {
+        // Assume scale denotes real-world units per pixel when value < 10, otherwise treat as pixels per unit
+        unitsPerPixel = scaleValue <= 10 ? scaleValue : 1 / scaleValue;
+      }
+    }
+
+    if (!unitsPerPixel || !Number.isFinite(unitsPerPixel) || unitsPerPixel <= 0) {
+      return null;
+    }
+
+    return {
+      unit,
+      unitsPerPixel,
+      pixelsPerUnit: 1 / unitsPerPixel,
+    } as const;
+  }, [detectionResults?.dimension_calibration]);
+
+  const convertPixelDistance = useCallback(
+    (pixels: number) => {
+      const absolutePixels = Math.abs(pixels);
+      if (!calibrationInfo) {
+        const formatted = `${lengthFormatter.format(absolutePixels)} px`;
+        return {
+          value: absolutePixels,
+          unit: "px",
+          formatted,
+          hasCalibration: false,
+        } as const;
+      }
+
+      const value = absolutePixels * calibrationInfo.unitsPerPixel;
+      const formatted = `${lengthFormatter.format(value)} ${calibrationInfo.unit}`;
+      return {
+        value,
+        unit: calibrationInfo.unit,
+        formatted,
+        hasCalibration: true,
+      } as const;
+    },
+    [calibrationInfo]
+  );
+
+  const convertPixelArea = useCallback(
+    (pixelArea: number) => {
+      const absoluteArea = Math.abs(pixelArea);
+      if (!calibrationInfo) {
+        const formatted = `${areaFormatter.format(absoluteArea)} px²`;
+        return {
+          value: absoluteArea,
+          unit: "px²",
+          formatted,
+          hasCalibration: false,
+        } as const;
+      }
+
+      const value =
+        absoluteArea * calibrationInfo.unitsPerPixel * calibrationInfo.unitsPerPixel;
+      const unit = `${calibrationInfo.unit}²`;
+      const formatted = `${areaFormatter.format(value)} ${unit}`;
+      return {
+        value,
+        unit,
+        formatted,
+        hasCalibration: true,
+      } as const;
+    },
+    [calibrationInfo]
+  );
+
+  const computePolygonArea = useCallback((points: MeasurementPoint[]) => {
+    if (!points || points.length < 3) return 0;
+    let sum = 0;
+    for (let i = 0; i < points.length; i += 1) {
+      const current = points[i];
+      const next = points[(i + 1) % points.length];
+      sum += current.x * next.y - next.x * current.y;
+    }
+    return Math.abs(sum) / 2;
+  }, []);
+
+  const computePolygonCentroid = useCallback((points: MeasurementPoint[]) => {
+    if (!points || points.length === 0) return { x: 0, y: 0 };
+    let signedArea = 0;
+    let cx = 0;
+    let cy = 0;
+    for (let i = 0; i < points.length; i += 1) {
+      const current = points[i];
+      const next = points[(i + 1) % points.length];
+      const cross = current.x * next.y - next.x * current.y;
+      signedArea += cross;
+      cx += (current.x + next.x) * cross;
+      cy += (current.y + next.y) * cross;
+    }
+    signedArea *= 0.5;
+    if (Math.abs(signedArea) < 1e-6) {
+      return points[0];
+    }
+    const factor = 1 / (6 * signedArea);
+    return {
+      x: cx * factor,
+      y: cy * factor,
+    };
+  }, []);
 
   const showUndoSnackbar = (message = "Removed. Undo?") => {
     setSnackbar({ visible: true, message });
@@ -219,6 +421,9 @@ export default function FullScreenImageViewer({
     setShowDimensions(false); // Reset dimensions on image change
     setHoveredShapeId(null);
     setShapeTooltip(null);
+    setMeasurements([]);
+    setMeasurementDraft(null);
+    setIsMeasuring(false);
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
@@ -232,6 +437,68 @@ export default function FullScreenImageViewer({
       setShapeTooltip(null);
     }
   }, [showDimensions]);
+
+  useEffect(() => {
+    if (activeTool !== "linear" && activeTool !== "measure") {
+      setIsMeasuring(false);
+      setMeasurementDraft(null);
+    }
+  }, [activeTool]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setIsMeasuring(false);
+      setMeasurementDraft(null);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    setMeasurements((prev) =>
+      prev.map((measurement) => {
+        const conversion = convertPixelDistance(measurement.lengthPx);
+        if (
+          conversion.formatted === measurement.label &&
+          conversion.unit === measurement.unit &&
+          conversion.hasCalibration === measurement.hasCalibration
+        ) {
+          return measurement;
+        }
+        return {
+          ...measurement,
+          value: conversion.value,
+          unit: conversion.unit,
+          label: conversion.formatted,
+          hasCalibration: conversion.hasCalibration,
+        };
+      })
+    );
+  }, [convertPixelDistance]);
+
+  useEffect(() => {
+    if (userAnnotations.length === 0) return;
+    setUserAnnotations((prev) =>
+      prev.map((annotation) => {
+        if (!annotation.points || annotation.points.length < 3) return annotation;
+        const areaPx = computePolygonArea(annotation.points);
+        const areaInfo = convertPixelArea(areaPx);
+        const centroid =
+          (annotation.meta?.centroid as MeasurementPoint | undefined) ??
+          computePolygonCentroid(annotation.points);
+        return {
+          ...annotation,
+          meta: {
+            ...annotation.meta,
+            areaPx,
+            areaValue: areaInfo.value,
+            areaUnit: areaInfo.unit,
+            areaFormatted: areaInfo.formatted,
+            areaCalibrated: areaInfo.hasCalibration,
+            centroid,
+          },
+        };
+      })
+    );
+  }, [convertPixelArea, computePolygonArea, computePolygonCentroid]);
 
   // Call API when current image changes or viewer opens
   useEffect(() => {
@@ -262,13 +529,30 @@ export default function FullScreenImageViewer({
           color: getColorForClass(pred.class || "Unknown"),
           id: pred.id || `user-annotation-${Date.now()}-${Math.random()}`,
           points: pred.points || undefined,
+          meta:
+            Array.isArray(pred.points) && pred.points.length > 2
+              ? (() => {
+                const pts = pred.points as MeasurementPoint[];
+                const areaPx = computePolygonArea(pts);
+                const areaInfo = convertPixelArea(areaPx);
+                const centroid = computePolygonCentroid(pts);
+                return {
+                  areaPx,
+                  areaValue: areaInfo.value,
+                  areaUnit: areaInfo.unit,
+                  areaFormatted: areaInfo.formatted,
+                  areaCalibrated: areaInfo.hasCalibration,
+                  centroid,
+                };
+              })()
+              : undefined,
         }));
 
       if (userAnns.length > 0) {
         setUserAnnotations(userAnns);
       }
     }
-  }, [detectionResults, currentIndex]);
+  }, [detectionResults, currentIndex, computePolygonArea, convertPixelArea, computePolygonCentroid]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -277,6 +561,12 @@ export default function FullScreenImageViewer({
 
       switch (e.key) {
         case "Escape":
+          if (isMeasuring || measurementDraft) {
+            e.preventDefault();
+            setIsMeasuring(false);
+            setMeasurementDraft(null);
+            return;
+          }
           onClose();
           break;
         case "ArrowLeft":
@@ -298,7 +588,7 @@ export default function FullScreenImageViewer({
           break;
       }
     },
-    [isOpen]
+    [isOpen, isMeasuring, measurementDraft, onClose]
   );
 
   useEffect(() => {
@@ -378,6 +668,52 @@ export default function FullScreenImageViewer({
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (activeTool === "linear" || activeTool === "measure") {
+      const imageRect = e.currentTarget.getBoundingClientRect();
+
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+
+        const x = (e.clientX - imageRect.left) * scaleX;
+        const y = (e.clientY - imageRect.top) * scaleY;
+
+        if (!isMeasuring || !measurementDraft) {
+          const startPoint = { x, y };
+          setMeasurementDraft({
+            id: `measurement-${Date.now()}`,
+            start: startPoint,
+            end: startPoint,
+          });
+          setIsMeasuring(true);
+        } else {
+          const endPoint = { x, y };
+          const dx = endPoint.x - measurementDraft.start.x;
+          const dy = endPoint.y - measurementDraft.start.y;
+          const lengthPx = Math.sqrt(dx * dx + dy * dy);
+
+          if (lengthPx >= 1) {
+            const conversion = convertPixelDistance(lengthPx);
+            const measurement: MeasurementOverlay = {
+              id: measurementDraft.id,
+              start: measurementDraft.start,
+              end: endPoint,
+              lengthPx,
+              value: conversion.value,
+              unit: conversion.unit,
+              label: conversion.formatted,
+              hasCalibration: conversion.hasCalibration,
+            };
+            setMeasurements((prev) => [...prev, measurement]);
+          }
+
+          setMeasurementDraft(null);
+          setIsMeasuring(false);
+        }
+      }
+      return;
+    }
 
     if (activeTool === "annotate") {
       const imageRect = e.currentTarget.getBoundingClientRect();
@@ -474,6 +810,23 @@ export default function FullScreenImageViewer({
           width: Math.abs(currentX - startPoint.x),
           height: Math.abs(currentY - startPoint.y),
         });
+      }
+    } else if ((activeTool === "linear" || activeTool === "measure") && isMeasuring && measurementDraft) {
+      const imageRect = e.currentTarget.getBoundingClientRect();
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+        const x = (e.clientX - imageRect.left) * scaleX;
+        const y = (e.clientY - imageRect.top) * scaleY;
+
+        setMeasurementDraft((prev) =>
+          prev
+            ? {
+              ...prev,
+              end: { x, y },
+            }
+            : prev
+        );
       }
     } else if (draggingPointIndex !== null) {
       // move the dragged polygon point
@@ -727,15 +1080,24 @@ export default function FullScreenImageViewer({
     const maxY = Math.max(...ys);
     const width = maxX - minX;
     const height = maxY - minY;
-    const centroidX = xs.reduce((a, b) => a + b, 0) / xs.length;
-    const centroidY = ys.reduce((a, b) => a + b, 0) / ys.length;
+    const centroid = computePolygonCentroid(polygonPoints);
+    const areaPx = computePolygonArea(polygonPoints);
+    const areaInfo = convertPixelArea(areaPx);
 
     const ann = {
-      x: centroidX,
-      y: centroidY,
+      x: centroid.x,
+      y: centroid.y,
       width,
       height,
       points: [...polygonPoints], // Create a copy of the points array
+      meta: {
+        areaPx,
+        areaValue: areaInfo.value,
+        areaUnit: areaInfo.unit,
+        areaFormatted: areaInfo.formatted,
+        areaCalibrated: areaInfo.hasCalibration,
+        centroid,
+      },
     } as any;
 
     setPendingAnnotation(ann);
@@ -1287,7 +1649,10 @@ export default function FullScreenImageViewer({
           }`}
         style={{
           cursor:
-            activeTool === "annotate"
+            activeTool === "annotate" ||
+              activeTool === "polygon" ||
+              activeTool === "linear" ||
+              activeTool === "measure"
               ? "crosshair"
               : activeTool === "erase"
                 ? "pointer"
@@ -1315,7 +1680,10 @@ export default function FullScreenImageViewer({
               transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom
                 }px, ${imagePosition.y / zoom}px)`,
               cursor:
-                activeTool === "annotate"
+                activeTool === "annotate" ||
+                  activeTool === "polygon" ||
+                  activeTool === "linear" ||
+                  activeTool === "measure"
                   ? "crosshair"
                   : zoom > 1
                     ? isDragging
@@ -1447,6 +1815,21 @@ export default function FullScreenImageViewer({
                   const xRect = detection.x - xShift;
                   const yRect = detection.y - yShift;
                   const isSelected = selectedOverlayId === detection.id;
+                  let userPolygonAreaLabel: string | undefined;
+                  let userPolygonCentroid: MeasurementPoint | null = null;
+
+                  if (isUserAnnotation && detection.points && detection.points.length > 2) {
+                    userPolygonAreaLabel =
+                      typeof detection.meta?.areaFormatted === "string"
+                        ? detection.meta.areaFormatted
+                        : typeof detection.meta?.areaLabel === "string"
+                          ? detection.meta.areaLabel
+                          : undefined;
+
+                    userPolygonCentroid =
+                      (detection.meta?.centroid as MeasurementPoint | undefined) ??
+                      computePolygonCentroid(detection.points);
+                  }
 
                   return (
                     <g key={detection.id} style={{ pointerEvents: isUserAnnotation || activeTool === "erase" ? "auto" : "none", cursor: activeTool === "erase" ? "not-allowed" : isUserAnnotation ? "pointer" : "default" }}
@@ -1497,6 +1880,19 @@ export default function FullScreenImageViewer({
                               />
                             </g>
                           ))}
+                          {isUserAnnotation && userPolygonAreaLabel && userPolygonCentroid && (
+                            <text
+                              x={userPolygonCentroid.x}
+                              y={userPolygonCentroid.y}
+                              fill="#f8fafc"
+                              fontSize={14}
+                              fontWeight="bold"
+                              textAnchor="middle"
+                              style={{ paintOrder: 'stroke', stroke: 'rgba(15,23,42,0.85)', strokeWidth: 4 }}
+                            >
+                              {userPolygonAreaLabel}
+                            </text>
+                          )}
                         </>
                       ) : (
                         <>
@@ -1585,6 +1981,112 @@ export default function FullScreenImageViewer({
                   );
                 })}
 
+              {measurements.map((measurement) => {
+                const midX = (measurement.start.x + measurement.end.x) / 2;
+                const midY = (measurement.start.y + measurement.end.y) / 2;
+                return (
+                  <g key={measurement.id} style={{ pointerEvents: 'none' }}>
+                    <line
+                      x1={measurement.start.x}
+                      y1={measurement.start.y}
+                      x2={measurement.end.x}
+                      y2={measurement.end.y}
+                      stroke={measurementColor}
+                      strokeWidth={2.8}
+                      strokeOpacity={0.95}
+                    />
+                    <circle
+                      cx={measurement.start.x}
+                      cy={measurement.start.y}
+                      r={4.2}
+                      fill="#0f172a"
+                      stroke={measurementColor}
+                      strokeWidth={2}
+                    />
+                    <circle
+                      cx={measurement.end.x}
+                      cy={measurement.end.y}
+                      r={4.2}
+                      fill="#0f172a"
+                      stroke={measurementColor}
+                      strokeWidth={2}
+                    />
+                    <text
+                      x={midX}
+                      y={midY - 6}
+                      fill="#f8fafc"
+                      fontSize={13}
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      style={{ paintOrder: 'stroke', stroke: 'rgba(15,23,42,0.9)', strokeWidth: 4 }}
+                    >
+                      {measurement.label}
+                    </text>
+                    {!measurement.hasCalibration && (
+                      <text
+                        x={midX}
+                        y={midY + 10}
+                        fill="rgba(148,163,184,0.8)"
+                        fontSize={10}
+                        textAnchor="middle"
+                      >
+                        Calibration pending
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+
+              {isMeasuring && measurementDraft && (() => {
+                const dx = measurementDraft.end.x - measurementDraft.start.x;
+                const dy = measurementDraft.end.y - measurementDraft.start.y;
+                const lengthPx = Math.sqrt(dx * dx + dy * dy);
+                const conversion = convertPixelDistance(lengthPx);
+                const midX = (measurementDraft.start.x + measurementDraft.end.x) / 2;
+                const midY = (measurementDraft.start.y + measurementDraft.end.y) / 2;
+                return (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <line
+                      x1={measurementDraft.start.x}
+                      y1={measurementDraft.start.y}
+                      x2={measurementDraft.end.x}
+                      y2={measurementDraft.end.y}
+                      stroke={measurementDraftColor}
+                      strokeWidth={2}
+                      strokeDasharray="6 4"
+                      strokeOpacity={0.9}
+                    />
+                    <circle
+                      cx={measurementDraft.start.x}
+                      cy={measurementDraft.start.y}
+                      r={3.8}
+                      fill="white"
+                      stroke={measurementDraftColor}
+                      strokeWidth={2}
+                    />
+                    <circle
+                      cx={measurementDraft.end.x}
+                      cy={measurementDraft.end.y}
+                      r={3.8}
+                      fill="white"
+                      stroke={measurementDraftColor}
+                      strokeWidth={2}
+                    />
+                    <text
+                      x={midX}
+                      y={midY - 6}
+                      fill="#1e293b"
+                      fontSize={12}
+                      fontWeight="bold"
+                      textAnchor="middle"
+                      style={{ paintOrder: 'stroke', stroke: 'rgba(255,255,255,0.85)', strokeWidth: 4 }}
+                    >
+                      {conversion.formatted}
+                    </text>
+                  </g>
+                );
+              })()}
+
               {/* Current drawing box */}
               {currentBox && isDrawing && (
                 <g>
@@ -1611,39 +2113,57 @@ export default function FullScreenImageViewer({
               )}
 
               {/* Polygon in-progress drawing */}
-              {polygonPoints.length > 0 && (
-                <g>
-                  {/* Semi-transparent fill */}
-                  <polygon
-                    points={polygonPoints.map((p) => `${p.x},${p.y}`).join(" ")}
-                    fill="#60a5fa"
-                    fillOpacity={0.2}
-                    stroke="#60a5fa"
-                    strokeWidth={2}
-                    strokeOpacity={0.9}
-                  />
-                  {/* Corner point handles - larger circles with white fill and colored border */}
-                  {polygonPoints.map((p, idx) => (
-                    <g key={idx}>
-                      <circle
-                        cx={p.x}
-                        cy={p.y}
-                        r={8}
-                        fill="white"
-                        stroke="#60a5fa"
-                        strokeWidth={3}
-                        style={{ cursor: 'move' }}
-                      />
-                      <circle
-                        cx={p.x}
-                        cy={p.y}
-                        r={3}
-                        fill="#60a5fa"
-                      />
-                    </g>
-                  ))}
-                </g>
-              )}
+              {polygonPoints.length > 0 && (() => {
+                const liveAreaPx = computePolygonArea(polygonPoints);
+                const liveInfo = convertPixelArea(liveAreaPx);
+                const liveCentroid = computePolygonCentroid(polygonPoints);
+                return (
+                  <g>
+                    {/* Semi-transparent fill */}
+                    <polygon
+                      points={polygonPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+                      fill="#60a5fa"
+                      fillOpacity={0.2}
+                      stroke="#60a5fa"
+                      strokeWidth={2}
+                      strokeOpacity={0.9}
+                    />
+                    {/* Corner point handles - larger circles with white fill and colored border */}
+                    {polygonPoints.map((p, idx) => (
+                      <g key={idx}>
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r={8}
+                          fill="white"
+                          stroke="#60a5fa"
+                          strokeWidth={3}
+                          style={{ cursor: 'move' }}
+                        />
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r={3}
+                          fill="#60a5fa"
+                        />
+                      </g>
+                    ))}
+                    {polygonPoints.length > 2 && (
+                      <text
+                        x={liveCentroid.x}
+                        y={liveCentroid.y}
+                        fill="#0f172a"
+                        fontSize={13}
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        style={{ paintOrder: 'stroke', stroke: 'rgba(248,250,252,0.85)', strokeWidth: 4 }}
+                      >
+                        {liveInfo.formatted}
+                      </text>
+                    )}
+                  </g>
+                );
+              })()}
 
               {/* Debug: Show if we're in drawing mode */}
               {isDrawing && (
