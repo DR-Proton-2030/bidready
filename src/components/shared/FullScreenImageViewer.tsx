@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   X,
   ChevronLeft,
@@ -82,6 +82,16 @@ export default function FullScreenImageViewer({
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
+  const [shapeTooltip, setShapeTooltip] = useState<
+    | {
+      x: number;
+      y: number;
+      name: string;
+      area?: string;
+      color: string;
+    }
+    | null
+  >(null);
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(
     new Set()
   );
@@ -110,7 +120,8 @@ export default function FullScreenImageViewer({
   type UndoAction = { kind: "user" | "api"; id: string; payload?: Detection };
   const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
-  const snackbarTimerRef = React.useRef<any>(null);
+  const snackbarTimerRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   const showUndoSnackbar = (message = "Removed. Undo?") => {
     setSnackbar({ visible: true, message });
@@ -206,12 +217,21 @@ export default function FullScreenImageViewer({
     setShowClassSelector(false);
     setPendingAnnotation(null);
     setShowDimensions(false); // Reset dimensions on image change
+    setHoveredShapeId(null);
+    setShapeTooltip(null);
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
   useEffect(() => {
     setCurrentIndex(initialIndex);
   }, [initialIndex]);
+
+  useEffect(() => {
+    if (!showDimensions) {
+      setHoveredShapeId(null);
+      setShapeTooltip(null);
+    }
+  }, [showDimensions]);
 
   // Call API when current image changes or viewer opens
   useEffect(() => {
@@ -513,6 +533,29 @@ export default function FullScreenImageViewer({
       setEditingAnnotationId(null);
     }
   };
+
+  const updateShapeTooltip = useCallback(
+    (
+      event: React.MouseEvent<SVGPathElement, MouseEvent>,
+      name: string,
+      areaText: string | undefined,
+      color: string
+    ) => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const pointerX = event.clientX - rect.left;
+      const pointerY = event.clientY - rect.top;
+
+      setShapeTooltip({
+        x: pointerX,
+        y: pointerY,
+        name,
+        area: areaText,
+        color,
+      });
+    },
+    []
+  );
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -1255,6 +1298,7 @@ export default function FullScreenImageViewer({
         }}
       >
         <div
+          ref={containerRef}
           className="relative"
           onMouseDown={activeTool !== "annotate" ? handleMouseDown : undefined}
           onMouseMove={activeTool !== "annotate" ? handleMouseMove : undefined}
@@ -1306,6 +1350,10 @@ export default function FullScreenImageViewer({
               }}
               viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
               preserveAspectRatio="xMidYMid meet"
+              onMouseLeave={() => {
+                setHoveredShapeId(null);
+                setShapeTooltip(null);
+              }}
             >
               {detectionResults.shapes.map((shape: any, idx: number) => {
                 const fillColor = shape.color || "#00ff00";
@@ -1317,6 +1365,10 @@ export default function FullScreenImageViewer({
                 const areaLabel = typeof numericArea === "number"
                   ? `${areaFormatter.format(numericArea)} sq units`
                   : undefined;
+                const displayName =
+                  typeof shape.label === "string" && shape.label.trim()
+                    ? shape.label
+                    : `Dimension ${idx + 1}`;
                 const shapeId = String(shape.id ?? `dim-shape-${idx}`);
                 const isHovered = hoveredShapeId === shapeId;
 
@@ -1329,9 +1381,20 @@ export default function FullScreenImageViewer({
                     stroke={fillColor}
                     strokeWidth={isHovered ? 3 : 2}
                     strokeOpacity={isHovered ? 1 : 0.85}
-                    style={{ pointerEvents: "visiblePainted", cursor: areaLabel ? "help" : "default", transition: "fill-opacity 120ms ease, stroke-opacity 120ms ease, stroke-width 120ms ease" }}
-                    onMouseEnter={() => setHoveredShapeId(shapeId)}
-                    onMouseLeave={() => setHoveredShapeId((prev) => (prev === shapeId ? null : prev))}
+                    style={{ pointerEvents: "visiblePainted", cursor: areaLabel ? "crosshair" : "pointer", transition: "fill-opacity 120ms ease, stroke-opacity 120ms ease, stroke-width 120ms ease" }}
+                    onMouseEnter={(event) => {
+                      setHoveredShapeId(shapeId);
+                      updateShapeTooltip(event, displayName, areaLabel, fillColor);
+                    }}
+                    onMouseMove={(event) => {
+                      if (hoveredShapeId === shapeId) {
+                        updateShapeTooltip(event, displayName, areaLabel, fillColor);
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredShapeId((prev) => (prev === shapeId ? null : prev));
+                      setShapeTooltip(null);
+                    }}
                     aria-label={areaLabel ? `Dimension shape with area ${areaLabel}` : undefined}
                   >
                     {areaLabel && <title>{`Area: ${areaLabel}`}</title>}
@@ -1591,6 +1654,51 @@ export default function FullScreenImageViewer({
           )}
         </div>
       </div>
+
+      {shapeTooltip && showDimensions && (
+        <div
+          className="pointer-events-none absolute z-[55] flex min-w-[160px] max-w-[200px] flex-col gap-2 rounded-xl border border-white/60 bg-slate-900/90 px-3 py-2 text-white shadow-2xl backdrop-blur"
+          style={{
+            left: Math.max(
+              12,
+              Math.min(
+                shapeTooltip.x + 18,
+                (containerRef.current?.clientWidth ?? 0) - 200
+              )
+            ),
+            top: Math.max(
+              12,
+              Math.min(
+                shapeTooltip.y + 18,
+                (containerRef.current?.clientHeight ?? 0) - 120
+              )
+            ),
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: shapeTooltip.color }}
+            />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+              {shapeTooltip.name}
+            </span>
+          </div>
+          {shapeTooltip.area ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-200">Area</span>
+              <span className="font-bold" style={{ color: shapeTooltip.color }}>
+                {shapeTooltip.area}
+              </span>
+            </div>
+          ) : (
+            <span className="text-[11px] text-slate-400">Area unavailable</span>
+          )}
+          <span className="text-[10px] uppercase tracking-wide text-slate-500">
+            Hover for live values
+          </span>
+        </div>
+      )}
 
       {/* Image Counter */}
       {images.length > 1 && (
