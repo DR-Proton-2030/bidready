@@ -29,9 +29,8 @@ const OverviewPanel: React.FC<Props> = ({
 }) => {
   return (
     <div
-      className={`w-[35%] border-l-2 border-gray-200 bg-white transition-colors ${
-        isDragOver ? "bg-blue-50" : "bg-white"
-      }`}
+      className={`w-[35%] border-2 pb-5 border-white/80 bg-white/50 backdrop-blur-xl transition-colors ${isDragOver ? "bg-blue-50" : "bg-white"
+        }`}
       onDragOver={(e) => {
         e.preventDefault();
         setIsDragOver(true);
@@ -46,21 +45,21 @@ const OverviewPanel: React.FC<Props> = ({
       }}
     >
       {selected ? (
-        <div className="h-full p-4 flex flex-col">
+        <div className="h-full p-4 flex flex-col mb-10">
           <h3 className="text-base font-semibold mb-3">Preview</h3>
-          <div className="flex-1 overflow-auto rounded-lg border-2 border-gray-200">
+          <div className="flex-1 overflow-auto rounded-lg border-2 bg-white border-gray-200">
             <img src={selected.url ?? ""} alt="" className="w-full h-full object-contain" />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
             <button
-              className="py-2 bg-blue-600 rounded text-white font-medium hover:bg-blue-700"
+              className="py-3 rounded-full border-4 border-white/80 bg-orange-500/80 backdrop-blur-xl text-md text-white shadow-sm font-medium hover:bg-blue-700"
               onClick={() => toggleSelect(selected.id)}
             >
               {selectedIds.has(selected.id) ? "Unselect" : "Select"}
             </button>
             {selected?.url && (
               <button
-                className={`py-2 rounded text-white font-medium ${detecting ? 'bg-gray-300' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                className={`py-3 rounded-full border-4 border-white/80 text-white font-medium ${detecting ? 'bg-gray-300' : 'bg-black/70 -600 hover:bg-indigo-700'}`}
                 onClick={() => onDetect?.(selected.url ?? "")}
                 title={hasCachedDetection ? 'View detection (cached)' : 'Run detection on this image'}
                 disabled={detecting}
@@ -69,12 +68,12 @@ const OverviewPanel: React.FC<Props> = ({
                 {hasCachedDetection ? 'View detection' : (detecting ? 'Detecting...' : 'Detect')}
               </button>
             )}
-            <button
+            {/* <button
               className="py-2 rounded text-white font-medium bg-red-600 hover:bg-red-700"
               onClick={() => handleDelete(selected.id)}
             >
               Delete
-            </button>
+            </button> */}
           </div>
         </div>
       ) : (

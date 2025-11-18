@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
 import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
 import useBulkDetectionsUpload from "@/hooks/useBulkDetectionsUpload";
-import { Trash, Trash2, Trash2Icon } from "lucide-react";
+import { Save, Trash, Trash2, Trash2Icon } from "lucide-react";
 import ImageCard from "../../shared/imagecard/ImageCard";
 import OverviewPanel from "@/components/shared/overviewPanel/OverviewPanel";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
@@ -228,23 +228,29 @@ const BluePrintDetection = ({ id: propId }: any) => {
   };
 
   return (
-    <div className="flex h-[92vh]  overflow-hidden bg-white">
-      <div className="flex-1 p-8 overflow-y-auto">
-        <div className="flex items-center justify-between mb-10 border-b-2 border-gray-200 pb-4">
+    <div className="flex h-[92vh]  overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
+      <div className="flex-1 p-8 overflow-y-auto ">
+        <div className="flex items-center justify-between rounded-3xl border-2 border-white/80 bg-white/50 backdrop-blur-xl p-6 shadow-sm mb-8 ">
           {/* Left side */}
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">AI Blueprint Detection</h1>
             <p className="text-sm text-gray-500">
               Managing blueprint sheets & takeoff images
             </p>
+
           </div>
 
           {/* Right side */}
           <div className="flex items-center space-x-3">
-            <span className="text-sm text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
-              Selected: {selectedIds.size}
-            </span>
 
+            {selectedIds.size > 0 && (
+              <button
+                className="text-md px-3 py-1.5 rounded-full bg-white/60 shadow duration-300 text-red-600 hover:bg-red-50"
+                onClick={clearSelection}
+              >
+                Clear
+              </button>
+            )}
             <button
               onClick={() => {
                 const allSelected = images.length > 0 && images.every((it) => selectedIds.has(it.id));
@@ -256,47 +262,41 @@ const BluePrintDetection = ({ id: propId }: any) => {
                 }
               }}
               disabled={images.length === 0}
-              className={`text-sm px-3 py-1.5 rounded-md border ${images.length === 0
+              className={`text-md px-3 py-1.5 rounded-full bg-white/60 shadow duration-300 -200 ${images.length === 0
                 ? "text-gray-300 border-gray-200"
-                : "text-blue-600 border-blue-200 hover:bg-blue-50"
+                : "text-gray-500 border-blue-200 hover:bg-green-600 hover:text-white"
                 }`}
             >
               {images.length > 0 && images.every((it) => selectedIds.has(it.id))
-                ? "Unselect All"
+                ? "Clear All"
                 : "Select All"}
             </button>
 
-            {selectedIds.size > 0 && (
-              <button
-                className="text-sm px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50"
-                onClick={clearSelection}
-              >
-                Clear
-              </button>
-            )}
+
 
             <button
               disabled={selectedIds.size === 0 || processing}
               onClick={handleProcessSelected}
-              className={`text-sm px-3 py-1.5 rounded-md font-medium ${selectedIds.size === 0 || processing
-                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                : "bg-green-600 text-white hover:bg-green-700"
+              className={`text-md px-3 py-1.5 rounded-full bg-white/60 shadow duration-300 ${selectedIds.size === 0 || processing
+                ? "text-gray-500 bg-gray-200 text-gray-400 cursor-not-allowed"
+                : "text-gray-500 bg-green-600  hover:bg-green-700 hover:text-white"
                 }`}
             >
               {processing ? `Processing ${processedCount}/${selectedIds.size}` : "Process"}
             </button>
-            <button
+            {/* <button
               onClick={() => router.back()}
               className={`text-sm px-3 py-1.5 rounded-md font-medium ml-2 border bg-gray-50 text-gray-700 hover:bg-gray-100`}
             >
               Back
-            </button>
+            </button> */}
             <button
               disabled={detectedKeys.size === 0}
               onClick={handleSaveDetected}
-              className={`text-sm px-3 py-1.5 rounded-md font-medium ml-2 border ${detectedKeys.size === 0 ? "text-gray-400 border-gray-200 bg-gray-100" : "text-blue-600 border-blue-200 hover:bg-blue-50"
+              className={`text-md flex gap-1 justify-center items-center px-5 py-1.5 rounded-full font-medium border ${detectedKeys.size === 0 ? "text-white border-gray-200 bg-green-700/20" : "text-white bg-green-700 hover:bg-green-500"
                 }`}
             >
+              <Save size={18} />
               Save
             </button>
           </div>

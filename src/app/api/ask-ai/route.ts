@@ -13,6 +13,15 @@ type OpenAIMessage = {
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
 const DEFAULT_MODEL = process.env.OPENAI_ASSISTANT_MODEL ?? "gpt-4.1-mini";
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const toFiniteNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
+
+const truncateText = (text: string, maxLength: number) =>
+  text.length <= maxLength ? text : `${text.slice(0, maxLength)}…`;
+
 const sanitizeForPrompt = (payload: unknown, maxLength = 6000): string => {
   if (!payload) return "";
   try {
@@ -28,6 +37,139 @@ const sanitizeForPrompt = (payload: unknown, maxLength = 6000): string => {
   } catch {
     return "";
   }
+};
+
+const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
+  if (!isRecord(context)) return "";
+
+  const ctx = context as Record<string, unknown>;
+  const stats = isRecord(ctx.stats) ? (ctx.stats as Record<string, unknown>) : undefined;
+  const predictions = Array.isArray(ctx.predictions) ? ctx.predictions : [];
+  const shapes = Array.isArray(ctx.dimensionShapes) ? ctx.dimensionShapes : [];
+  const annotations = Array.isArray(ctx.userAnnotations) ? ctx.userAnnotations : [];
+  const measurements = Array.isArray(ctx.measurements) ? ctx.measurements : [];
+
+  const totalDetections =
+    toFiniteNumber(stats?.totalPredictions) ?? (predictions.length ? predictions.length : undefined);
+  const totalAnnotations =
+    toFiniteNumber(stats?.totalUserAnnotations) ?? (annotations.length ? annotations.length : undefined);
+  const totalMeasurements =
+    toFiniteNumber(stats?.totalMeasurements) ?? (measurements.length ? measurements.length : undefined);
+
+  const lines: string[] = [];
+
+  if (
+    typeof totalDetections === "number" ||
+    typeof totalAnnotations === "number" ||
+    typeof totalMeasurements === "number"
+  ) {
+    lines.push(
+      `Overall counts → detections: ${totalDetections ?? "n/a"}, annotations: ${
+        totalAnnotations ?? "n/a"
+      }, measurements: ${totalMeasurements ?? "n/a"}.`
+    );
+  }
+
+  const classBreakdown = stats && isRecord(stats.classBreakdown)
+    ? (stats.classBreakdown as Record<string, unknown>)
+    : undefined;
+  if (classBreakdown) {
+    const sorted = Object.entries(classBreakdown)
+      .filter(([, count]) => typeof count === "number" && count > 0)
+      .sort((a, b) => (b[1] as number) - (a[1] as number))
+      .slice(0, 6)
+      .map(([label, count]) => {
+        const percent =
+          typeof totalDetections === "number" && totalDetections > 0
+            ? ` (${(((count as number) / totalDetections) * 100).toFixed(1)}%)`
+            : "";
+        return `${label}: ${count}${percent}`;
+      });
+    if (sorted.length) {
+      lines.push(`Top classes → ${sorted.join(", ")}.`);
+    }
+  }
+
+  if (predictions.length) {
+    const confidences = predictions
+      .map((prediction) => (isRecord(prediction) ? toFiniteNumber(prediction.confidence) : undefined))
+      .filter((value): value is number => typeof value === "number");
+    if (confidences.length) {
+      const avgConfidence =
+        confidences.reduce((sum, confidence) => sum + confidence, 0) / confidences.length;
+      lines.push(`Average AI confidence: ${(avgConfidence * 100).toFixed(1)}%.`);
+    }
+
+    const samples = predictions
+      .slice(0, 4)
+      .map((prediction) => {
+        if (!isRecord(prediction)) return "";
+        const label = typeof prediction.label === "string" ? prediction.label : "item";
+        const confidence = toFiniteNumber(prediction.confidence);
+        const source = typeof prediction.source === "string" ? prediction.source : undefined;
+        const confidenceText = confidence ? `${(confidence * 100).toFixed(0)}%` : "";
+        return `${label}${confidenceText ? ` (${confidenceText})` : ""}${source ? ` · ${source}` : ""}`;
+      })
+      .filter(Boolean);
+
+    if (samples.length) {
+      lines.push(`Sample detections → ${samples.join(", ")}.`);
+    }
+  }
+
+  if (shapes.length) {
+    const shapeSummary = shapes
+      .slice(0, 3)
+      .map((shape) => {
+        if (!isRecord(shape)) return "shape";
+        const type = typeof shape.type === "string" ? shape.type : "shape";
+        const area = toFiniteNumber(shape.area);
+        return area ? `${type} area ${area}` : type;
+      });
+    lines.push(
+      `Dimension shapes captured (${shapes.length} total) → ${shapeSummary.join(", ")}. Values are raw drawing units unless calibration is provided.`
+    );
+  }
+
+  if (annotations.length) {
+    const annotationLabels = annotations
+      .map((annotation) => (isRecord(annotation) && typeof annotation.label === "string" ? annotation.label : null))
+      .filter((label): label is string => Boolean(label))
+      .slice(0, 5);
+
+    lines.push(
+      `User annotations (${annotations.length}) → ${annotationLabels.length ? annotationLabels.join(", ") : "labels not provided"}.`
+    );
+  }
+
+  if (measurements.length) {
+    lines.push(`Measurements stored: ${measurements.length}.`);
+  }
+
+  if (isRecord(ctx.calibration)) {
+    const calibration = ctx.calibration as Record<string, unknown>;
+    const scale = toFiniteNumber(calibration.scale);
+    const ref = toFiniteNumber(calibration.referenceLength ?? calibration.reference);
+    const units =
+      typeof calibration.units === "string"
+        ? calibration.units
+        : typeof calibration.unit === "string"
+        ? calibration.unit
+        : undefined;
+
+    const calibrationParts = [];
+    if (scale) calibrationParts.push(`scale ${scale}`);
+    if (ref) calibrationParts.push(`ref length ${ref}`);
+    if (units) calibrationParts.push(`units ${units}`);
+    lines.push(
+      calibrationParts.length
+        ? `Calibration metadata detected → ${calibrationParts.join(", ")}.`
+        : "Calibration metadata detected (fields unspecified)."
+    );
+  }
+
+  if (!lines.length) return "";
+  return truncateText(lines.join("\n"), maxLength);
 };
 
 const normalizeHistory = (history: unknown): ChatHistoryEntry[] => {
@@ -67,21 +209,22 @@ export async function POST(request: NextRequest) {
     }
 
     const sanitizedContext = sanitizeForPrompt(detectionContext);
+    const structuredContext = buildDetectionBrief(detectionContext);
     const conversationHistory = normalizeHistory(history);
 
     const systemMessageParts = [
-      "You are BidReady's AI assistant specialised in blueprint detection review.",
-      "Summarise detections, flag risks, and propose next steps in a professional tone.",
-      "Highlight counts, class breakdowns, calibration insights, and measurement observations when available.",
-      "Limit responses to 220 words and prefer structured bullet points for clarity.",
+      "You are BidReady Copilot, a senior construction estimator and building-science analyst.",
+      "Use the detection context to answer questions about the current blueprint: quantify trades, recommend scopes of work, flag data risks, and outline next actions.",
+      "Always explain calculations (counts, ratios, take-off assumptions) so the user can follow the math.",
+      "Limit responses to ~220 words, favour short sections or bullets, and explicitly note any missing data or assumptions.",
     ];
 
     if (typeof imageName === "string" && imageName.trim()) {
       systemMessageParts.push(`The current blueprint file is named \"${imageName.trim()}\".`);
     }
 
-    if (sanitizedContext) {
-      systemMessageParts.push("You will receive a JSON payload containing detection data for reference.");
+    if (structuredContext || sanitizedContext) {
+      systemMessageParts.push("A structured detection summary and raw JSON payload will follow with each user prompt.");
     }
 
     const messages: OpenAIMessage[] = [
@@ -96,8 +239,16 @@ export async function POST(request: NextRequest) {
     ];
 
     const trimmedPrompt = prompt.trim();
-    const userContent = sanitizedContext
-      ? `${trimmedPrompt}\n\nDetection payload (JSON):\n${sanitizedContext}`
+    const contextBlocks: string[] = [];
+    if (structuredContext) {
+      contextBlocks.push(`Structured detection recap:\n${structuredContext}`);
+    }
+    if (sanitizedContext) {
+      contextBlocks.push(`Raw detection payload (JSON):\n${sanitizedContext}`);
+    }
+
+    const userContent = contextBlocks.length
+      ? `${trimmedPrompt}\n\n${contextBlocks.join("\n\n")}`
       : trimmedPrompt;
 
     messages.push({

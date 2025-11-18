@@ -19,6 +19,7 @@ import {
 import RightToolbar from "./RightToolbar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
 import AskAISidePanel from "./AskAISidePanel";
+import AiButton from "./aiButton/AiButton";
 
 interface Image {
   id: string;
@@ -1648,7 +1649,7 @@ export default function FullScreenImageViewer({
   return (
     <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-50 bg-[#1C2931] bg-opacity-50 px-4 py-2">
+      <div className="absolute top-0 left-0 right-0 z-50 bg-[#1C2931] bg-opacity-50 px-4 py-4">
         <div className="flex items-center justify-between text-white">
           <div className="flex-1">
             <h3 className="text-sm font-medium truncate max-w-md">
@@ -1700,25 +1701,21 @@ export default function FullScreenImageViewer({
               <DownloadCloud size={18} />
             </button> */}
 
-            <button
-              onClick={handleExportCsv}
-              className="px-3 py-2 flex justify-center items-center gap-2 rounded text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
-              title="Export Annotations CSV"
-            >
-              <Download size={18} /> Download
-            </button>
 
-            <button
+
+            {/* <button
               onClick={() => setShowElectrical((s) => !s)}
-              className={`px-3 py-2 flex justify-center items-center gap-2 rounded text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showElectrical ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}`}
+              className={`px-5 py-2 flex justify-center  bg-gradient-to-r from-gray-700/60 to-green-800/10 items-center gap-2 text-white/70 hover:bg-green-600/40
+               h-12 px-8 rounded-lg border-2 border-white/10 overflow-hidden transition-all duration-500 group shadow  transition-colors ${showElectrical ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}`}
               title={showElectrical ? "Hide Electrical Detections" : "Show Electrical Detections"}
             >
               <Zap size={16} /> Electrical Detection
-            </button>
+            </button> */}
 
             <button
               onClick={() => setShowDimensions((s) => !s)}
-              className={`px-3 py-2 flex justify-center items-center gap-2 rounded text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showDimensions ? "bg-purple-500 text-white" : "bg-gray-700 text-white"}`}
+              className={`px-5 py- flex justify-center  bg-gradient-to-r from-gray-700/60 to-green-800/10 items-center gap-2 text-white/70 hover:bg-green-600/40
+               h-12 px-8 rounded-lg border-2 border-white/10 overflow-hidden transition-all duration-500 group shadow  transition-colors ${showDimensions ? "bg-purple-500 text-white" : "bg-gray-700 text-white"}`}
               title={showDimensions ? "Hide Dimensions" : "Show Dimensions"}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1731,20 +1728,22 @@ export default function FullScreenImageViewer({
               Show Dimentions
             </button>
 
+            <AiButton onClick={() => setAskAiOpen(true)} />
             <button
-              onClick={() => setAskAiOpen(true)}
-              className="px-3 py-2 flex justify-center items-center gap-2 rounded text-md bg-sky-600 text-white transition-colors hover:bg-sky-500"
-              title="Ask AI about this blueprint"
+              onClick={handleExportCsv}
+              className="px-5 py-2 flex justify-center  bg-gradient-to-r from-gray-700/60 to-green-800/10 items-center gap-2 text-white/70 hover:bg-green-600/40
+               h-12 px-8 rounded-lg border-2 border-white/10 overflow-hidden transition-all duration-500 group shadow  transition-colors"
+              title="Export Annotations CSV"
             >
-              <Bot size={16} /> Ask AI
+              <Download size={18} /> Download
             </button>
-
             <button
               onClick={onClose}
-              className="px-3 py-2 flex justify-center items-center gap-2 rounded text-md bg-green-700 hover:bg-green-600 hover:bg-opacity-20  transition-colors"
+              className="px-5 py-2 flex justify-center  bg-gradient-to-r from-gray-700/60 to-green-800/10 items-center gap-2 text-white/70 hover:bg-green-600/40
+               h-12 px-8 rounded-lg border-2 border-white/10 overflow-hidden transition-all duration-500 group shadow  transition-colors"
               title="Close Viewer"
             >
-              <Save size={18} /> Save
+              <Save size={18} className="text-white/60" /> Save
             </button>
 
             {/* Polygon finish/cancel controls */}
@@ -1770,7 +1769,7 @@ export default function FullScreenImageViewer({
 
       {/* Left Toolbar */}
       {leftToolbarOpen && (
-        <div className="absolute left-3 top-24 bottom-0  z-20">
+        <div className="absolute left-3 top-28 bottom-0  z-20">
           <RightToolbar
             activeTool={activeTool}
             setTool={setActiveTool}
@@ -2416,7 +2415,7 @@ export default function FullScreenImageViewer({
 
       {/* Detection Results Panel (collapsible sidebar) */}
       {detectionResults && sidebarOpen && (
-        <div className="absolute w-96 top-10 right-0 z-10 bg-white bg-opacity-95 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto shadow-2xl border border-gray-300">
+        <div className="absolute w-96 top-16 right-0 z-10 bg-white bg-opacity-95 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto shadow-2xl border border-gray-300">
           {/* <div className="flex items-center justify-between mb-4 pt-6">
             <h4 className="text-xl font-bold text-gray-800">
               Detection Results
@@ -2429,6 +2428,7 @@ export default function FullScreenImageViewer({
               <X className="w-4 h-4" />
             </button>
           </div> */}
+
 
           {/* Search Bar */}
           <div className="relative mb-4">

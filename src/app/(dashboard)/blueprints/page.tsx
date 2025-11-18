@@ -14,7 +14,7 @@ const BlueprintsPage = async ({
     : 1;
   const { data, pagination, total } = await getBlueprintData(page);
   return (
-    <div id="project-page">
+    <div id="project-pag">
       <Blueprints data={data} />
     </div>
   );
