@@ -40,8 +40,7 @@ const ProjectCard: React.FC<IProject> = ({
       cursor-pointer
       max-w-md
       rounded-2xl
-      border border-gray-200/40
-      bg-white
+     border-2 border-white/80 bg-white/50 backdrop-blur-xl
       shadow-md
       transition-shadow
       p-6
@@ -50,12 +49,14 @@ const ProjectCard: React.FC<IProject> = ({
       {/* Top Row */}
       <div className="flex justify-between items-center mb-5">
         <div className="
-          w-12 h-12
-          rounded-lg
-          bg-gradient-to-br from-orange-400 to-orange-600
+         p-3
+          rounded-2xl
           flex items-center justify-center
-        ">
-          <FolderClosed className="w-6 h-6 text-white" />
+        "
+          style={{
+            background: "linear-gradient(180deg,#ff8a33,#ff6a00)",
+          }}>
+          <FolderClosed className="w-7 h-7 text-white" />
         </div>
 
         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[status] || statusColors.default
@@ -97,8 +98,8 @@ const ProjectCard: React.FC<IProject> = ({
           className="
             bg-orange-500 hover:bg-orange-600
             text-white
-            px-4 py-2
-            rounded-lg
+            px-6 py-3
+            rounded-full
             font-medium
             text-sm
             transition-colors
