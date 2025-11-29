@@ -91,6 +91,7 @@ type MeasurementSummary = {
 type ClassStat = {
   count: number;
   avgConfidence: number | null;
+  confidences: number[];
 };
 
 interface FullScreenImageViewerProps {
@@ -483,7 +484,10 @@ export default function FullScreenImageViewer({
   };
 
   const classStats = useMemo<Record<string, ClassStat>>(() => {
-    const accumulator: Record<string, { count: number; aiDetections: number; confidenceSum: number }> = {};
+    const accumulator: Record<
+      string,
+      { count: number; aiDetections: number; confidenceSum: number; confidences: number[] }
+    > = {};
 
     const bump = (
       className: string,
@@ -491,12 +495,13 @@ export default function FullScreenImageViewer({
     ) => {
       const key = className || "Unknown";
       if (!accumulator[key]) {
-        accumulator[key] = { count: 0, aiDetections: 0, confidenceSum: 0 };
+        accumulator[key] = { count: 0, aiDetections: 0, confidenceSum: 0, confidences: [] };
       }
       accumulator[key].count += 1;
       if (options?.trackConfidence && typeof options.confidence === "number") {
         accumulator[key].aiDetections += 1;
         accumulator[key].confidenceSum += options.confidence;
+        accumulator[key].confidences.push(options.confidence);
       }
     };
 
@@ -531,7 +536,7 @@ export default function FullScreenImageViewer({
           value.aiDetections > 0
             ? value.confidenceSum / value.aiDetections
             : null;
-        return [key, { count: value.count, avgConfidence }];
+        return [key, { count: value.count, avgConfidence, confidences: value.confidences }];
       })
     );
   }, [
@@ -2039,6 +2044,9 @@ export default function FullScreenImageViewer({
                       computePolygonCentroid(detection.points);
                   }
 
+                  const labelX = xRect;
+                  const labelY = yRect - 6;
+                  const hasConfidence = typeof detection.confidence === "number";
                   return (
                     <g key={detection.id} style={{ pointerEvents: isUserAnnotation || activeTool === "erase" ? "auto" : "none", cursor: activeTool === "erase" ? "not-allowed" : isUserAnnotation ? "pointer" : "default" }}
                       onClick={() => {
@@ -2184,10 +2192,25 @@ export default function FullScreenImageViewer({
                         </g>
                       )}
 
+                      {/* {hasConfidence && (
+                        <text
+                          x={userPolygonCentroid?.x ?? labelX}
+                          y={userPolygonCentroid?.y ?? labelY}
+                          dy={userPolygonCentroid ? -10 : 0}
+                          fill="#0f172a"
+                          fontSize="10"
+                          fontWeight="700"
+                          textAnchor="start"
+                          style={{ paintOrder: "stroke", stroke: "rgba(255,255,255,0.95)", strokeWidth: 2 }}
+                        >
+                          {`${Math.round(detection.confidence * 100)}%`}
+                        </text>
+                      )} */}
 
                     </g>
                   );
                 })}
+
 
               {measurements.map((measurement) => {
                 const midX = (measurement.start.x + measurement.end.x) / 2;
@@ -2567,7 +2590,7 @@ export default function FullScreenImageViewer({
                                 {count}
                               </span>
                             </div>
-                            <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
+                            {/* <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
                               <span>
                                 {avgConfidence !== null
                                   ? `Avg conf ${avgConfidence}%`
@@ -2579,7 +2602,32 @@ export default function FullScreenImageViewer({
                                   <span>{detectionTimestamp.timeLabel}</span>
                                 </>
                               )}
-                            </div>
+                            </div> */}
+                            {/* {stats.confidences.length > 0 && (
+                              (() => {
+                                const preview = stats.confidences
+                                  .slice(0, 4)
+                                  .map((cnf) => `${Math.round(cnf * 100)}%`);
+                                const remaining = Math.max(stats.confidences.length - preview.length, 0);
+                                const tooltip = stats.confidences
+                                  .map((cnf) => `${Math.round(cnf * 100)}%`)
+                                  .join(", ");
+                                return (
+                                  <p
+                                    className="mt-1 text-[11px] text-gray-500"
+                                    title={tooltip}
+                                  >
+                                    <span className="font-semibold text-gray-600">
+                                      Confidence:
+                                    </span>{" "}
+                                    <span className="text-gray-500">
+                                      {preview.join(", ")}
+                                      {remaining > 0 && ` +${remaining} more`}
+                                    </span>
+                                  </p>
+                                );
+                              })()
+                            )} */}
                           </div>
 
                           <div
