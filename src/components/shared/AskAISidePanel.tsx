@@ -123,9 +123,9 @@ export default function AskAISidePanel({ open, onClose, imageName, detectionCont
 
                 <div className="relative flex-1 overflow-y-auto px-6 pb-6">
                     <div className="space-y-5">
-                        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600 shadow-inner shadow-white">
+                        {/* <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600 shadow-inner shadow-white">
                             Describe what you need from the blueprint and Copilot will fuse detection output, annotations, and measurements into a concise answer.
-                        </div>
+                        </div> */}
 
                         <DetectionSnapshot preview={detectionPreview} />
 

@@ -10,7 +10,7 @@ export default function AskAIHeader({ imageName, onClose }: AskAIHeaderProps) {
     return (
         <header className="relative flex items-start justify-between px-6 py-5">
             <div className="flex items-start gap-3">
-                <div className="rounded-2xl bg-sky-50 p-2 text-sky-500 shadow-inner shadow-sky-200/80">
+                <div className="rounded-2xl bg-orange-500 p-2 text-white -500 shadow-inner shadow-sky-200/80">
                     <Bot className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">

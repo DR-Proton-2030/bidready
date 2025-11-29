@@ -15,6 +15,7 @@ import {
   Save,
   Zap,
   Bot,
+  Clock3,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
@@ -85,6 +86,11 @@ type MeasurementSummary = {
   unit: string;
   label: string;
   calibrated: boolean;
+};
+
+type ClassStat = {
+  count: number;
+  avgConfidence: number | null;
 };
 
 interface FullScreenImageViewerProps {
@@ -361,6 +367,40 @@ export default function FullScreenImageViewer({
     };
   }, []);
 
+  const detectionTimestamp = useMemo(() => {
+    if (!detectionResults) return null;
+    const rawTimestamp =
+      (detectionResults as Record<string, any>).processedAt ??
+      (detectionResults as Record<string, any>).processed_at ??
+      (detectionResults as Record<string, any>).generatedAt ??
+      (detectionResults as Record<string, any>).generated_at ??
+      (detectionResults as Record<string, any>).createdAt ??
+      (detectionResults as Record<string, any>).created_at ??
+      (detectionResults as Record<string, any>).timestamp ??
+      null;
+
+    if (!rawTimestamp) return null;
+
+    const timestamp = new Date(rawTimestamp);
+    if (Number.isNaN(timestamp.getTime())) return null;
+
+    const timeFormatter = new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+    const dateFormatter = new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+
+    return {
+      iso: timestamp.toISOString(),
+      timeLabel: timeFormatter.format(timestamp),
+      dateLabel: dateFormatter.format(timestamp),
+    } as const;
+  }, [detectionResults]);
+
   const showUndoSnackbar = (message = "Removed. Undo?") => {
     setSnackbar({ visible: true, message });
     if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
@@ -411,7 +451,7 @@ export default function FullScreenImageViewer({
     "#3ed1c8ff", // Teal
     "#45b7d1ff", // Blue
     "#59dc9fff", // Green
-    "#f9d869ff", // Yellow
+    "#f7c627ff", // Yellow
     "#d85fd8ff", // Magenta
     "#66d8bbff", // Light Teal
     "#f6d450ff", // Gold
@@ -441,6 +481,66 @@ export default function FullScreenImageViewer({
     const colorIndex = Math.abs(hash) % classColors.length;
     return classColors[colorIndex];
   };
+
+  const classStats = useMemo<Record<string, ClassStat>>(() => {
+    const accumulator: Record<string, { count: number; aiDetections: number; confidenceSum: number }> = {};
+
+    const bump = (
+      className: string,
+      options?: { confidence?: number; trackConfidence?: boolean }
+    ) => {
+      const key = className || "Unknown";
+      if (!accumulator[key]) {
+        accumulator[key] = { count: 0, aiDetections: 0, confidenceSum: 0 };
+      }
+      accumulator[key].count += 1;
+      if (options?.trackConfidence && typeof options.confidence === "number") {
+        accumulator[key].aiDetections += 1;
+        accumulator[key].confidenceSum += options.confidence;
+      }
+    };
+
+    if (showElectrical) {
+      (detectionResults?.electricalPredictions ?? []).forEach((prediction: any) => {
+        bump(prediction?.class ?? "Electrical", {
+          confidence:
+            typeof prediction?.confidence === "number" ? prediction.confidence : undefined,
+          trackConfidence: true,
+        });
+      });
+    } else {
+      (detectionResults?.predictions ?? []).forEach((prediction: any, index: number) => {
+        if (prediction?.source === "User") return;
+        const detId = prediction?.id ? String(prediction.id) : `detection-${index}`;
+        if (dismissedDetections.has(detId)) return;
+        bump(prediction?.class ?? "Unknown", {
+          confidence:
+            typeof prediction?.confidence === "number" ? prediction.confidence : undefined,
+          trackConfidence: true,
+        });
+      });
+
+      userAnnotations.forEach((annotation) => {
+        bump(annotation.class ?? "Unknown");
+      });
+    }
+
+    return Object.fromEntries(
+      Object.entries(accumulator).map(([key, value]) => {
+        const avgConfidence =
+          value.aiDetections > 0
+            ? value.confidenceSum / value.aiDetections
+            : null;
+        return [key, { count: value.count, avgConfidence }];
+      })
+    );
+  }, [
+    showElectrical,
+    detectionResults?.predictions,
+    detectionResults?.electricalPredictions,
+    userAnnotations,
+    dismissedDetections,
+  ]);
 
   // Reset zoom and position when image changes
   useEffect(() => {
@@ -1096,39 +1196,8 @@ export default function FullScreenImageViewer({
   };
 
   const getClassCounts = (): { [key: string]: number } => {
-    const counts: { [key: string]: number } = {};
-
-    // If electrical-only mode is enabled, count ONLY electrical predictions
-    if (showElectrical) {
-      if (detectionResults?.electricalPredictions) {
-        (detectionResults.electricalPredictions || []).forEach((p: any) => {
-          const className = p.class || "Electrical";
-          counts[className] = (counts[className] || 0) + 1;
-        });
-      }
-      return counts;
-    }
-
-    // Normal mode: Count original detections (exclude user annotations - they're counted separately)
-    if (detectionResults?.predictions) {
-      detectionResults.predictions.forEach((detection: any, index: number) => {
-        // Skip user annotations (they're in userAnnotations state)
-        if (detection.source === "User") return;
-
-        const detId = detection.id ? String(detection.id) : `detection-${index}`;
-        if (dismissedDetections.has(detId)) return; // skip dismissed
-        const className = detection.class || "Unknown";
-        counts[className] = (counts[className] || 0) + 1;
-      });
-    }
-
-    // Count user annotations
-    userAnnotations.forEach((annotation) => {
-      const className = annotation.class || "Unknown";
-      counts[className] = (counts[className] || 0) + 1;
-    });
-
-    return counts;
+    const entries = Object.entries(classStats);
+    return Object.fromEntries(entries.map(([className, stats]) => [className, stats.count]));
   };
 
   const getClassSummary = (): string => {
@@ -1152,22 +1221,18 @@ export default function FullScreenImageViewer({
   };
 
   // Filter classes based on search term
-  const getFilteredClasses = () => {
-    const allClassCounts = getClassCounts();
-    const allClasses = Object.keys(allClassCounts);
+  const getFilteredClasses = (): Record<string, ClassStat> => {
+    const entries = Object.entries(classStats);
+    if (!searchTerm.trim()) {
+      return Object.fromEntries(entries);
+    }
 
-    if (!searchTerm) return allClassCounts;
-
-    const filteredCounts: { [key: string]: number } = {};
-    allClasses
-      .filter((className) =>
-        className.toLowerCase().includes(searchTerm.toLowerCase())
+    const lowercaseTerm = searchTerm.toLowerCase();
+    return Object.fromEntries(
+      entries.filter(([className]) =>
+        className.toLowerCase().includes(lowercaseTerm)
       )
-      .forEach((className) => {
-        filteredCounts[className] = allClassCounts[className];
-      });
-
-    return filteredCounts;
+    );
   };
 
   // Add new custom class
@@ -2460,39 +2525,63 @@ export default function FullScreenImageViewer({
           {detectionResults.predictions &&
             detectionResults.predictions.length > 0 && (
               <div className="mb-4">
+                {detectionTimestamp && (
+                  <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Clock3 className="h-3 w-3 text-gray-400" />
+                      AI SNAPSHOT
+                    </span>
+                    <span className="tracking-normal font-semibold text-gray-600">
+                      {detectionTimestamp.timeLabel} · {detectionTimestamp.dateLabel}
+                    </span>
+                  </div>
+                )}
                 <div className="space-y-1">
                   {Object.entries(getFilteredClasses()).map(
-                    ([className, count]) => {
+                    ([className, stats]) => {
                       const isSelected = selectedClasses.has(className);
                       const classColor = getColorForClass(className);
+                      const count = stats.count;
+                      const avgConfidence =
+                        typeof stats.avgConfidence === "number"
+                          ? Math.round(stats.avgConfidence * 100)
+                          : null;
 
                       return (
                         <button
                           key={className}
                           onClick={() => toggleClassSelection(className)}
-                          className="w-full flex items-center gap-3 px-3 py-2  border-t border-gray-200
-                           hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 bg-white"
+                          className="w-full flex items-center gap-3 px-3 py-2 border-t border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 bg-white"
                         >
-                          {/* Circular Checkbox */}
                           <div className="flex items-center gap-2 flex-shrink-0">
-                            {/* Color Indicator */}
                             <div
-                              className="w-4 h-4  shadow-sm flex-shrink-0"
+                              className="w-4 h-4 shadow-sm flex-shrink-0 rounded"
                               style={{ backgroundColor: classColor }}
-                            ></div>
+                            />
                           </div>
 
-                          <div className="flex-1 flex justify-between items-center">
-                            <span className="capitalize text-sm font-medium text-gray-700">
-                              {className}
-                              <span
-                                className="text-xs font-bold px-1 py-0.5 rounded-full bg-gray-100 ml-2 border border-gray-300 text-black "
-                              // style={{ backgroundColor: classColor }}
-                              >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 text-sm font-medium text-gray-800 capitalize">
+                              <span>{className}</span>
+                              <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-gray-100 border border-gray-300 text-black">
                                 {count}
                               </span>
-                            </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-0.5">
+                              <span>
+                                {avgConfidence !== null
+                                  ? `Avg conf ${avgConfidence}%`
+                                  : "No AI confidence"}
+                              </span>
+                              {detectionTimestamp && (
+                                <>
+                                  <span className="inline-block h-1 w-1 rounded-full bg-gray-300" />
+                                  <span>{detectionTimestamp.timeLabel}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
+
                           <div
                             className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${isSelected
                               ? "border-blue-500 bg-blue-500"
