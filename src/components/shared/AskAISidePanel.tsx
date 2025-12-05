@@ -153,10 +153,11 @@ export default function AskAISidePanel({ open, onClose, imageName, detectionCont
              border-slate-200 bg-white text-slate-900 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white via-white/60 to-transparent" />
 
-                <AskAIHeader imageName={imageName} onClose={onClose} />
 
-                <div className="relative flex-1 overflow-y-auto px-6 pb-6">
-                    <div className="space-y-5">
+                <div className="relative flex-1 overflow-y-auto pb-6">
+                    <AskAIHeader imageName={imageName} onClose={onClose} />
+                    <div className="space-y-5 px-6 pt-4">
+
                         {/* <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600 shadow-inner shadow-white">
                             Describe what you need from the blueprint and Copilot will fuse detection output, annotations, and measurements into a concise answer.
                         </div> */}
@@ -166,7 +167,7 @@ export default function AskAISidePanel({ open, onClose, imageName, detectionCont
                         </div> */}
                         <DetectionSnapshot preview={detectionPreview} />
 
-                        <MessagesSection messages={messages} isLoading={isLoading} error={error} />
+                        <MessagesSection messages={messages} isLoading={isLoading} error={error} onReply={(content) => setPrompt(content)} />
                     </div>
                 </div>
 

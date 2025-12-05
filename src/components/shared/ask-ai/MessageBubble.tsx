@@ -1,5 +1,5 @@
 import React from "react";
-import { Bot, User } from "lucide-react";
+import { Bot, User, Copy, MessageSquare } from "lucide-react";
 import { ChatMessage } from "./types";
 
 // Very small Markdown-ish parser for safe, formatted AI messages.
@@ -38,7 +38,7 @@ function formatMessageContent(content: string) {
         if (line.startsWith("```") || line.startsWith("~~~")) {
             if (!inCodeBlock) {
                 inCodeBlock = true;
-                out += '<pre class="bg-slate-900 text-white p-3 rounded-md text-xs overflow-auto font-mono">';
+                out += '<pre class="bg-slate-200 text-slate-900 p-3 rounded-md text-xs overflow-auto font-mono">';
             } else {
                 inCodeBlock = false;
                 out += "</pre>";
@@ -124,23 +124,31 @@ function formatMessageContent(content: string) {
 
 export interface MessageBubbleProps {
     message: ChatMessage;
+    onReply?: (content: string) => void;
 }
 
-export default function MessageBubble({ message }: MessageBubbleProps) {
+export default function MessageBubble({ message, onReply }: MessageBubbleProps) {
     const isAssistant = message.role === "assistant";
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(message.content || "");
+        } catch (err) {
+            // ignore clipboard errors
+        }
+    };
 
     return (
-        <div className="flex items-start gap-3 w-full">
+        <div className={`flex items-start gap-3 w-full group ${isAssistant ? '' : 'flex-row-reverse'}`} role="article" aria-label={isAssistant ? "Assistant message" : "User message"}>
 
             {/* Avatar */}
-            <div className="flex items-center gap-2 mr-1">
+            <div className={`flex items-center gap-2 ${isAssistant ? 'mr-1' : 'ml-1'}`}>
                 <div
                     className={`
                         mt-1 flex items-center justify-center rounded-full h-10 w-10 p-2.5
                         border shadow-sm
                         ${isAssistant
                             ? "bg-orange-600/90 text-white"
-                            : "bg-black/70 text-white"}
+                            : "bg-black/70 text-slate-100"}
                     `}
                 >
                     {isAssistant ? <Bot className="h-4 w-4" /> : <User className="h-3 w-3" />}
@@ -151,27 +159,48 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             <div className="flex-1">
                 <div
                     className={`
-                        relative max-w-[82%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed 
-                        shadow-sm border 
+                        relative max-w-[90%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed 
+                        shadow-sm border transition-transform group-hover:translate-y-[-1px]
                         ${isAssistant
-                            ? "bg-slate-100 border-slate-300 text-slate-800"
-                            : "bg-black text-white border-black"}
+                            ? "bg-slate-50 border-slate-200 text-slate-800"
+                            : "bg-slate-100 border-slate-200 text-slate-800"}
                     `}
                 >
                     {/* Bubble Tail - iPhone Style */}
                     <div
                         className={`
-                            absolute top-3 -left-2 h-3 w-3 
-                            ${isAssistant ? "bg-slate-100 border-l border-b border-slate-300" : "bg-black"} 
+                            absolute top-3 ${isAssistant ? '-left-2' : '-right-2'} h-3 w-3
+                            ${isAssistant ? 'bg-slate-50 border-l border-b border-slate-200' : 'bg-slate-100 border-r border-b border-slate-200'}
                             rotate-45 rounded-sm
                         `}
                     />
 
                     <div
+                        className="min-h-[24px] text-sm leading-relaxed"
                         dangerouslySetInnerHTML={{
                             __html: formatMessageContent(String(message.content || "")),
                         }}
                     />
+
+                    {/* Inline controls */}
+                    <div className="absolute right-2 top-2 hidden items-center gap-2 group-hover:flex">
+                        <button
+                            type="button"
+                            className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
+                            aria-label="Copy message"
+                            onClick={handleCopy}
+                        >
+                            <Copy className="h-3 w-3" />
+                        </button>
+                        <button
+                            type="button"
+                            className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
+                            aria-label="Reply to message"
+                            onClick={() => onReply?.(message.content ?? "")}
+                        >
+                            <MessageSquare className="h-3 w-3" />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

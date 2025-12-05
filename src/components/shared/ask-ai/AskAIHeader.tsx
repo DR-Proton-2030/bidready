@@ -8,7 +8,8 @@ export interface AskAIHeaderProps {
 
 export default function AskAIHeader({ imageName, onClose }: AskAIHeaderProps) {
     return (
-        <header className="relative flex items-start justify-between px-6 py-2 z-10 bg-gradient-to-br from-orange-600/5 to-white/80 backdrop-blur-sm">
+        <header className=" flex items-start justify-between px-6 py-2 z-10 
+        bg-gradient-to-br from-orange-600/5 to-white/80 backdrop-blur-sm">
             <div className="flex items-start gap-3 pt-3">
                 {/* <div className="rounded-2xl bg-orange-500 p-2 text-white -500 shadow-inner shadow-sky-200/80">
                     <Bot className="h-5 w-5" />
@@ -19,6 +20,12 @@ export default function AskAIHeader({ imageName, onClose }: AskAIHeaderProps) {
                         <h1 className="relative inline-block text-3xl md:text-5xl lg:text-4xl font-extrabold leading-tight 
                         tracking-tight bg-gradient-to-r from-[#FF6A00] via-[#FF8C00] to-[#FFC300]
  bg-clip-text text-transparent">
+                            <img
+                                src="https://img.icons8.com/?size=100&id=1G3UNEZHMjPH&format=png"
+                                className="orangeimg "
+                                alt=""
+                            />
+
                             Bidready Copilot
 
                             <span className="absolute left-0 bottom-1 h-2 md:h-2 w-full bg-gradient-to-r from-blue-100 to-indigo-50 rounded-md blur-sm"></span>

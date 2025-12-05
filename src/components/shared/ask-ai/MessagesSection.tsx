@@ -7,9 +7,10 @@ export interface MessagesSectionProps {
     messages: ChatMessage[];
     isLoading: boolean;
     error: string | null;
+    onReply?: (content: string) => void;
 }
 
-export default function MessagesSection({ messages, isLoading, error }: MessagesSectionProps) {
+export default function MessagesSection({ messages, isLoading, error, onReply }: MessagesSectionProps) {
     return (
         <section className="space-y-3">
             {messages.length === 0 && !isLoading && (
@@ -19,7 +20,7 @@ export default function MessagesSection({ messages, isLoading, error }: Messages
             )}
 
             {messages.map((message) => (
-                <MessageBubble key={message.id} message={message} />
+                <MessageBubble key={message.id} message={message} onReply={onReply} />
             ))}
 
             {isLoading && (

@@ -310,3 +310,8 @@
 .animate-fade-in {
   animation: fadeIn 0.2s ease-out;
 }
+
+
+.orangeimg{
+  filter: invert(52%) sepia(67%) saturate(2038%) hue-rotate(350deg) brightness(105%) contrast(102%);
+}
