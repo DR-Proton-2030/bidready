@@ -1,9 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+"use client";
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import AskAIHeader from "./ask-ai/AskAIHeader";
 import DetectionSnapshot from "./ask-ai/DetectionSnapshot";
 import MessagesSection from "./ask-ai/MessagesSection";
 import PromptComposer from "./ask-ai/PromptComposer";
 import { ChatMessage, DetectionPreview } from "./ask-ai/types";
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 
 interface AskAISidePanelProps {
     open: boolean;
@@ -13,6 +17,12 @@ interface AskAISidePanelProps {
 }
 
 export default function AskAISidePanel({ open, onClose, imageName, detectionContext }: AskAISidePanelProps) {
+
+    useEffect(() => {
+        AOS.init({ duration: 800, easing: 'ease-in-out', once: true });
+    }, []);
+
+
     console.log("====>detection ", detectionContext)
     const [prompt, setPrompt] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -139,22 +149,53 @@ export default function AskAISidePanel({ open, onClose, imageName, detectionCont
         await sendPrompt(trimmed);
     };
 
-    if (!open) return null;
+    const [isMounted, setIsMounted] = useState(open);
+    const [isVisible, setIsVisible] = useState(open);
+    const unmountTimer = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (open) {
+            // Mount and show with a slight delay so CSS transition runs
+            setIsMounted(true);
+            // Allow a frame to ensure the mount completes before toggling visibility
+            requestAnimationFrame(() => setIsVisible(true));
+            return;
+        }
+
+        // Start hide animation then unmount after transition
+        setIsVisible(false);
+        if (unmountTimer.current) window.clearTimeout(unmountTimer.current);
+        unmountTimer.current = window.setTimeout(() => {
+            setIsMounted(false);
+            unmountTimer.current = null;
+        }, 320); // match CSS duration (ms)
+
+        return () => {
+            if (unmountTimer.current) {
+                window.clearTimeout(unmountTimer.current);
+                unmountTimer.current = null;
+            }
+        };
+    }, [open]);
+
+    if (!isMounted) return null;
+
+
 
     return (
         <div className="fixed inset-0 z-[70] flex ">
             <button
                 type="button"
-                className="flex-1 bg-slate-900/40  backdrop-blur-xs"
+                className={`flex-1 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 aria-label="Close Ask AI panel backdrop"
                 onClick={onClose}
             />
-            <aside className="relative flex h-full w-full max-w-md flex-col overflow-hidden border-l 
-             border-slate-200 bg-white text-slate-900 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
+            <aside className={`relative flex h-full w-full max-w-lg flex-col overflow-hidden border-l
+             border-slate-200 bg-white text-slate-900 shadow-[0_20px_60px_rgba(15,23,42,0.12)] transform transition-transform duration-300 ease-out ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white via-white/60 to-transparent" />
 
 
-                <div className="relative flex-1 overflow-y-auto pb-6">
+                <div className="relative flex-1 overflow-y-auto pb-6 " >
                     <AskAIHeader imageName={imageName} onClose={onClose} />
                     <div className="space-y-5 px-6 pt-4">
 
@@ -168,38 +209,39 @@ export default function AskAISidePanel({ open, onClose, imageName, detectionCont
                         <DetectionSnapshot preview={detectionPreview} />
 
                         <MessagesSection messages={messages} isLoading={isLoading} error={error} onReply={(content) => setPrompt(content)} />
+                        {quickActions && quickActions.length > 0 && (
+                            <div className="borde border-slate-200 bg-white px-6 py-3">
+                                <div className="mb-2 flex items-center justify-between">
+                                    <div className="text-xs font-semibold text-slate-500">Next steps</div>
+                                    {/* <button
+                                        type="button"
+                                        aria-label="Dismiss suggested next steps"
+                                        className="text-slate-400 hover:text-slate-600 text-xs"
+                                        onClick={() => setQuickActions(null)}
+                                    >
+                                        Dismiss
+                                    </button> */}
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    {quickActions.map((action) => (
+                                        <button
+                                            key={action.id}
+                                            type="button"
+                                            className="w-full text-left rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                                            onClick={() => handleActionClick(action.id, action.label)}
+                                            aria-label={`Quick action: ${action.label}`}
+                                        >
+                                            {action.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Quick actions area - show assistant suggested next steps in a different container */}
-                {quickActions && quickActions.length > 0 && (
-                    <div className="border-t border-slate-200 bg-white px-6 py-3">
-                        <div className="mb-2 flex items-center justify-between">
-                            <div className="text-xs font-semibold text-slate-500">Next steps</div>
-                            <button
-                                type="button"
-                                aria-label="Dismiss suggested next steps"
-                                className="text-slate-400 hover:text-slate-600 text-xs"
-                                onClick={() => setQuickActions(null)}
-                            >
-                                Dismiss
-                            </button>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            {quickActions.map((action) => (
-                                <button
-                                    key={action.id}
-                                    type="button"
-                                    className="w-full text-left rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
-                                    onClick={() => handleActionClick(action.id, action.label)}
-                                    aria-label={`Quick action: ${action.label}`}
-                                >
-                                    {action.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
+
 
                 <form onSubmit={handleSubmit} className="border-t border-slate-200 bg-white px-6 py-4">
                     <label htmlFor="ask-ai-input" className="sr-only">

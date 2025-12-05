@@ -12,7 +12,7 @@ export interface MessagesSectionProps {
 
 export default function MessagesSection({ messages, isLoading, error, onReply }: MessagesSectionProps) {
     return (
-        <section className="space-y-3">
+        <section className="space-y-3" data-aos="fade-up" data-aos-duration="1300">
             {messages.length === 0 && !isLoading && (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-4 text-center text-sm text-slate-500">
                     Ask for a summary, risk scan, or material take-off hint. Copilot stays scoped to this blueprint and its detections.
@@ -24,7 +24,7 @@ export default function MessagesSection({ messages, isLoading, error, onReply }:
             ))}
 
             {isLoading && (
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
+                <div data-aos="fade-up" data-aos-duration="800" className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
                     <Loader2 className="h-4 w-4 animate-spin text-sky-500" />
                     <span>Generating response…</span>
                 </div>

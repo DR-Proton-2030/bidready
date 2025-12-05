@@ -16,7 +16,7 @@ export default function DetectionSnapshot({ preview }: DetectionSnapshotProps) {
     ];
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200 mt-2">
+        <section data-aos="fade-up" data-aos-duration="1200" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200 mt-2">
             <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold uppercase  text-slate-700">Detection Snapshot</p>
                 <Sparkles className="h-4 w-4 text-orange-500" />

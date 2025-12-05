@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Bot, X } from "lucide-react";
 
 export interface AskAIHeaderProps {
@@ -6,7 +6,9 @@ export interface AskAIHeaderProps {
     onClose: () => void;
 }
 
+
 export default function AskAIHeader({ imageName, onClose }: AskAIHeaderProps) {
+
     return (
         <header className=" flex items-start justify-between px-6 py-2 z-10 
         bg-gradient-to-br from-orange-600/5 to-white/80 backdrop-blur-sm">
@@ -17,20 +19,24 @@ export default function AskAIHeader({ imageName, onClose }: AskAIHeaderProps) {
                 <div className="min-w-0">
                     <div className="space-y-2">
                         {/* <img className='w-96' src={newleeyBlueBrandLogo} alt="" /> */}
-                        <h1 className="relative inline-block text-3xl md:text-5xl lg:text-4xl font-extrabold leading-tight 
+                        <h1
+                            data-aos="fade-up" data-aos-duration="800"
+                            className="relative inline-block text-3xl md:text-5xl lg:text-4xl font-extrabold leading-tight 
                         tracking-tight bg-gradient-to-r from-[#FF6A00] via-[#FF8C00] to-[#FFC300]
- bg-clip-text text-transparent">
+ bg-clip-text text-transparent" >
                             <img
                                 src="https://img.icons8.com/?size=100&id=1G3UNEZHMjPH&format=png"
                                 className="orangeimg "
                                 alt=""
                             />
+                            <div className="" >
 
-                            Bidready Copilot
+                                Bidready Copilot
 
+                            </div>
                             <span className="absolute left-0 bottom-1 h-2 md:h-2 w-full bg-gradient-to-r from-blue-100 to-indigo-50 rounded-md blur-sm"></span>
                         </h1>
-                        <h2 className="text-xl md:text-2xl w-[80%] font-semibold tracking-tight bg-gradient-to-r from-black/80 via-black/60 to-black/50 bg-clip-text text-transparent">
+                        <h2 data-aos="fade-up" data-aos-duration="900" className="text-xl md:text-2xl w-[80%] font-semibold tracking-tight bg-gradient-to-r from-black/80 via-black/60 to-black/50 bg-clip-text text-transparent">
                             AI Assistant for all your Quesries about Blueprint
                         </h2>
                     </div>

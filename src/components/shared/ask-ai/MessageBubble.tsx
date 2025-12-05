@@ -146,7 +146,7 @@ export default function MessageBubble({ message, onReply }: MessageBubbleProps) 
     };
 
     return (
-        <div className={`flex items-start gap-3 w-full group ${isAssistant ? "" : "flex-row-reverse"}`} role="article" aria-label={isAssistant ? "Assistant message" : "User message"}>
+        <div data-aos="fade-up" data-aos-duration="400" className={`flex items-start gap-3 w-full group ${isAssistant ? "" : "flex-row-reverse"}`} role="article" aria-label={isAssistant ? "Assistant message" : "User message"}>
 
             {/* Avatar */}
             <div className={`flex items-center gap-2 ${isAssistant ? "mr-1" : "ml-1"}`}>
@@ -156,7 +156,7 @@ export default function MessageBubble({ message, onReply }: MessageBubbleProps) 
                         border shadow-sm
                         ${isAssistant
                             ? "bg-orange-600/90 text-white"
-                            : "bg-slate-200 text-slate-800"}
+                            : "bg-black/70 -200 text-slate-100"}
                     `}
                 >
                     {isAssistant ? <Bot className="h-4 w-4" /> : <User className="h-3 w-3" />}
@@ -183,7 +183,7 @@ export default function MessageBubble({ message, onReply }: MessageBubbleProps) 
                         `}
                     />
 
-                    <div className="min-h-[24px] text-sm leading-relaxed space-y-1">
+                    <div className="min-h-[24px] text-sm leading-relaxed space-y-1" >
                         {renderMessageContent(String(message.content || ""))}
                     </div>
 
