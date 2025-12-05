@@ -149,7 +149,7 @@ export default function AskAISidePanel({ open, onClose, imageName, detectionCont
                 aria-label="Close Ask AI panel backdrop"
                 onClick={onClose}
             />
-            <aside className="relative flex h-full w-full max-w-lg flex-col overflow-hidden border-l
+            <aside className="relative flex h-full w-full max-w-md flex-col overflow-hidden border-l 
              border-slate-200 bg-white text-slate-900 shadow-[0_20px_60px_rgba(15,23,42,0.12)]">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white via-white/60 to-transparent" />
 

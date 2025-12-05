@@ -194,9 +194,9 @@ const normalizeHistory = (history: unknown): ChatHistoryEntry[] => {
 const extractNextStepActions = (reply: string, maxActions = 6): Array<{ id: string; label: string }> => {
   if (typeof reply !== "string" || !reply.trim()) return [];
 
-  const lower = reply.toLowerCase();
-  const markerIndex = lower.indexOf("next steps");
-  if (markerIndex === -1) return [];
+  const markerMatch = /next step[s]?/i.exec(reply);
+  if (!markerMatch) return [];
+  const markerIndex = markerMatch.index;
 
   const tail = reply.slice(markerIndex).split(/\r?\n/);
   const actions: string[] = [];
@@ -254,7 +254,8 @@ export async function POST(request: NextRequest) {
       "You are BidReady Copilot, a senior construction estimator and building-science analyst.",
       "Use the detection context to answer questions about the current blueprint: quantify trades, recommend scopes of work, flag data risks, and outline next actions.",
       "Always explain calculations (counts, ratios, take-off assumptions) so the user can follow the math.",
-      "Limit responses to ~220 words, favour short sections or bullets, and explicitly note any missing data or assumptions.",
+        "Limit responses to ~220 words, favour short sections or bullets, and explicitly note any missing data or assumptions.",
+        "When surfacing recommendations or follow-up tasks, include a heading exactly named 'NEXT STEP' followed by a short bullet or numbered list so the client UI can reliably parse them.",
     ];
 
     if (typeof imageName === "string" && imageName.trim()) {

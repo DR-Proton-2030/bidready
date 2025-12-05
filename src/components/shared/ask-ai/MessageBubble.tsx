@@ -2,124 +2,132 @@ import React from "react";
 import { Bot, User, Copy, MessageSquare } from "lucide-react";
 import { ChatMessage } from "./types";
 
-// Very small Markdown-ish parser for safe, formatted AI messages.
-// We intentionally keep this tiny to avoid bringing in external deps.
-function escapeHtml(unsafe: string) {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-function formatInline(text: string) {
-    // bold **text**
-    text = text.replace(/\*\*(.+?)\*\*/g, (_, a) => `<strong class=\"text-slate-800 font-semibold\">${a}</strong>`);
-    // inline code `code`
-    text = text.replace(/`([^`]+)`/g, (_, a) => `<code class=\"px-1 py-0.5 bg-slate-100 rounded text-xs font-mono\">${a}</code>`);
-    // links [text](url)
-    text = text.replace(/\[(.+?)\]\((https?:\/\/[^)\s]+)\)/g, (_, a, b) => `<a href=\"${b}\" target=\"_blank\" rel=\"noreferrer noopener\" class=\"text-sky-600 underline\">${a}</a>`);
-    return text;
-}
-
-function formatMessageContent(content: string) {
-    if (!content || !content.trim()) return "";
-    const lines = content.replace(/\r\n/g, "\n").split("\n");
-
-    let out = "";
-    let inList = false;
-    let inOrdered = false;
-    let inCodeBlock = false;
-
-    for (let rawLine of lines) {
-        const line = rawLine.trimEnd();
-        // handle code fences
-        if (line.startsWith("```") || line.startsWith("~~~")) {
-            if (!inCodeBlock) {
-                inCodeBlock = true;
-                out += '<pre class="bg-slate-200 text-slate-900 p-3 rounded-md text-xs overflow-auto font-mono">';
-            } else {
-                inCodeBlock = false;
-                out += "</pre>";
-            }
-            continue;
-        }
-        if (inCodeBlock) {
-            out += escapeHtml(line) + "\n";
-            continue;
-        }
-
-        // headings
-        if (/^#{1,3}\s+/.test(line)) {
-            const m = line.match(/^(#{1,3})\s+(.*)$/);
-            if (m) {
-                const lvl = m[1].length;
-                const text = escapeHtml(m[2]);
-                const cls = lvl === 1 ? "text-lg font-semibold text-slate-800" : (lvl === 2 ? "text-sm font-semibold text-slate-700" : "text-xs font-semibold text-slate-600");
-                out += `<div class=\"mb-2 mt-2 text-slate-800\"><span class=\"${cls}\">${formatInline(text)}</span></div>`;
-                continue;
-            }
-        }
-
-        // unordered list
-        if (/^[-*]\s+/.test(line)) {
-            if (!inList) {
-                inList = true;
-                out += "<ul class=\"ml-4 mt-1 mb-2 list-disc space-y-1\">";
-            }
-            const li = line.replace(/^[-*]\s+/, "");
-            out += `<li class=\"text-sm text-slate-700\">${formatInline(escapeHtml(li))}</li>`;
-            continue;
-        }
-
-        // ordered list
-        if (/^\d+\.\s+/.test(line)) {
-            if (!inOrdered) {
-                inOrdered = true;
-                out += "<ol class=\"ml-4 mt-1 mb-2 list-decimal space-y-1\">";
-            }
-            const li = line.replace(/^\d+\.\s+/, "");
-            out += `<li class=\"text-sm text-slate-700\">${formatInline(escapeHtml(li))}</li>`;
-            continue;
-        }
-
-        // close any open lists if we hit a blank or normal line
-        if (inList && line.trim() === "") {
-            out += "</ul>";
-            inList = false;
-        }
-        if (inOrdered && line.trim() === "") {
-            out += "</ol>";
-            inOrdered = false;
-        }
-
-        if (inList || inOrdered) {
-            // continue the list: lines without leading markers treated as single list item continuation
-            out += `<li class=\"text-sm text-slate-700\">${formatInline(escapeHtml(line))}</li>`;
-            continue;
-        }
-
-        // horizontal rule
-        if (/^[-_*]{3,}\s*$/.test(line)) {
-            out += '<hr class=\"my-3 border-slate-200\"/>';
-            continue;
-        }
-
-        // normal paragraph
-        if (line.trim() === "") {
-            out += "<div style=\"height:8px\"></div>"; // small spacer
-            continue;
-        }
-
-        out += `<p class=\"text-sm text-slate-700 leading-relaxed\">${formatInline(escapeHtml(line))}</p>`;
+function renderMessageContent(content: string) {
+    if (!content || !content.trim()) {
+        return [
+            <p key="empty" className="text-sm text-slate-500 italic">
+                No content provided.
+            </p>,
+        ];
     }
 
-    if (inList) out += "</ul>";
-    if (inOrdered) out += "</ol>";
-    if (inCodeBlock) out += "</pre>";
+    const lines = content.replace(/\r\n/g, "\n").split("\n");
+    const rendered: React.ReactNode[] = [];
 
-    return out;
+    let listBuffer: { type: "ul" | "ol"; items: string[] } | null = null;
+    let codeBuffer: string[] | null = null;
+
+    const flushList = (key: string) => {
+        if (!listBuffer) return;
+        if (listBuffer.type === "ul") {
+            rendered.push(
+                <ul key={key} className="ml-4 mt-1 mb-2 list-disc space-y-1 text-sm text-slate-700">
+                    {listBuffer.items.map((item, idx) => (
+                        <li key={`${key}-ul-${idx}`}>{item}</li>
+                    ))}
+                </ul>
+            );
+        } else {
+            rendered.push(
+                <ol key={key} className="ml-4 mt-1 mb-2 list-decimal space-y-1 text-sm text-slate-700">
+                    {listBuffer.items.map((item, idx) => (
+                        <li key={`${key}-ol-${idx}`}>{item}</li>
+                    ))}
+                </ol>
+            );
+        }
+        listBuffer = null;
+    };
+
+    const flushCodeBlock = (key: string) => {
+        if (!codeBuffer) return;
+        rendered.push(
+            <pre key={key} className="bg-slate-200 text-slate-900 p-3 rounded-md text-xs overflow-auto font-mono">
+                <code>{codeBuffer.join("\n")}</code>
+            </pre>
+        );
+        codeBuffer = null;
+    };
+
+    lines.forEach((rawLine, idx) => {
+        const trimmed = rawLine.trim();
+        const codeFence = rawLine.trim().startsWith("```") || rawLine.trim().startsWith("~~~");
+
+        if (codeFence) {
+            if (!codeBuffer) {
+                flushList(`list-before-code-${idx}`);
+                codeBuffer = [];
+            } else {
+                flushCodeBlock(`code-${idx}`);
+            }
+            return;
+        }
+
+        if (codeBuffer) {
+            codeBuffer.push(rawLine);
+            return;
+        }
+
+        if (!trimmed) {
+            flushList(`list-break-${idx}`);
+            rendered.push(<div key={`spacer-${idx}`} className="h-2" />);
+            return;
+        }
+
+        if (/^[-*]\s+/.test(trimmed)) {
+            if (!listBuffer || listBuffer.type !== "ul") {
+                flushList(`list-switch-${idx}`);
+                listBuffer = { type: "ul", items: [] };
+            }
+            listBuffer.items.push(trimmed.replace(/^[-*]\s+/, ""));
+            return;
+        }
+
+        if (/^\d+\.\s+/.test(trimmed)) {
+            if (!listBuffer || listBuffer.type !== "ol") {
+                flushList(`list-switch-${idx}`);
+                listBuffer = { type: "ol", items: [] };
+            }
+            listBuffer.items.push(trimmed.replace(/^\d+\.\s+/, ""));
+            return;
+        }
+
+        if (/^#{1,3}\s+/.test(trimmed)) {
+            flushList(`list-heading-${idx}`);
+            const level = trimmed.match(/^(#{1,3})/)?.[0].length ?? 1;
+            const text = trimmed.replace(/^#{1,3}\s+/, "");
+            const headingClass =
+                level === 1
+                    ? "text-lg font-semibold text-slate-800"
+                    : level === 2
+                        ? "text-sm font-semibold text-slate-700"
+                        : "text-xs font-semibold text-slate-600";
+            rendered.push(
+                <div key={`heading-${idx}`} className="mb-2 mt-2 text-slate-800">
+                    <span className={headingClass}>{text}</span>
+                </div>
+            );
+            return;
+        }
+
+        if (/^[-_*]{3,}\s*$/.test(trimmed)) {
+            flushList(`list-hr-${idx}`);
+            rendered.push(<hr key={`hr-${idx}`} className="my-3 border-slate-200" />);
+            return;
+        }
+
+        flushList(`list-paragraph-${idx}`);
+        rendered.push(
+            <p key={`paragraph-${idx}`} className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {trimmed}
+            </p>
+        );
+    });
+
+    flushList("list-end");
+    flushCodeBlock("code-end");
+
+    return rendered;
 }
 
 export interface MessageBubbleProps {
@@ -138,17 +146,17 @@ export default function MessageBubble({ message, onReply }: MessageBubbleProps) 
     };
 
     return (
-        <div className={`flex items-start gap-3 w-full group ${isAssistant ? '' : 'flex-row-reverse'}`} role="article" aria-label={isAssistant ? "Assistant message" : "User message"}>
+        <div className={`flex items-start gap-3 w-full group ${isAssistant ? "" : "flex-row-reverse"}`} role="article" aria-label={isAssistant ? "Assistant message" : "User message"}>
 
             {/* Avatar */}
-            <div className={`flex items-center gap-2 ${isAssistant ? 'mr-1' : 'ml-1'}`}>
+            <div className={`flex items-center gap-2 ${isAssistant ? "mr-1" : "ml-1"}`}>
                 <div
                     className={`
                         mt-1 flex items-center justify-center rounded-full h-10 w-10 p-2.5
                         border shadow-sm
                         ${isAssistant
                             ? "bg-orange-600/90 text-white"
-                            : "bg-black/70 text-slate-100"}
+                            : "bg-slate-200 text-slate-800"}
                     `}
                 >
                     {isAssistant ? <Bot className="h-4 w-4" /> : <User className="h-3 w-3" />}
@@ -156,34 +164,36 @@ export default function MessageBubble({ message, onReply }: MessageBubbleProps) 
             </div>
 
             {/* CHAT BUBBLE */}
-            <div className="flex-1">
+            <div className={`flex-1 flex ${isAssistant ? "justify-start" : "justify-end"}`}>
                 <div
                     className={`
-                        relative max-w-[90%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed 
+                        relative max-w- px-4 py-3 rounded-2xl text-[14px] leading-relaxed 
                         shadow-sm border transition-transform group-hover:translate-y-[-1px]
                         ${isAssistant
-                            ? "bg-slate-50 border-slate-200 text-slate-800"
-                            : "bg-slate-100 border-slate-200 text-slate-800"}
+                            ? "bg-slate-50 border-slate-200 text-slate-800 text-left"
+                            : "bg-slate-200 border-slate-300 text-slate-900 text-left"}
                     `}
                 >
                     {/* Bubble Tail - iPhone Style */}
                     <div
                         className={`
                             absolute top-3 ${isAssistant ? '-left-2' : '-right-2'} h-3 w-3
-                            ${isAssistant ? 'bg-slate-50 border-l border-b border-slate-200' : 'bg-slate-100 border-r border-b border-slate-200'}
+                            ${isAssistant ? 'bg-slate-50 border-l border-b border-slate-200' : 'bg-slate-200 border-r border-b border-slate-300'}
                             rotate-45 rounded-sm
                         `}
                     />
 
-                    <div
-                        className="min-h-[24px] text-sm leading-relaxed"
-                        dangerouslySetInnerHTML={{
-                            __html: formatMessageContent(String(message.content || "")),
-                        }}
-                    />
+                    <div className="min-h-[24px] text-sm leading-relaxed space-y-1">
+                        {renderMessageContent(String(message.content || ""))}
+                    </div>
 
                     {/* Inline controls */}
-                    <div className="absolute right-2 top-2 hidden items-center gap-2 group-hover:flex">
+                    {/* <div
+                        className={`
+                            absolute top-2 hidden items-center gap-2 group-hover:flex
+                            ${isAssistant ? "right-2" : "left-2 flex-row-reverse"}
+                        `}
+                    >
                         <button
                             type="button"
                             className="rounded-md p-1 text-slate-500 hover:bg-slate-100"
@@ -200,7 +210,7 @@ export default function MessageBubble({ message, onReply }: MessageBubbleProps) 
                         >
                             <MessageSquare className="h-3 w-3" />
                         </button>
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </div>
