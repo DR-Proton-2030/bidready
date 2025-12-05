@@ -191,6 +191,44 @@ const normalizeHistory = (history: unknown): ChatHistoryEntry[] => {
     }));
 };
 
+const extractNextStepActions = (reply: string, maxActions = 6): Array<{ id: string; label: string }> => {
+  if (typeof reply !== "string" || !reply.trim()) return [];
+
+  const lower = reply.toLowerCase();
+  const markerIndex = lower.indexOf("next steps");
+  if (markerIndex === -1) return [];
+
+  const tail = reply.slice(markerIndex).split(/\r?\n/);
+  const actions: string[] = [];
+
+  for (let i = 1; i < tail.length; i++) {
+    const line = tail[i].trim();
+    if (!line) {
+      if (actions.length) break;
+      continue;
+    }
+
+    // stop if a new heading/section starts after we've collected actions
+    if (actions.length && /[:：]$/.test(line)) break;
+    if (/^[A-Z][^a-z]{0,}$/u.test(line) && actions.length) break; // uppercase heading
+
+    const bulletMatch = line.match(/^[-*]\s+(.*)$/) || line.match(/^\d+\.\s+(.*)$/);
+    if (bulletMatch) {
+      const label = bulletMatch[1]?.trim();
+      if (label) actions.push(label.replace(/[*_`]/g, ""));
+    } else if (actions.length) {
+      break;
+    }
+
+    if (actions.length >= maxActions) break;
+  }
+
+  return actions.map((label, idx) => ({
+    id: `next-step-${idx}`,
+    label,
+  }));
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -288,7 +326,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ reply });
+    const actions = extractNextStepActions(reply);
+
+    return NextResponse.json({ reply, actions });
   } catch (error) {
     console.error("[AskAI] Unable to process request", error);
     return NextResponse.json({ error: "Failed to generate AI response." }, { status: 500 });

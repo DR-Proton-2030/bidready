@@ -9,7 +9,7 @@ export interface PromptComposerProps {
 
 export default function PromptComposer({ prompt, onPromptChange, isLoading }: PromptComposerProps) {
     return (
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-200 px-3 py-2">
             <input
                 id="ask-ai-input"
                 type="text"
@@ -21,7 +21,8 @@ export default function PromptComposer({ prompt, onPromptChange, isLoading }: Pr
             <button
                 type="submit"
                 disabled={isLoading}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-orange-500 to-orange-400 px-6 py-3 
+                text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
                 <Send className="h-4 w-4" />
                 Send

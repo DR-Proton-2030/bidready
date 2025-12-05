@@ -127,24 +127,55 @@ export interface MessageBubbleProps {
 }
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
+    const isAssistant = message.role === "assistant";
+
     return (
-        <div
-            className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-sm shadow-lg shadow-slate-200/80
-                 ${message.role === "assistant" ? "border-sky-200 bg-gradient-to-br from-sky-50 to-white text-slate-800" : "border-slate-200 bg-white text-slate-600"}`}
-        >
-            <div className={`mt-0.5 rounded-full p-1 ${message.role === "assistant" ? "bg-sky-100 text-sky-600" : "bg-slate-100 text-slate-500"}`}>
-                {message.role === "assistant" ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
-            </div>
-            <div className="flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400">
-                    {message.role === "assistant" ? "Assistant" : "You"}
-                </p>
+        <div className="flex items-start gap-3 w-full">
+
+            {/* Avatar */}
+            <div className="flex items-center gap-2 mr-1">
                 <div
-                    className="mt-1 leading-relaxed"
-                    // we render our small markdown-like subset as safe html after escaping
-                    dangerouslySetInnerHTML={{ __html: formatMessageContent(String(message.content || "")) }}
-                />
+                    className={`
+                        mt-1 flex items-center justify-center rounded-full h-10 w-10 p-2.5
+                        border shadow-sm
+                        ${isAssistant
+                            ? "bg-orange-600/90 text-white"
+                            : "bg-black/70 text-white"}
+                    `}
+                >
+                    {isAssistant ? <Bot className="h-4 w-4" /> : <User className="h-3 w-3" />}
+                </div>
+            </div>
+
+            {/* CHAT BUBBLE */}
+            <div className="flex-1">
+                <div
+                    className={`
+                        relative max-w-[82%] px-4 py-3 rounded-2xl text-[14px] leading-relaxed 
+                        shadow-sm border 
+                        ${isAssistant
+                            ? "bg-slate-100 border-slate-300 text-slate-800"
+                            : "bg-black text-white border-black"}
+                    `}
+                >
+                    {/* Bubble Tail - iPhone Style */}
+                    <div
+                        className={`
+                            absolute top-3 -left-2 h-3 w-3 
+                            ${isAssistant ? "bg-slate-100 border-l border-b border-slate-300" : "bg-black"} 
+                            rotate-45 rounded-sm
+                        `}
+                    />
+
+                    <div
+                        dangerouslySetInnerHTML={{
+                            __html: formatMessageContent(String(message.content || "")),
+                        }}
+                    />
+                </div>
             </div>
         </div>
     );
 }
+
+

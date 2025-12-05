@@ -448,7 +448,7 @@ export default function FullScreenImageViewer({
 
   // Predefined colors for consistent class mapping
   const classColors = [
-    "#ff5858ff", // Red
+    "#000000ff", // Red
     "#3ed1c8ff", // Teal
     "#45b7d1ff", // Blue
     "#59dc9fff", // Green
@@ -2003,7 +2003,7 @@ export default function FullScreenImageViewer({
             >
               {/* Original detections and user annotations */}
               {showDetections &&
-                getCombinedDetectionBoxes().map((detection) => {
+                getCombinedDetectionBoxes().map((detection: any) => {
                   // Check if this is a user annotation
                   const isUserAnnotation =
                     detection.id.startsWith("user-annotation-");
@@ -2068,7 +2068,7 @@ export default function FullScreenImageViewer({
                         <>
                           {/* Render polygon shape */}
                           <polygon
-                            points={detection.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                            points={detection.points.map((p: any) => `${p.x},${p.y}`).join(" ")}
                             fill={detection.color}
                             fillOpacity={isSelected ? 0.25 : 0.2}
                             stroke={isSelected ? "#22c55e" : detection.color}
@@ -2076,7 +2076,7 @@ export default function FullScreenImageViewer({
                             strokeOpacity={0.9}
                           />
                           {/* Show corner handles for user annotations */}
-                          {isUserAnnotation && detection.points.map((p, idx) => (
+                          {isUserAnnotation && detection.points.map((p: any, idx: any) => (
                             <g key={`handle-${idx}`}>
                               <circle
                                 cx={p.x}
@@ -2138,14 +2138,14 @@ export default function FullScreenImageViewer({
                           {/* delete chip position: for polygons place at first point's position */}
                           {detection.points && detection.points.length > 0 ? (
                             <>
-                              <rect
+                              {/* <rect
                                 x={detection.points[0].x - 9}
                                 y={detection.points[0].y - 9}
                                 width={18}
                                 height={18}
                                 rx={3}
                                 ry={3}
-                                fill="#ef4444"
+                                fill="#1a1010ff"
                                 opacity="0.9"
                                 style={{ pointerEvents: "auto" }}
                                 onClick={(e) => { e.stopPropagation(); deleteUserAnnotation(detection.id); }}
@@ -2160,11 +2160,11 @@ export default function FullScreenImageViewer({
                                 style={{ pointerEvents: "none" }}
                               >
                                 ×
-                              </text>
+                              </text> */}
                             </>
                           ) : (
                             <>
-                              <rect
+                              {/* <rect
                                 x={xRect + detection.width - 18}
                                 y={yRect - 18}
                                 width={18}
@@ -2186,13 +2186,13 @@ export default function FullScreenImageViewer({
                                 style={{ pointerEvents: "none" }}
                               >
                                 ×
-                              </text>
+                              </text> */}
                             </>
                           )}
                         </g>
                       )}
 
-                      {/* {hasConfidence && (
+                      {hasConfidence && (
                         <text
                           x={userPolygonCentroid?.x ?? labelX}
                           y={userPolygonCentroid?.y ?? labelY}
@@ -2205,7 +2205,7 @@ export default function FullScreenImageViewer({
                         >
                           {`${Math.round(detection.confidence * 100)}%`}
                         </text>
-                      )} */}
+                      )}
 
                     </g>
                   );
@@ -2486,7 +2486,7 @@ export default function FullScreenImageViewer({
       )}
 
       {/* Instructions */}
-      <div className="absolute bottom-4 left-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
+      {/* <div className="absolute bottom-4 left-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
         <p className="text-xs text-gray-300 space-y-1">
           <span className="block">Use arrow keys or buttons to navigate</span>
           <span className="block">
@@ -2499,7 +2499,7 @@ export default function FullScreenImageViewer({
             </span>
           )}
         </p>
-      </div>
+      </div> */}
 
       {/* Detection Results Panel (collapsible sidebar) */}
       {detectionResults && sidebarOpen && (

@@ -1,22 +1,19 @@
-import React, { useId, useMemo } from "react";
+import React, { useMemo } from "react";
+import dynamic from "next/dynamic";
+import type { ApexOptions } from "apexcharts";
 import { PriorityItem } from "./types";
 
 interface DetectionVelocityCardProps {
     priorityList: PriorityItem[];
-    sparklinePoints: string;
     sparklineValues: number[];
 }
-
-const chartWidth = 200;
-const chartHeight = 80;
 const timeframes = ["24h", "7d", "30d"] as const;
+const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const DetectionVelocityCard: React.FC<DetectionVelocityCardProps> = ({
     priorityList,
-    sparklinePoints,
     sparklineValues,
 }) => {
-    const chartId = useId();
     const [activeFrame] = timeframes;
 
     const { min, max, latest, delta } = useMemo(() => {
@@ -30,13 +27,84 @@ const DetectionVelocityCard: React.FC<DetectionVelocityCardProps> = ({
         return { min: minVal, max: maxVal, latest: latestVal, delta: deltaVal };
     }, [sparklineValues]);
 
-    const lastPoint = useMemo(() => {
-        if (!sparklineValues.length) return { x: 0, y: chartHeight };
-        const index = sparklineValues.length - 1;
-        const denominator = Math.max(sparklineValues.length - 1, 1);
-        const x = (index / denominator) * chartWidth;
-        const y = chartHeight - (sparklineValues[index] / 100) * chartHeight;
-        return { x, y };
+    const chartSeries = useMemo(
+        () => [
+            {
+                name: "Velocity",
+                data: sparklineValues.length ? sparklineValues : [0],
+            },
+        ],
+        [sparklineValues],
+    );
+
+    const chartOptions = useMemo<ApexOptions>(() => {
+        const pointCount = sparklineValues.length || 1;
+        const discreteMarker = sparklineValues.length
+            ? [
+                {
+                    seriesIndex: 0,
+                    dataPointIndex: sparklineValues.length - 1,
+                    size: 7,
+                    fillColor: "#7c2d12",
+                    strokeColor: "#fed7aa",
+                    shape: "circle",
+                },
+            ]
+            : [];
+
+        return {
+            chart: {
+                type: "area",
+                height: 160,
+                toolbar: { show: false },
+                background: "transparent",
+                foreColor: "#0f172a",
+                sparkline: { enabled: true },
+                animations: { enabled: true, easing: "easeinout", speed: 600 },
+            },
+            stroke: {
+                curve: "smooth",
+                width: 3,
+                colors: ["#ea580c"],
+            },
+            fill: {
+                type: "gradient",
+                gradient: {
+                    shadeIntensity: 0.85,
+                    opacityFrom: 0.45,
+                    opacityTo: 0,
+                    stops: [0, 100],
+                    colorStops: [
+                        { offset: 0, color: "rgba(234,88,12,0.35)", opacity: 1 },
+                        { offset: 100, color: "rgba(15,23,42,0)", opacity: 0 },
+                    ],
+                },
+                colors: ["#fed7aa"],
+            },
+            colors: ["#f97316"],
+            grid: { show: false },
+            tooltip: {
+                theme: "dark",
+                y: {
+                    formatter: (value?: number) => (value !== undefined ? `${value.toFixed(1)}%` : "0%"),
+                },
+            },
+            dataLabels: { enabled: false },
+            xaxis: {
+                categories: Array.from({ length: pointCount }, (_, idx) => idx + 1),
+                labels: { show: false },
+                axisTicks: { show: false },
+                axisBorder: { show: false },
+            },
+            yaxis: { show: false },
+            markers: {
+                size: 0,
+                colors: ["#7c2d12"],
+                strokeColors: ["#f97316"],
+                discrete: discreteMarker,
+            },
+            states: { hover: { filter: { type: "none" } }, active: { filter: { type: "none" } } },
+        };
     }, [sparklineValues]);
 
     return (
@@ -64,8 +132,8 @@ const DetectionVelocityCard: React.FC<DetectionVelocityCardProps> = ({
                             <button
                                 key={frame}
                                 className={`flex-1 rounded-full border px-3 py-1.5 text-xs font-semibold tracking-wide transition md:flex-none ${frame === activeFrame
-                                        ? "border-slate-900 bg-slate-900 text-white shadow"
-                                        : "border-white/70 bg-white/60 text-slate-500"
+                                    ? "border-slate-900 bg-slate-900 text-white shadow"
+                                    : "border-white/70 bg-white/60 text-slate-500"
                                     }`}
                             >
                                 {frame}
@@ -83,46 +151,7 @@ const DetectionVelocityCard: React.FC<DetectionVelocityCardProps> = ({
                     </span>
                 </div>
                 <div className="mt-4">
-                    <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="h-36 w-full text-orange-500">
-                        <defs>
-                            <linearGradient id={`${chartId}-stroke`} x1="0" x2="1" y1="0" y2="0">
-                                <stop offset="0%" stopColor="#fb923c" />
-                                <stop offset="100%" stopColor="#7c2d12" />
-                            </linearGradient>
-                            <linearGradient id={`${chartId}-fill`} x1="0" x2="0" y1="0" y2="1">
-                                <stop offset="0%" stopColor="rgba(251,146,60,0.45)" />
-                                <stop offset="100%" stopColor="rgba(15,23,42,0)" />
-                            </linearGradient>
-                        </defs>
-
-                        {[0.25, 0.5, 0.75].map((ratio) => (
-                            <line
-                                key={ratio}
-                                x1={0}
-                                y1={chartHeight * ratio}
-                                x2={chartWidth}
-                                y2={chartHeight * ratio}
-                                stroke="rgba(148,163,184,0.2)"
-                                strokeDasharray="4 6"
-                                strokeWidth={1}
-                            />
-                        ))}
-
-                        <polyline fill={`url(#${chartId}-fill)`} stroke="none" points={`0,${chartHeight} ${sparklinePoints} ${chartWidth},${chartHeight}`} />
-                        <polyline
-                            fill="none"
-                            stroke={`url(#${chartId}-stroke)`}
-                            strokeWidth={3}
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            points={sparklinePoints}
-                        />
-
-                        <circle cx={lastPoint.x} cy={lastPoint.y} r={5} fill="#7c2d12" stroke="#fb923c" strokeWidth={2} />
-                        <text x={lastPoint.x + 8} y={lastPoint.y - 8} fill="#7c2d12" fontSize={10} fontWeight={600}>
-                            {latest.toFixed(1)}%
-                        </text>
-                    </svg>
+                    <ReactApexChart type="area" height={160} options={chartOptions} series={chartSeries} />
                 </div>
                 <div className="mt-5 grid gap-3 text-center text-sm font-semibold text-slate-700 sm:grid-cols-3">
                     {[

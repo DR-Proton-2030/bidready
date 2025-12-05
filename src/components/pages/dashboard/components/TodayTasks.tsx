@@ -21,11 +21,10 @@ import {
     timeline,
     throughputDelta,
 } from "./today-tasks/constants";
-import { useReadableDate, useSparklinePoints } from "./today-tasks/hooks";
+import { useReadableDate } from "./today-tasks/hooks";
 
 const TodayTasks: React.FC = () => {
     const readableDate = useReadableDate();
-    const sparklinePoints = useSparklinePoints(sparkline);
 
     return (
         <section className="lg:col-span-2 relative overflow-y-auto h-screen  border border-white/70 bg-gradient-to-br from-white/90 via-slate-50/80 to-blue-50/90 text-slate-900 shadow-[0_35px_120px_rgba(15,23,42,0.15)] backdrop-blur-2xl">
@@ -37,11 +36,7 @@ const TodayTasks: React.FC = () => {
                 <QuickStatsGrid stats={quickStats} />
 
                 <div className=" gap-6  flex w-full">
-                    <DetectionVelocityCard
-                        priorityList={priorityList}
-                        sparklinePoints={sparklinePoints}
-                        sparklineValues={sparkline}
-                    />
+                    <DetectionVelocityCard priorityList={priorityList} sparklineValues={sparkline} />
                     <OpsTimelineCard timeline={timeline} />
                 </div>
 

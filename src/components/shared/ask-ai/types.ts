@@ -2,6 +2,8 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  // Optional quick actions suggested by the assistant. Buttons will be rendered below assistant messages.
+  actions?: Array<{ id: string; label: string }>;
 };
 
 export type DetectionPreview = {
