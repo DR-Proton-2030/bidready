@@ -1,4 +1,3 @@
-"use client";
 import React from "react";
 import {
   MousePointer,
@@ -10,22 +9,6 @@ import {
   Pencil,
   SlidersHorizontal,
   Search,
-  Layers,
-  Download,
-  Share2,
-  BookOpen,
-  Calculator,
-  Grid3x3,
-  MapPin,
-  Scissors,
-  RotateCw,
-  FlipHorizontal,
-  FlipVertical,
-  Palette,
-  Type,
-  Circle,
-  Square,
-  Triangle,
   Eraser,
   Pentagon,
 } from "lucide-react";
@@ -53,21 +36,26 @@ const ToolButton: React.FC<ToolButtonProps> = ({
     <button
       onClick={onClick}
       className={`
-        flex items-center justify-center w-10 h-10 rounded-md transition-all duration-200 group
+        relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 group
         ${active
-          ? "bg-blue-500 text-white shadow-sm"
-          : "bg-transparent text-gray-700 hover:bg-gray-100"
+          ? "bg-orange-600 text-white shadow-md shadow-blue-200"
+          : "bg-transparent text-gray-500 hover:bg-white hover:text-gray-900 hover:shadow-sm"
         }
       `}
       title={tooltip || label}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className={`w-5 h-5 transition-transform duration-200 ${active ? "scale-100" : "group-hover:scale-110"}`} />
+
+      {/* Tooltip on hover (side) */}
+      <span className="absolute left-full ml-3 px-2 py-1 bg-gray-900 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+        {tooltip || label}
+      </span>
     </button>
   );
 };
 
 const ToolbarDivider = () => (
-  <div className="w-6 h-px bg-gray-300 my-2 mx-auto" />
+  <div className="w-8 h-[1px] bg-gray-200/60 my-1 mx-auto" />
 );
 
 interface RightToolbarProps {
@@ -89,19 +77,24 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
   setTool,
   onAnnotate,
   onMeasure,
-  onDownload,
-  onShare,
-  onToggleGrid,
-  onAddNote,
-  onCalculate,
-  showGrid = false,
-  className = "",
 }) => {
   return (
-    <aside
-      className={`flex-shrink-0 flex flex-col items-center w-16 py-4 bg-white bg-opacity-95 backdrop-blur-sm border-gray-200 shadow-lg ${className}`}
+    <div
+      className="
+    pointer-events-auto 
+    flex flex-col items-center 
+    p-2 
+    bg-white/40
+    backdrop-blur-xl 
+    border-2 border-white/80
+    rounded-2xl 
+    shadow-[0_8px_30px_rgba(0,0,0,0.20)]
+    hover:bg-white/80 
+    transition-all
+  "
     >
-      <div className="flex flex-col items-center space-y-2">
+
+      <div className="flex flex-col items-center gap-1">
         {/* Selection Tools */}
         <ToolButton
           icon={MousePointer}
@@ -117,6 +110,17 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
           onClick={() => setTool("pan")}
           tooltip="Pan"
         />
+
+        <ToolbarDivider />
+
+        {/* Drawing & Annotation Tools */}
+        <ToolButton
+          icon={Pentagon}
+          label="polygon"
+          activeTool={activeTool}
+          onClick={() => setTool("polygon")}
+          tooltip="Polygon Area"
+        />
         <ToolButton
           icon={SquareDashedMousePointer}
           label="annotate"
@@ -125,26 +129,19 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
             setTool("annotate");
             onAnnotate?.();
           }}
-          tooltip="Annotate Objects"
+          tooltip="Box Detection"
         />
         <ToolButton
-          icon={Copy}
-          label="copy"
+          icon={Pencil}
+          label="markup"
           activeTool={activeTool}
-          onClick={() => setTool("copy")}
-          tooltip="Copy"
+          onClick={() => setTool("markup")}
+          tooltip="Freehand Markup"
         />
 
         <ToolbarDivider />
 
         {/* Measurement Tools */}
-        <ToolButton
-          icon={Baseline}
-          label="linear"
-          activeTool={activeTool}
-          onClick={() => setTool("linear")}
-          tooltip="Linear Measure"
-        />
         <ToolButton
           icon={Ruler}
           label="measure"
@@ -153,60 +150,35 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
             setTool("measure");
             onMeasure?.();
           }}
-          tooltip="Measure"
+          tooltip="Calibrate Scale"
+        />
+        <ToolButton
+          icon={Baseline}
+          label="linear"
+          activeTool={activeTool}
+          onClick={() => setTool("linear")}
+          tooltip="Linear Measure"
         />
 
         <ToolbarDivider />
 
-        {/* Drawing Tools */}
-        <ToolButton
-          icon={Pencil}
-          label="markup"
-          activeTool={activeTool}
-          onClick={() => {
-            setTool("markup");
-            onAnnotate?.();
-          }}
-          tooltip="Markup"
-        />
-
-        {/* Polygon annotation tool */}
-        <ToolButton
-          icon={Pentagon}
-          label="polygon"
-          activeTool={activeTool}
-          onClick={() => setTool("polygon")}
-          tooltip="Polygon Annotation"
-        />
-
-        {/* Erase annotations */}
-        <ToolButton
-          icon={Eraser}
-          label="erase"
-          activeTool={activeTool}
-          onClick={() => setTool("erase")}
-          tooltip="Erase Annotations"
-        />
-
-        <ToolbarDivider />
-
-        {/* Actions */}
+        {/* Utility Tools */}
         <ToolButton
           icon={SlidersHorizontal}
           label="adjust"
           activeTool={activeTool}
           onClick={() => setTool("adjust")}
-          tooltip="Adjust"
+          tooltip="Image Adjustments"
         />
         <ToolButton
-          icon={Search}
-          label="search"
+          icon={Eraser}
+          label="erase"
           activeTool={activeTool}
-          onClick={() => setTool("search")}
-          tooltip="Search"
+          onClick={() => setTool("erase")}
+          tooltip="Eraser"
         />
       </div>
-    </aside>
+    </div>
   );
 };
 

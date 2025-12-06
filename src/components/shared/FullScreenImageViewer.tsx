@@ -1729,7 +1729,7 @@ export default function FullScreenImageViewer({
 
       {/* Left Toolbar */}
       {leftToolbarOpen && (
-        <div className="absolute left-3 top-28 bottom-0  z-20">
+        <div className="absolute left-6 top-44 bottom-0  z-20">
           <RightToolbar
             activeTool={activeTool}
             setTool={setActiveTool}
