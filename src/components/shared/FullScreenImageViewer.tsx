@@ -5,22 +5,13 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  ZoomIn,
-  ZoomOut,
-  RotateCw,
-  Download,
-  Share2,
-  DownloadCloud,
   Search,
-  Save,
-  Zap,
-  Bot,
   Clock3,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
 import AskAISidePanel from "./AskAISidePanel";
-import AiButton from "./aiButton/AiButton";
+import { FullScreenImageHeader } from "./FullScreenImageHeader";
 
 interface Image {
   id: string;
@@ -1719,123 +1710,22 @@ export default function FullScreenImageViewer({
   return (
     <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-50 bg-[#1C2931] bg-opacity-50 px-4 py-4">
-        <div className="flex items-center justify-between text-white">
-          <div className="flex-1">
-            <h3 className="text-sm font-medium truncate max-w-md">
-              {currentImage.name} Blue Print
-            </h3>
-
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              onClick={zoomOut}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-              title="Zoom Out (-)"
-            >
-              <ZoomOut className="w-5 h-5" />
-            </button>
-
-            <span className="text-sm px-2">{Math.round(zoom * 100)}%</span>
-
-            <button
-              onClick={zoomIn}
-              className="p-2 hover:bg-white hover:bg-opacity-20 rounded-lg transition-colors"
-              title="Zoom In (+)"
-            >
-              <ZoomIn className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={rotate}
-              className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
-              title="Rotate (R)"
-            >
-              <RotateCw className="w-5 h-5" />
-            </button>
-
-            <button
-              onClick={resetView}
-              className="px-3 py-1 text-md  hover:bg-gray-700 mr-2 transition-colors"
-              title="Reset View"
-            >
-              Reset
-            </button>
-
-            {/* <button
-              onClick={handleExportPdf}
-              className="px-3 py-2 flex justify-center items-center gap-2 rounded-lg text-md bg-gray-700 hover:bg-gray-600 hover:bg-opacity-20  transition-colors"
-              title="Export PDF"
-            >
-              <DownloadCloud size={18} />
-            </button> */}
-
-
-
-            {/* <button
-              onClick={() => setShowElectrical((s) => !s)}
-              className={`px-5 py-2 flex justify-center  bg-gradient-to-r from-gray-700/60 to-green-800/10 items-center gap-2 text-white/70 hover:bg-green-600/40
-               h-12 px-8 rounded-lg border-2 border-white/10 overflow-hidden transition-all duration-500 group shadow  transition-colors ${showElectrical ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}`}
-              title={showElectrical ? "Hide Electrical Detections" : "Show Electrical Detections"}
-            >
-              <Zap size={16} /> Electrical Detection
-            </button> */}
-
-            <button
-              onClick={() => setShowDimensions((s) => !s)}
-              className={`px-5 py- flex justify-center  bg-gradient-to-r from-gray-700/60 to-green-800/10 items-center gap-2 text-white/70 hover:bg-green-600/40
-               h-12 px-8 rounded-lg border-2 border-white/10 overflow-hidden transition-all duration-500 group shadow  transition-colors ${showDimensions ? "bg-purple-500 text-white" : "bg-gray-700 text-white"}`}
-              title={showDimensions ? "Hide Dimensions" : "Show Dimensions"}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 3h18v18H3z" />
-                <path d="M9 3v18" />
-                <path d="M15 3v18" />
-                <path d="M3 9h18" />
-                <path d="M3 15h18" />
-              </svg>
-              Show Dimentions
-            </button>
-
-            <AiButton onClick={() => setAskAiOpen(true)} />
-            <button
-              onClick={handleExportCsv}
-              className="px-5 py-2 flex justify-center  bg-gradient-to-r from-gray-700/60 to-green-800/10 items-center gap-2 text-white/70 hover:bg-green-600/40
-               h-12 px-8 rounded-lg border-2 border-white/10 overflow-hidden transition-all duration-500 group shadow  transition-colors"
-              title="Export Annotations CSV"
-            >
-              <Download size={18} /> Download
-            </button>
-            <button
-              onClick={onClose}
-              className="px-5 py-2 flex justify-center  bg-gradient-to-r from-gray-700/60 to-green-800/10 items-center gap-2 text-white/70 hover:bg-green-600/40
-               h-12 px-8 rounded-lg border-2 border-white/10 overflow-hidden transition-all duration-500 group shadow  transition-colors"
-              title="Close Viewer"
-            >
-              <Save size={18} className="text-white/60" /> Save
-            </button>
-
-            {/* Polygon finish/cancel controls */}
-            {polygonPoints.length > 0 && (
-              <div className="flex items-center space-x-2 ml-2">
-                <button
-                  onClick={finishPolygon}
-                  className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  Finish Polygon
-                </button>
-                <button
-                  onClick={cancelPolygon}
-                  className="px-3 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <FullScreenImageHeader
+        currentImageName={currentImage.name}
+        zoom={zoom}
+        onZoomOut={zoomOut}
+        onZoomIn={zoomIn}
+        onRotate={rotate}
+        onResetView={resetView}
+        showDimensions={showDimensions}
+        onToggleDimensions={() => setShowDimensions((s) => !s)}
+        onAskAiOpen={() => setAskAiOpen(true)}
+        onExportCsv={handleExportCsv}
+        onClose={onClose}
+        polygonPointsLength={polygonPoints.length}
+        onFinishPolygon={finishPolygon}
+        onCancelPolygon={cancelPolygon}
+      />
 
       {/* Left Toolbar */}
       {leftToolbarOpen && (
