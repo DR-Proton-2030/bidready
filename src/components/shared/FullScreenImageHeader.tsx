@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ZoomIn, ZoomOut, RotateCw, Download, X, Check, Ruler, Minimize2, LayoutTemplate, PanelTop, Save } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCw, Download, X, Check, Ruler, Minimize2, LayoutTemplate, PanelTop, Save, Image } from "lucide-react";
 import AiButton from "./aiButton/AiButton";
 
 interface FullScreenImageHeaderProps {
@@ -59,13 +59,14 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 max-w-[1920px] mx-auto">
 
                     {/* Left Floating Island: Identity */}
-                    <div className="pointer-events-auto flex items-center gap-3 bg-white/80 backdrop-blur-xl border border-white/40 shadow-xl shadow-black/5 rounded-2xl p-2 pr-5 transition-all hover:bg-white/90">
+                    <div className="pointer-events-auto flex items-center gap-3  backdrop-blur-xl 
+                    border border-white/60 overflow-hidden shadow-xl shadow-black/5 rounded-2xl p-2 pr-5 transition-all bg-white/80">
                         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-600 to-orange-400 
                         flex items-center justify-center text-orange-600 shadow-sm">
-                            <Ruler size={20} className="drop-shadow-sm text-white" />
+                            <Image size={20} className="drop-shadow-sm text-white" />
                         </div>
                         <div className="flex flex-col">
-                            <h3 className="text-gray-900 font-bold text-sm tracking-tight truncate max-w-[200px] leading-tight">
+                            <h3 className="text-gray-900 font-bold text-sm tracking-tight truncate max-w-[170px] leading-tight">
                                 {currentImageName}
                             </h3>
                             <span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">
@@ -122,7 +123,7 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
                                 onClick={onToggleDimensions}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-200 border ${showDimensions
                                     ? "bg-orange-500 text-white border-orange-400 shadow-md shadow-orange-200"
-                                    : "bg-white/50 text-gray-600 border-transparent hover:bg-white hover:shadow-sm"
+                                    : "hover:bg-white/50 text-gray-600 border-transparent bg-white shadow-sm"
                                     }`}
                             >
                                 <Ruler size={16} className={showDimensions ? "text-white" : "text-gray-500"} />
@@ -155,7 +156,7 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
                                 hover:scale-105 active:scale-95 transition-all duration-200"
                                 title="Save"
                             >
-                                <Save size={18} className="group-hover:rotate-90 transition-transform duration-300" />
+                                <Save size={18} className=" transition-transform duration-300" />
                                 <span className="hidden sm:inline ml-2 text-xs font-bold">Save</span>
                             </button>
                         </div>

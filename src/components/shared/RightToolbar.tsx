@@ -38,7 +38,7 @@ const ToolButton: React.FC<ToolButtonProps> = ({
       className={`
         relative flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 group
         ${active
-          ? "bg-orange-600 text-white shadow-md shadow-blue-200"
+          ? "bg-black/70 text-white shadow-md shadow-blue-200"
           : "bg-transparent text-gray-500 hover:bg-white hover:text-gray-900 hover:shadow-sm"
         }
       `}

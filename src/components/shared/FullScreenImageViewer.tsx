@@ -1768,7 +1768,8 @@ export default function FullScreenImageViewer({
         }}
       >
         {/* Fixed Gradient Overlay tied to the viewport, not the image */}
-        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-black/80 to-transparent pointer-events-none z-20"></div>
+        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-black/70 to-transparent pointer-events-none z-20"></div>
+        <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-black/70 to-transparent pointer-events-none z-20"></div>
 
         <div
           ref={containerRef}

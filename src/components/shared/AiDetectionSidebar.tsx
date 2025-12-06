@@ -37,59 +37,52 @@ export const AiDetectionSidebar: React.FC<AiDetectionSidebarProps> = ({
     if (!detectionResults || !sidebarOpen) return null;
 
     return (
-        <div className="absolute w-96 top-16 right-0 z-10 bg-white bg-opacity-95 text-black rounded-lg py-4 px-5 max-w-sm h-screen overflow-y-auto shadow-2xl border border-gray-300">
-            {/* Header can be uncommented if needed */}
-            {/* <div className="flex items-center justify-between mb-4 pt-6">
-            <h4 className="text-xl font-bold text-gray-800">
-              Detection Results
-            </h4>
-            <button
-              onClick={onClose}
-              className="p-1 hover:bg-gray-200 rounded transition-colors"
-              title="Close Panel"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div> */}
+        <div className="absolute right-4 top-24 w-80 h-[80vh] 
+        overflow-y-auto z-40 bg-white/60 backdrop-blur-xl border-2 border-white/80 shadow-[0_8px_30px_rgba(0,0,0,0.20)] 
+        rounded-2xl p-4 flex flex-col gap-4 animate-in slide-in-from-right-8 fade-in duration-300 custom-scrollbar">
 
-            {/* Search Bar */}
-            <div className="relative mb-4">
-                <div className="flex gap-2 items-center justify-between">
-                    <div className="relative w-3/4 flex items-center">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <input
-                            type="text"
-                            placeholder="Search classes..."
-                            value={searchTerm}
-                            onChange={(e) => onSearchChange(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        />
-                    </div>
-
-                    <button
-                        onClick={onAddClassOpen}
-                        className="w-1/4 flex items-center justify-center gap-2 mb-4 px-2 py-2 mt-3 bg-black text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
-                    >
-                        +
-                    </button>
+            {/* Header / Search Section */}
+            <div className="flex gap-2 items-center">
+                <div className="relative flex-1 group">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors w-4 h-4" />
+                    <input
+                        type="text"
+                        placeholder="Search classes..."
+                        value={searchTerm}
+                        onChange={(e) => onSearchChange(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2.5 bg-white/50 border border-gray-200/60 rounded-xl text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/50 transition-all shadow-sm"
+                    />
                 </div>
+
+                <button
+                    onClick={onAddClassOpen}
+                    className="flex items-center justify-center w-10 h-10 bg-black/70 text-white 
+                    rounded-xl hover:bg-black hover:scale-105 active:scale-95 transition-all shadow-md shadow-gray-200"
+                    title="Add New Class"
+                >
+                    <span className="text-lg font-medium leading-none mb-0.5">+</span>
+                </button>
             </div>
 
-            {/* Class Breakdown */}
+            {/* Main Content Area */}
             {detectionResults.predictions && detectionResults.predictions.length > 0 && (
-                <div className="mb-4">
+                <div className="flex flex-col gap-4">
+
+                    {/* Timestamp Badge */}
                     {detectionTimestamp && (
-                        <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-gray-500">
-                            <span className="flex items-center gap-1">
-                                <Clock3 className="h-3 w-3 text-gray-400" />
-                                AI SNAPSHOT
-                            </span>
-                            <span className="tracking-normal font-semibold text-gray-600">
-                                {detectionTimestamp.timeLabel} · {detectionTimestamp.dateLabel}
+                        <div className="flex items-center justify-between px-1">
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-white/40 border border-white/50 text-[10px] uppercase tracking-wider font-bold text-gray-500 shadow-sm">
+                                <Clock3 className="h-3 w-3" />
+                                <span>AI Snapshot</span>
+                            </div>
+                            <span className="text-[10px] font-semibold text-gray-400 tracking-tight">
+                                {detectionTimestamp.timeLabel}
                             </span>
                         </div>
                     )}
-                    <div className="space-y-1">
+
+                    {/* Class List */}
+                    <div className="flex flex-col gap-1.5">
                         {Object.entries(filteredClasses).map(([className, stats]) => {
                             const isSelected = selectedClasses.has(className);
                             const classColor = getColorForClass(className);
@@ -99,28 +92,37 @@ export const AiDetectionSidebar: React.FC<AiDetectionSidebarProps> = ({
                                 <button
                                     key={className}
                                     onClick={() => onToggleClassSelection(className)}
-                                    className="w-full flex items-center gap-3 px-3 py-2 border-t border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200 bg-white"
+                                    className={`
+                    group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-200
+                    ${isSelected
+                                            ? "bg-blue-50/80 border-blue-100 shadow-sm shadow-blue-100"
+                                            : "bg-white/40 border-transparent hover:bg-white hover:border-white/60 hover:shadow-sm"
+                                        }
+                  `}
                                 >
-                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                    {/* Color Dot */}
+                                    <div className="relative flex items-center justify-center w-5 h-5 flex-shrink-0">
                                         <div
-                                            className="w-4 h-4 shadow-sm flex-shrink-0 rounded"
+                                            className={`w-3 h-3 rounded-full shadow-sm ring-2 ring-white transition-transform duration-300 ${isSelected ? "scale-110" : "scale-100"}`}
                                             style={{ backgroundColor: classColor }}
                                         />
                                     </div>
 
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-gray-800 capitalize">
-                                            <span>{className}</span>
-                                            <span className="text-xs font-bold px-1 py-0.5 rounded-full bg-gray-100 border border-gray-300 text-black">
-                                                {count}
-                                            </span>
-                                        </div>
+                                    {/* Label & Count */}
+                                    <div className="flex-1 flex items-center justify-between min-w-0">
+                                        <span className={`text-sm font-semibold capitalize truncate pr-2 ${isSelected ? "text-blue-900" : "text-gray-700"}`}>
+                                            {className}
+                                        </span>
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border min-w-[1.25rem] text-center ${isSelected ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-500 border-gray-200"}`}>
+                                            {count}
+                                        </span>
                                     </div>
 
+                                    {/* Checkbox UI */}
                                     <div
-                                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${isSelected
-                                                ? "border-blue-500 bg-blue-500"
-                                                : "border-gray-300 bg-white"
+                                        className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all duration-200 ${isSelected
+                                            ? "border-blue-500 bg-blue-500 scale-100"
+                                            : "border-gray-300 bg-transparent scale-90 opacity-0 group-hover:opacity-100"
                                             }`}
                                     >
                                         {isSelected && (
@@ -142,43 +144,46 @@ export const AiDetectionSidebar: React.FC<AiDetectionSidebarProps> = ({
                         })}
                     </div>
 
-                    {/* Clear Filter Button */}
+                    {/* Clear Filter Action */}
                     {selectedClasses.size > 0 && (
                         <button
                             onClick={onClearFilter}
-                            className="mt-3 w-full text-sm text-gray-600 hover:text-blue-600 underline py-1"
+                            className="text-xs font-semibold text-gray-500 hover:text-blue-600 hover:underline transition-all self-center"
                         >
-                            Clear filter (show all {Object.keys(classCounts).length} classes)
+                            Clear filter (Show all {Object.keys(classCounts).length} classes)
                         </button>
                     )}
 
-                    {/* Summary Stats */}
-                    <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-                        <p className="text-xs text-gray-600 mb-1">Total Detections:</p>
-                        <p className="text-lg font-bold text-gray-800">
-                            {detectionResults.predictions.length}
-                        </p>
-                        <p className="text-xs text-gray-600 mt-2">
-                            {Object.keys(classCounts).length} different classes detected
-                        </p>
+                    {/* Stats Card */}
+                    <div className="bg-gradient-to-br from-gray-50 to-white border border-white/60 p-3 rounded-xl shadow-sm">
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Total Detections</p>
+                                <p className="text-2xl font-bold text-gray-800 leading-none">{detectionResults.predictions.length}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Classes</p>
+                                <p className="text-xl font-bold text-gray-700 leading-none">{Object.keys(classCounts).length}</p>
+                            </div>
+                        </div>
                     </div>
 
-                    {/* Annotated Image Preview */}
+                    {/* Annotated Preview Card */}
                     {detectionResults.annotated_image && (
-                        <div className="mt-4 p-3 bg-gray-100 rounded-lg">
-                            <p className="text-xs text-gray-600 mb-2">
-                                AI Annotated Preview:
-                            </p>
-                            <div className="relative">
-                                <img
-                                    src={detectionResults.annotated_image}
-                                    alt="AI Annotated"
-                                    className="w-full h-auto rounded border border-gray-300"
-                                    style={{ maxHeight: "200px", objectFit: "contain" }}
-                                />
-                                <div className="absolute top-1 right-1 bg-green-600 text-white px-2 py-1 rounded text-xs font-medium">
-                                    AI Processed
-                                </div>
+                        <div className="group relative overflow-hidden rounded-xl border border-white/60 shadow-sm bg-gray-50">
+                            <img
+                                src={detectionResults.annotated_image}
+                                alt="AI Annotated"
+                                className="w-full h-32 object-cover object-center opacity-90 group-hover:opacity-100 transition-opacity"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60 pointer-events-none" />
+                            <div className="absolute bottom-2 left-2 right-2 flex justify-between items-end">
+                                <span className="text-[10px] font-bold text-white/90 bg-black/30 backdrop-blur-md px-2 py-1 rounded-lg border border-white/20">
+                                    Preview
+                                </span>
+                                <span className="bg-green-500/90 backdrop-blur text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm border border-white/20">
+                                    AI PROCESSED
+                                </span>
                             </div>
                         </div>
                     )}
@@ -187,22 +192,22 @@ export const AiDetectionSidebar: React.FC<AiDetectionSidebarProps> = ({
 
             {/* Custom Classes Section */}
             {customClasses.length > 0 && (
-                <div className="mt-6 pt-4 border-t border-gray-200">
-                    <h5 className="text-sm font-semibold text-gray-700 mb-2">
+                <div className="pt-3 border-t border-gray-200/50 mt-1">
+                    <h5 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
                         Custom Classes
                     </h5>
-                    <div className="space-y-1">
+                    <div className="flex flex-wrap gap-1.5">
                         {customClasses.map((className, index) => (
-                            <div
+                            <span
                                 key={index}
-                                className="flex items-center gap-2 px-2 py-1 bg-gray-100 rounded text-sm"
+                                className="inline-flex items-center gap-1.5 px-2 py-1 bg-white/60 border border-gray-100 rounded-lg text-xs font-medium text-gray-600 shadow-sm"
                             >
-                                <div
-                                    className="w-3 h-3 rounded-full"
+                                <span
+                                    className="w-2 h-2 rounded-full"
                                     style={{ backgroundColor: getColorForClass(className) }}
-                                ></div>
+                                ></span>
                                 <span className="capitalize">{className}</span>
-                            </div>
+                            </span>
                         ))}
                     </div>
                 </div>

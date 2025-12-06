@@ -186,11 +186,12 @@ export default function AskAISidePanel({ open, onClose, imageName, detectionCont
         <div className="fixed inset-0 z-[70] flex ">
             <button
                 type="button"
-                className={`flex-1 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                className={`flex-1 bg-slate-900/40 backdrop-blur-xs transition-opacity duration-300 
+                    ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 aria-label="Close Ask AI panel backdrop"
                 onClick={onClose}
             />
-            <aside className={`relative flex h-full w-full max-w-lg flex-col overflow-hidden border-l
+            <aside className={`relative flex h-full w-full max-w-md flex-col overflow-hidden border-l
              border-slate-200 bg-white text-slate-900 shadow-[0_20px_60px_rgba(15,23,42,0.12)] transform transition-transform duration-300 ease-out ${isVisible ? 'translate-x-0' : 'translate-x-full'}`}>
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white via-white/60 to-transparent" />
 
