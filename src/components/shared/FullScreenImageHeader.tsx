@@ -60,8 +60,9 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
 
                     {/* Left Floating Island: Identity */}
                     <div className="pointer-events-auto flex items-center gap-3 bg-white/80 backdrop-blur-xl border border-white/40 shadow-xl shadow-black/5 rounded-2xl p-2 pr-5 transition-all hover:bg-white/90">
-                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center border border-orange-100 text-orange-600 shadow-sm">
-                            <Ruler size={20} className="drop-shadow-sm" />
+                        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-orange-600 to-orange-400 
+                        flex items-center justify-center text-orange-600 shadow-sm">
+                            <Ruler size={20} className="drop-shadow-sm text-white" />
                         </div>
                         <div className="flex flex-col">
                             <h3 className="text-gray-900 font-bold text-sm tracking-tight truncate max-w-[200px] leading-tight">
