@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useContext, useEffect } from "react";
 import { Bot, X } from "lucide-react";
+import AuthContext from "@/contexts/authContext/authContext";
 
 export interface AskAIHeaderProps {
     imageName?: string;
@@ -8,6 +9,7 @@ export interface AskAIHeaderProps {
 
 
 export default function AskAIHeader({ imageName, onClose }: AskAIHeaderProps) {
+    const { user } = useContext(AuthContext);
 
     return (
         <header className=" flex items-start justify-between px-6 py-2 z-10 
@@ -23,12 +25,16 @@ export default function AskAIHeader({ imageName, onClose }: AskAIHeaderProps) {
                             data-aos="fade-up" data-aos-duration="800"
                             className="relative inline-block text-3xl md:text-5xl lg:text-4xl font-extrabold leading-tight 
                         tracking-tight bg-gradient-to-r from-[#FF6A00] via-[#FF8C00] to-[#FFC300]
- bg-clip-text text-transparent" >
-                            <img
-                                src="https://img.icons8.com/?size=100&id=1G3UNEZHMjPH&format=png"
-                                className="orangeimg "
-                                alt=""
-                            />
+                        bg-clip-text text-transparent" >
+                            {/* {
+                                user?.company_details?.logo &&
+                                <img
+                                    src={user.company_details.logo}
+                                    className="h-16 w-16 "
+                                    alt=""
+                                />
+                            } */}
+
                             <div className="" >
 
                                 Bidready Copilot

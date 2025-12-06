@@ -2203,7 +2203,7 @@ export default function FullScreenImageViewer({
                           textAnchor="start"
                           style={{ paintOrder: "stroke", stroke: "rgba(255,255,255,0.95)", strokeWidth: 2 }}
                         >
-                          {`${Math.round(detection.confidence * 100)}%`}
+                          {/* {`${Math.round(detection.confidence * 100)}%`} */}
                         </text>
                       )}
 
