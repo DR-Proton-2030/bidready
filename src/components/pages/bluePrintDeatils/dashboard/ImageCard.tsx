@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { X, Upload, ArrowUpRight, Image, Check, Map } from "lucide-react";
-import ImagePreview, { FilePreview as PreviewType } from './ImagePreview'
+import ImagePreview, { FilePreview as PreviewType } from "./ImagePreview";
 
 type ImageCardProps = {
   maxFiles?: number;
@@ -32,12 +32,14 @@ const ImageCard: React.FC<ImageCardProps> = ({
   maxFiles = 5,
   onChange,
   onUpload,
-  blueprint_images 
+  blueprint_images
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previews, setPreviews] = useState<PreviewType[]>([]);
   const [isDragActive, setIsDragActive] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [drawerActive, setDrawerActive] = useState(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const notifyChange = useCallback(
     (items: FilePreview[]) => {
@@ -47,6 +49,15 @@ const ImageCard: React.FC<ImageCardProps> = ({
     },
     [onChange]
   );
+
+  const openPanel = useCallback(() => {
+    setSidebarOpen(true);
+    if (typeof window !== "undefined" && "requestAnimationFrame" in window) {
+      window.requestAnimationFrame(() => setDrawerActive(true));
+      return;
+    }
+    setDrawerActive(true);
+  }, []);
 
   const addFiles = useCallback(
     (files: FileList | File[]) => {
@@ -67,9 +78,9 @@ const ImageCard: React.FC<ImageCardProps> = ({
       const merged = [...newPreviews, ...previews];
       setPreviews(merged);
       notifyChange(merged);
-      setSidebarOpen(true);
+      openPanel();
     },
-    [maxFiles, previews, notifyChange]
+    [maxFiles, previews, notifyChange, openPanel]
   );
 
   const handleDrop: React.DragEventHandler<HTMLDivElement> = (e) => {
@@ -124,6 +135,19 @@ const ImageCard: React.FC<ImageCardProps> = ({
 
   const openFileDialog = () => inputRef.current?.click();
 
+  const closePanel = () => {
+    setDrawerActive(false);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    // match transition duration (500ms) + small buffer
+    hideTimerRef.current = setTimeout(() => setSidebarOpen(false), 560);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, []);
+
   const viewDetection = (p: FilePreview) => {
     if (typeof window === "undefined") return;
     try {
@@ -171,113 +195,148 @@ const ImageCard: React.FC<ImageCardProps> = ({
   };
 
   return (
-    <div className=" w-1/3">
-      <div  onClick={() => setSidebarOpen(true)} className="bg-gray-50 shadow-sm mb-6 p-4 rounded-2xl items-center justify-between flex">
-                <h2 className={`text-lg font-medium text-gray-900 flex items-center gap-2`}>
-                  {/* <Map/> */}
-                  View Floor Plans</h2>
-                <div className={`flex items-center justify-center text-white w-10 h-10 bg-black/70 rounded-full border`}>
-                  <ArrowUpRight className={`w-4 h-4`} />
-                </div>
-      </div>
-    <div className="relative  h-[80%] w-full bg-gray-50 p-6 rounded-2xl  shadow-sm space-y-6">
-      {/* Floating Top-Right Button */}
-      <div className="absolute top-2 right-2 z-10">
-    
-      
-      </div>
-
-      {/* Drop Zone */}
+    <div className="w-1/3">
       <div
-        className={`border-2 border-dashed rounded-xl h-full flex flex-col justify-center items-center text-center transition-colors ${
-          isDragActive ? "bg-slate-100 border-blue-400" : "border-slate-300"
-        }`}
-        onDrop={handleDrop}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragActive(true);
+        role="button"
+        tabIndex={0}
+        onClick={openPanel}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") openPanel();
         }}
-        onDragLeave={(e) => {
-          e.preventDefault();
-          setIsDragActive(false);
-        }}
-        onClick={openFileDialog}
+        className="h-72 rounded-[28px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_45px_rgba(15,23,42,0.12)] backdrop-blur items-start justify-between flex cursor-pointer transition-transform duration-300 hover:-translate-y-1"
       >
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={(e) => {
-            if (e.target.files) addFiles(e.target.files);
-            e.target.value = "";
-          }}
-          className="hidden"
-        />
-       <Image size={56} className="text-gray-600"/>
-        <p className="text-gray-600 mx-auto text-xs font-medium">
-          Drag & drop images here 
-        </p>
+        <h2 className="text-xl font-medium text-gray-900 flex items-center gap-2">
+          <Map className="w-5 h-5 text-slate-600" />
+          View Floor Plans
+        </h2>
+        <div className="flex items-center justify-center text-white w-10 h-10 bg-black/70 rounded-full border">
+          <ArrowUpRight className="w-4 h-4" />
+        </div>
       </div>
 
-      {/* Sidebar Modal */}
       {sidebarOpen && (
-        <>
-          {/* Overlay */}
+        <div className="fixed h-screen inset-0 z-[70] flex items-stretch justify-end px-0 sm:px-4">
           <div
-            className="fixed inset-0 bg-black/40 z-40 h-screen"
-            onClick={() => setSidebarOpen(false)}
+            className={`absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity
+               duration-500 ${drawerActive ? "opacity-100" : "opacity-0"}`}
+            onClick={closePanel}
           />
-          {/* Sidebar */}
-          <div className="fixed right-0 top-0 h-full w-96 bg-white shadow-xl z-50 flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold">Uploaded Images</h2>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-2 rounded-full hover:bg-gray-100"
-              >
-                <X className="w-5 h-5 text-gray-700" />
-              </button>
-            </div>
 
-            {/* Content */}
-            <div className="p-4 overflow-y-auto space-y-4 flex-1">
-              {previews.length > 0 ? (
-                previews.map((p, idx) => (
-                  <ImagePreview
-                    key={p.src ?? p.id ?? idx}
-                    p={p}
-                    idx={idx}
-                    onRemove={(i) => removeAt(i)}
-                    onViewDetection={(preview) => viewDetection(preview)}
+          <div className="relative z-10 pointer-events-none w-full">
+            <div
+              className={`pointer-events-auto fixed right-0 top-0 h-full w-full 
+                sm:w-[520px] md:w-[640px] max-w-[80vw]  border-l border-white/20 
+                bg-gradient-to-br from-white/95 via-white/90 to-slate-50/80 backdrop-blur-3xl 
+                shadow-[0_40px_80px_rgba(15,23,42,0.35)] transform transition-transform duration-500
+                 ${drawerActive ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}`}
+            >
+
+
+              <div className=" z-10 flex h-full flex-col p-8">
+                <div className="flex items-start justify-between gap-6">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Blueprint library</p>
+                    <h2 className="mt-2 text-3xl font-semibold text-slate-900">Manage floor plan media</h2>
+                    <p className="mt-3 text-sm text-slate-500 max-w-xl">
+                      Upload, review, and launch detections for every blueprint. Drag files directly or browse from your device.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={closePanel}
+                    className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100"
+                    aria-label="Close viewer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* <div
+                  className={`mt-6 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors ${isDragActive ? "border-slate-400 bg-slate-100" : "border-slate-300 bg-white/60"}`}
+                  onDrop={handleDrop}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragActive(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    setIsDragActive(false);
+                  }}
+                  onClick={openFileDialog}
+                >
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => {
+                      if (e.target.files) addFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                    className="hidden"
                   />
-                ))
-              ) : (
-                <p className="text-gray-400 text-center mt-8">No images uploaded yet.</p>
-              )}
-            </div>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                    <Image className="h-6 w-6" />
+                  </div>
+                  <p className="mt-4 text-base font-medium text-slate-800">Drop high-res plans</p>
+                  <p className="text-sm text-slate-500">Supported: JPG, PNG, SVG, up to {maxFiles} files</p>
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                    <span className="rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-500">drag n drop</span>
+                    <span className="rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-500">browse</span>
+                  </div>
+                </div> */}
 
-            {/* Footer */}
-            <div className="p-4 border-t flex justify-end gap-3">
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100"
-              >
-                Close
-              </button>
-              <button
-                onClick={handleUpload}
-                disabled={!previews.length || !onUpload}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40"
-              >
-                <Upload className="w-4 h-4 inline mr-1" /> Upload
-              </button>
+                <div className="mt-6 flex-1 overflow-hidden">
+                  {previews.length ? (
+                    <div className="h-full overflow-y-auto pr-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {previews.map((p, idx) => (
+                          <ImagePreview
+                            key={p.src ?? p.id ?? idx}
+                            p={p}
+                            idx={idx}
+                            onRemove={(i) => removeAt(i)}
+                            onViewDetection={(preview) => viewDetection(preview)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
+                      <p className="text-lg font-medium">No blueprint images yet</p>
+                      <p className="text-sm">Add files to visualize them here in a responsive grid.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt- flex items-center justify-between border-t border-slate-100 pt-4">
+                  <p className="text-xs uppercase tracking-[0.4em] text-slate-400">
+                    synced {previews.length} / {maxFiles}
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={closePanel}
+                      className="rounded-full border border-slate-200 px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleUpload}
+                      disabled={!previews.length || !onUpload}
+                      className="flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-40"
+                    >
+                      <Upload className="h-4 w-4" />
+                      Upload
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </>
+
+        </div>
       )}
-    </div></div>
+    </div>
   );
 };
 

@@ -17,7 +17,7 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
   activePercent = 74,
 }) => {
   return (
-    <div className="mt-16 px-7">
+    <div className="mt-16 px-7 ">
       <div className="flex items-end justify-between h-56">
         {days.map((day, i) => {
           const isActive = i === activeIndex;
@@ -33,9 +33,8 @@ const AnalyticsChart: React.FC<AnalyticsChartProps> = ({
                   delay: i * 0.1,
                   ease: "easeOut",
                 }}
-                className={`rounded-full w-12 ${
-                  isActive ? "bg-orange-400 relative" : "bg-[#e16349]/20"
-                }`}
+                className={`rounded-full w-12 ${isActive ? "bg-orange-400 relative" : "bg-[#e16349]/20"
+                  }`}
               >
                 {isActive && (
                   <span className="absolute -top-5 text-xs font-medium text-gray-600">

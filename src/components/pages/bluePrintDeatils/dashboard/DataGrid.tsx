@@ -57,7 +57,7 @@ const DataGrid = ({ data }: any) => {
   };
 
   return (
-    <div className="bg-gray-50 rounded-2xl shadow-sm p-6 w-2/3">
+    <div className="rounded-[28px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_45px_rgba(15,23,42,0.12)] backdrop-blur w-2/3">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div>
@@ -67,7 +67,7 @@ const DataGrid = ({ data }: any) => {
 
       {/* Search + Filters */}
       <div className="flex items-center gap-3 mb-4">
-          <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 shadow py-3 flex-grow">
+        <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 shadow py-3 flex-grow">
           <Search size={18} className="text-gray-400" />
           <input
             type="text"

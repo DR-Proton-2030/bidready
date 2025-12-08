@@ -11,16 +11,11 @@ interface BlueprintDetailsClientProps {
 
 const BlueprintDetailsClient: React.FC<BlueprintDetailsClientProps> = ({ blueprintDetails }) => {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
-console.log("=====>festxhed details of blue print ",blueprintDetails)
+  console.log("=====>festxhed details of blue print ", blueprintDetails)
   return (
-    <div className="flex  bg-white font-sans  overflow-y-auto ">
-      <main className="flex-1 flex flex-col">
-        <TopBar onToggleRightPanel={() => setIsRightPanelOpen((s) => !s)} blueprintDetails={blueprintDetails} />
-        <div className="overflow-hidden bg-white px-6 ">
-          <Dasboard blueprintDetails={blueprintDetails} />
-        </div>
-      </main>
-      <RightPanel isOpen={isRightPanelOpen} images={blueprintDetails?.images ?? []} />
+    <div className="overflow-block">
+      <Dasboard blueprintDetails={blueprintDetails} />
+      {/* <RightPanel isOpen={isRightPanelOpen} images={blueprintDetails?.images ?? []} /> */}
     </div>
   );
 };

@@ -41,13 +41,13 @@ const teamMembers = [
     statusColor: "bg-red-100 text-red-700",
   },
 
- 
+
 
 ];
 
 const ReminderCard = () => {
   return (
-    <div className="bg-gray-50 rounded-2xl p-6 shadow-sm w-2/5">
+    <div className="rounded-[28px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_45px_rgba(15,23,42,0.12)] backdrop-blur">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-800">Team Collaboration</h2>
@@ -79,7 +79,7 @@ const ReminderCard = () => {
               </div>
             </div>
 
-        
+
           </div>
         ))}
       </div>

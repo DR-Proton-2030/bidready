@@ -8,30 +8,38 @@ interface StatCardProps {
   value: React.ReactNode;
   delta?: string;
   gradient?: boolean;
-  accentColorClass?: string; // e.g. 'orange' or 'emerald'
+  accentColorClass?: string; // e.g. 'from-orange-500 to-orange-400' gradient class
+  Icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, delta, gradient = false, accentColorClass = "orange" }) => {
-  const gradientClass = gradient ? (accentColorClass === "orange" ? "bg-gradient-to-r from-orange-500 to-orange-400" : 
-    "bg-gradient-to-r from-emerald-700 to-emerald-500") : "bg-gray-50";
+const StatCard: React.FC<StatCardProps> = ({ title, value, delta, gradient = false, accentColorClass = "from-orange-500 to-orange-400", Icon }) => {
+  const bgClass = gradient ? "bg-gradient-to-r " + accentColorClass : "bg-white";
+
+  const deltaIsPositive = typeof delta === 'string' ? !!delta.match(/(↑|\+|increase|increased|up)/i) : undefined;
+  const deltaClass = deltaIsPositive === undefined ? 'text-slate-600' : (deltaIsPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700');
 
   return (
-    <div className={`rounded-2xl p-6 shadow-sm relative ${gradientClass} ${gradient ? "text-white" : ""}`}>
-      <div className="flex justify-between items-start">
-        <h2 className={`text-lg font-medium ${gradient ? "text-white" : "text-gray-900"}`}>{title}</h2>
-        <div className={`flex items-center justify-center w-10 h-10 ${gradient ? "bg-white rounded-full" : "bg-transparent rounded-full border"}`}>
-          <ArrowUpRight className={`${gradient ? "text-black w-5 h-5" : "w-4 h-4"}`} />
+    <article className={`rounded-[20px] border border-white/20 p-5 shadow-[0_20px_45px_rgba(15,23,42,0.08)] backdrop-blur transition-transform hover:-translate-y-1 ${false ? bgClass : 'bg-white'}`}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${accentColorClass ?? 'from-orange-400 to-orange-600'} shadow-sm`}>
+            {Icon ? <Icon className="w-5 h-5 text-white" /> : <ArrowUpRight className="w-4 h-4 text-white" />}
+          </div>
+          <div>
+            <h3 className={`text-sm font-semibold text-black`}>{title}</h3>
+          </div>
+        </div>
+        <div className="ml-auto">
+          {/* Optional mini-menu/placeholder for future actions */}
         </div>
       </div>
 
-      <div className={`mt-4 ${gradient ? "text-5xl font-semibold" : "text-5xl font-semibold text-gray-900"}`}>{value}</div>
+      <div className={`mt-4 text-3xl font-semibold text-black`}>{value}</div>
 
-      {delta && (
-        <p className={`text-sm mt-3 ${gradient ? "bg-white/20 text-white" : "text-orange-600"} w-fit px-2 py-1 rounded-full`}>
-          {delta}
-        </p>
-      )}
-    </div>
+      {/* {delta && (
+        <div className={`inline-block mt-3 ${deltaClass} px-3 py-1 rounded-full text-sm font-medium`}>{delta}</div>
+      )} */}
+    </article>
   );
 };
 
