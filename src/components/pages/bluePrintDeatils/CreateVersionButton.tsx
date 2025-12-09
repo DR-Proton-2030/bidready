@@ -127,6 +127,7 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
                         router.refresh();
                     }}
                     blueprintId={blueprintId}
+                    versionId={newVersionId} // Pass version ID
                     externalPDFHook={pdfAnnotationHook}
                     onError={(err) => console.error(err)}
                 />

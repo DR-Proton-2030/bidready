@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
 import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
 import useBulkDetectionsUpload from "@/hooks/useBulkDetectionsUpload";
@@ -21,7 +21,12 @@ const BluePrintDetection = ({ id: propId }: any) => {
     const m = path.match(/\/blueprint_detection\/([^\/\?]+)/);
     return m ? m[1] : null;
   };
-  const { images, loading, error, refetch } = useBlueprintImages(propId ?? null);
+
+  const searchParams = useSearchParams();
+  const versionId = searchParams?.get("versionId");
+  console.log("===>versionId", versionId)
+
+  const { images, loading, error, refetch } = useBlueprintImages(propId ?? null, versionId);
   const router = useRouter();
   const { deleteImage, loading: deleting, error: deleteError } = useDeleteBlueprintImage();
   const [selected, setSelected] = useState<BlueprintImage | null>(null);

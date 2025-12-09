@@ -13,6 +13,7 @@ interface PDFViewerSectionProps {
   onError?: (error: string) => void;
   externalPDFHook?: any; // External PDF annotation hook
   blueprintId?: string; // Newly created blueprint id for navigation
+  versionId?: string; // Optional version id for navigation
 }
 
 const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
@@ -23,6 +24,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
   onError,
   externalPDFHook,
   blueprintId,
+  versionId,
 }) => {
   const router = useRouter();
   const [hasAnnotations, setHasAnnotations] = useState(false);
@@ -275,14 +277,17 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
       console.warn("handleSaveEdits failed", err);
     }
   };
-
   const handleNextClick = () => {
     if (!blueprintId) {
       console.log("No blueprintId available for navigation");
       return;
     }
     // Navigate to the new detection route (dynamic segment)
-    router.push(`/blueprint_detection/${encodeURIComponent(blueprintId)}`);
+    let url = `/blueprint_detection/${encodeURIComponent(blueprintId)}`;
+    if (versionId) {
+      url += `?versionId=${encodeURIComponent(versionId)}`;
+    }
+    router.push(url);
   };
 
   if (!pdfFile) {

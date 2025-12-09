@@ -13,7 +13,7 @@ const resolveIdFromWindow = (propId?: string | null): string | null => {
   return m ? m[1] : null;
 };
 
-export default function useBlueprintImages(propId?: string | null) {
+export default function useBlueprintImages(propId?: string | null, versionId?: string | null) {
   const [images, setImages] = useState<BlueprintImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,12 @@ export default function useBlueprintImages(propId?: string | null) {
 
       try {
         const base = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL || "http://localhost:8989";
-        const res = await fetch(`${base}/blueprints/get-blueprint-images/${encodeURIComponent(id)}`);
+        let url = `${base}/blueprints/get-blueprint-images/${encodeURIComponent(id)}`;
+        if (versionId) {
+            url += `?versionId=${encodeURIComponent(versionId)}`;
+        }
+        
+        const res = await fetch(url);
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const data = await res.json();
 
@@ -54,9 +59,9 @@ export default function useBlueprintImages(propId?: string | null) {
         setLoading(false);
       }
     },
-    [propId]
+    [propId, versionId]
   );
-
+  
   useEffect(() => {
     fetchImages();
   }, [fetchImages]);
