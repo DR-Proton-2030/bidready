@@ -14,6 +14,30 @@ const BlueprintCard: React.FC<BluePrint> = ({
   updatedAt,
   file_url
 }) => {
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!file_url) return;
+
+    try {
+      const response = await fetch(file_url);
+      if (!response.ok) throw new Error("Network response was not ok");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const fileName = file_url.split("/").pop() || `${name}.pdf`;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Download failed, opening in new tab:", error);
+      window.open(file_url, "_blank");
+    }
+  };
+
   return (
     <Link
       href={`/blueprints/${_id}`}
@@ -43,6 +67,7 @@ const BlueprintCard: React.FC<BluePrint> = ({
 
         {/* Download button */}
         <button
+          onClick={handleDownload}
           className="p-2  hover:bg-gray-100 border border-gray-300 bg-white rounded-full text-gray-500 hover:text-[#4A5565]/80 transition"
           aria-label={`Download ${name}`}
         >
