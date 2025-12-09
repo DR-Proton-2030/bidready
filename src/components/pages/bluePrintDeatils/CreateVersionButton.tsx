@@ -1,9 +1,12 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Upload, X } from "lucide-react";
 
 import useCreateVersion from "@/hooks/useCreateVersion";
 import { useRouter } from "next/navigation";
+import PDFViewerSection from "@/components/pages/blueprintProcessing/PDFViewerSection";
+import { usePDFAnnotation } from "@/hooks/usePDFAnnotation";
+import Loader from "@/components/shared/loader/Loader";
 
 const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; blueprintId: string }> = ({
     isOpen,
@@ -13,6 +16,17 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
     const [file, setFile] = useState<File | null>(null);
     const { createVersionWithStreaming, isUploading, isStreaming, streamingProgress } = useCreateVersion();
     const router = useRouter();
+
+    // PDF / Streaming States
+    const [showPdfHandler, setShowPdfHandler] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState<string>("");
+    // We might need the new version ID or the blueprint ID. 
+    // The PDFViewerSection takes a blueprintId prop for navigation.
+    // In this context, we stay on the same blueprint detail page, so we can reuse the prop or the new version id.
+    const [newVersionId, setNewVersionId] = useState<string>("");
+
+    const pdfAnnotationHook = usePDFAnnotation();
+    const { loadPDFFromUrl, addStreamedImage, state: pdfState } = pdfAnnotationHook;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -30,11 +44,34 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
 
         try {
             await createVersionWithStreaming(blueprintId, formData, {
+                onFirstResponse: (data) => {
+                    // Similar to CreateBluePrint: switch to PDF view once backend starts processing
+                    const pdfFileUrl = data?.file_url || data?.data?.file_url;
+                    const versionDocId = data?.version?._id; // Adjust based on actual API response structure if needed
+
+                    if (pdfFileUrl) setPdfUrl(pdfFileUrl);
+                    if (versionDocId) setNewVersionId(versionDocId);
+
+                    setShowPdfHandler(true);
+
+                    if (pdfFileUrl) {
+                        loadPDFFromUrl(pdfFileUrl).catch(err => {
+                            console.error("Error loading PDF from URL:", err);
+                            //    alert("Failed to load PDF preview");
+                        });
+                    } else if (file) {
+                        // Fallback: try loading from local file if URL not returned immediately (though streaming usually returns it)
+                        const localUrl = URL.createObjectURL(file);
+                        loadPDFFromUrl(localUrl);
+                    }
+                },
+                onImageProcessed: (data) => {
+                    addStreamedImage(data.image_url, data.page, data.image_id);
+                },
                 onComplete: (data) => {
-                    console.log("Version created:", data);
-                    onClose();
-                    setFile(null);
-                    router.refresh();
+                    console.log("Version created complete:", data);
+                    // We don't close here anymore; we let the user interact with the PDF viewer
+                    // and click "Next" or "Finish" in that component.
                 },
                 onError: (err) => {
                     console.error("Upload failed:", err);
@@ -46,7 +83,55 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
         }
     };
 
+    // Clean up when modal closes
+    useEffect(() => {
+        if (!isOpen) {
+            setFile(null);
+            setShowPdfHandler(false);
+            setPdfUrl("");
+            // pdfAnnotationHook.reset(); // if such method exists or just let it unmount
+        }
+    }, [isOpen]);
+
     if (!isOpen) return null;
+
+    // If PDF handler is active, show it full screen
+    if (showPdfHandler) {
+        return (
+            <>
+                {/* Progress bar overlay if still streaming - Fixed on top of everything */}
+                {isStreaming && (
+                    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-lg min-w-[300px]">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-blue-900">Processing Pages...</span>
+                            <span className="text-sm font-medium text-blue-900">{streamingProgress}%</span>
+                        </div>
+                        <div className="w-full bg-blue-200 rounded-full h-2">
+                            <div
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${streamingProgress}%` }}
+                            />
+                        </div>
+                        <p className="text-xs text-blue-700 mt-2 text-center">
+                            {pdfState.pages.length} pages loaded
+                        </p>
+                    </div>
+                )}
+
+                <PDFViewerSection
+                    pdfFile={file}
+                    blueprintName={file?.name || "New Version"}
+                    onBack={() => {
+                        onClose();
+                        router.refresh();
+                    }}
+                    blueprintId={blueprintId}
+                    externalPDFHook={pdfAnnotationHook}
+                    onError={(err) => console.error(err)}
+                />
+            </>
+        )
+    }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -96,10 +181,11 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
                         />
                     </div>
 
-                    {isUploading && (
+                    {isUploading && !showPdfHandler && (
                         <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-4">
-                            <div className="bg-slate-600 h-2.5 rounded-full" style={{ width: `${streamingProgress}%` }}></div>
-                            <p className="text-xs text-center mt-1 text-slate-500">{isStreaming ? `Processing... ${streamingProgress}%` : 'Uploading...'}</p>
+                            {/* Initial upload progress before streaming starts/switch to PDF view */}
+                            <div className="bg-slate-600 h-2.5 rounded-full" style={{ width: `100%` }}></div>
+                            <p className="text-xs text-center mt-1 text-slate-500">Initializing upload...</p>
                         </div>
                     )}
 
@@ -116,7 +202,7 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
                             disabled={!file || isUploading}
                             className="rounded-xl bg-slate-900 hover:bg-slate-800 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isUploading ? "Creating..." : "Create Version"}
+                            {isUploading ? "Processing..." : "Create Version"}
                         </button>
                     </div>
                 </div>

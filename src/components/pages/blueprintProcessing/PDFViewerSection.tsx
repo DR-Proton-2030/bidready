@@ -50,11 +50,11 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
   const handlePDFExport = (exportData: { blob: Blob; fileName: string }) => {
     console.log("PDF exported:", exportData.fileName);
     setHasAnnotations(true);
-    
+
     if (onExportComplete) {
       onExportComplete(exportData);
     }
-    
+
     // Auto-download the annotated PDF
     const url = URL.createObjectURL(exportData.blob);
     const a = document.createElement("a");
@@ -145,7 +145,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
 
   // Attach the handler to externalPDFHook so the PDF/canvas layer can call it
   useEffect(() => {
-  if (!externalPDFHook) return;
+    if (!externalPDFHook) return;
     // Attach a named handler to the external hook; this is a lightweight contract
     // The external layer should call `externalPDFHook.registerCanvasEdit(pageId, image)`
     // or `externalPDFHook.registerCanvasEdit(pageId, blobOrDataUrl)` when a canvas edit occurs.
@@ -186,7 +186,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
         .filter((p: any) => p.editedImage)
         .map((p: any) => ({ pageId: String(p.pageNumber), image: p.editedImage }));
       if (pagesWithEdits.length > 0) {
-        console.log("No local editCanvasArray entries; using external hook pages with editedImage", pagesWithEdits.map((p:any)=>p.pageId));
+        console.log("No local editCanvasArray entries; using external hook pages with editedImage", pagesWithEdits.map((p: any) => p.pageId));
         effectiveEdits = pagesWithEdits;
       }
     }
@@ -348,19 +348,19 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
               Next
             </button>
           )}
-         
+
         </div>
       </div>
 
       {/* Main area: thumbnails + canvas */}
-      <div className="flex h-[calc(100vh-4rem)]"> 
+      <div className="flex h-[calc(100vh-4rem)]">
         {/* Left thumbnails */}
         <div className="w-72 bg-white/5 border-r border-white/6 overflow-auto flex flex-col">
           {/* Keep small header spacing */}
           <div className="px-3 pb-2">
             <div className="text-xs text-white/70">Pages ({loadingProgress?.loaded || 0}/{loadingProgress?.total || '–'})</div>
           </div>
-           <button
+          <button
             onClick={handleSaveClick}
             title="Save annotations"
             className="px-3 py-2 bg-white/6 text-white rounded hover:bg-white/10 inline-flex items-center gap-2"
@@ -372,83 +372,83 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
             {externalPDFHook && externalPDFHook.state?.pages?.length ? (
               externalPDFHook.state.pages.map((p: any, idx: number) => {
                 const isActive = externalPDFHook.state.currentPage === p.pageNumber;
-               
+
                 return (
-           <div
-  key={p.pageNumber}
-  draggable
-  onDragStart={(e) => {
-    e.dataTransfer?.setData("text/plain", String(p.pageNumber));
-    e.dataTransfer.effectAllowed = "move";
-  }}
-  onDragOver={(e) => e.preventDefault()}
-  onDrop={(e) => {
-    e.preventDefault();
-    const from = Number(e.dataTransfer?.getData("text/plain"));
-    if (!isNaN(from)) externalPDFHook?.reorderPages?.(from - 1, p.pageNumber - 1);
-  }}
-  className={`
+                  <div
+                    key={p.pageNumber}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer?.setData("text/plain", String(p.pageNumber));
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const from = Number(e.dataTransfer?.getData("text/plain"));
+                      if (!isNaN(from)) externalPDFHook?.reorderPages?.(from - 1, p.pageNumber - 1);
+                    }}
+                    className={`
     group flex items-center justify-between gap-3 w-full
     p-2 rounded-xl mt-3 backdrop-blur 
     transition-all border cursor-grab
     ${isActive
-      ? "bg-white/15 border-blue-500 ring-2 ring-blue-400 shadow-lg shadow-blue-500/20"
-      : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 hover:shadow-md hover:shadow-white/10"
-    }
+                        ? "bg-white/15 border-blue-500 ring-2 ring-blue-400 shadow-lg shadow-blue-500/20"
+                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 hover:shadow-md hover:shadow-white/10"
+                      }
     active:cursor-grabbing
   `}
->
-  <button
-    onClick={() => externalPDFHook.setCurrentPage(p.pageNumber)}
-    className="flex items-center gap-3 w-full text-left"
-  >
-    {/* Thumbnail */}
-    <div className="
+                  >
+                    <button
+                      onClick={() => externalPDFHook.setCurrentPage(p.pageNumber)}
+                      className="flex items-center gap-3 w-full text-left"
+                    >
+                      {/* Thumbnail */}
+                      <div className="
       w-16 h-22 rounded-lg overflow-hidden border transition-all 
       bg-black/30 border-white/10 shadow-sm
       group-hover:border-blue-400 group-hover:shadow-blue-400/20 group-hover:shadow
     ">
-      <img
-        src={p.thumbnailUrl || p.dataUrl}
-        alt={`Page ${p.pageNumber}`}
-        className="object-cover w-full h-full"
-      />
-    </div>
+                        <img
+                          src={p.thumbnailUrl || p.dataUrl}
+                          alt={`Page ${p.pageNumber}`}
+                          className="object-cover w-full h-full"
+                        />
+                      </div>
 
-    <div className="flex flex-col">
-      <span className="text-sm font-semibold text-white">
-        Page {p.pageNumber}
-      </span>
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] text-white/50 group-hover:text-white/80 transition">
-          Drag to reorder
-        </span>
-        {p.imageId && (
-          <span title={p.imageId} className="text-[11px] text-white/40 italic">
-            ID: {String(p.imageId).slice(0, 8)}
-          </span>
-        )}
-      </div>
-    </div>
-  </button>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-white">
+                          Page {p.pageNumber}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-white/50 group-hover:text-white/80 transition">
+                            Drag to reorder
+                          </span>
+                          {p.imageId && (
+                            <span title={p.imageId} className="text-[11px] text-white/40 italic">
+                              ID: {String(p.imageId).slice(0, 8)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
 
-  {/* Delete button */}
-  <button
-    title="Delete Page"
-    onClick={(e) => {
-      e.stopPropagation();
-      if (!confirm(`Delete page ${p.pageNumber}?`)) return;
-      externalPDFHook?.deletePage?.(p.pageNumber);
-    }}
-    className="
+                    {/* Delete button */}
+                    <button
+                      title="Delete Page"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!confirm(`Delete page ${p.pageNumber}?`)) return;
+                        externalPDFHook?.deletePage?.(p.pageNumber);
+                      }}
+                      className="
       p-2 rounded-lg transition
       text-red-400 hover:text-white
       hover:bg-red-500/20 active:bg-red-500/40
     "
-  >
-    <Trash size={18} />
-  </button>
-</div>
+                    >
+                      <Trash size={18} />
+                    </button>
+                  </div>
 
 
                 );
@@ -461,7 +461,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
 
         {/* Center editing area */}
         <div className="flex-1 bg-gray-800 overflow-hidden flex flex-col">
-         
+
 
           <div className="flex-1 overflow-auto">
             <div className="h-full ">
