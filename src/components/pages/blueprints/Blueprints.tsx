@@ -4,6 +4,7 @@ import { BluePrint } from "@/@types/interface/blueprint.interface";
 import { BLUEPRINTS_TEXT } from "@/constants/blueprints/blueprints.constant";
 
 const Blueprints: React.FC<{ data?: BluePrint[] }> = ({ data }) => {
+  console.log("===blueprints data", data);
   return (
     <div className="space-y-6 px-16 pt-10 bg-gradient-to-br from-slate-100 to-slate-200 min-h-[calc(100vh-64px)]">
       <PageHeader

@@ -12,6 +12,7 @@ const BlueprintCard: React.FC<BluePrint> = ({
   type,
   version,
   updatedAt,
+  file_url
 }) => {
   return (
     <Link
@@ -45,6 +46,7 @@ const BlueprintCard: React.FC<BluePrint> = ({
           className="p-2  hover:bg-gray-100 border border-gray-300 bg-white rounded-full text-gray-500 hover:text-[#4A5565]/80 transition"
           aria-label={`Download ${name}`}
         >
+
           <Download className="w-5 h-5" />
         </button>
       </div>

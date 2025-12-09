@@ -12,6 +12,7 @@ export interface BluePrint {
   company_object_id: string;
   createdAt?: Date;
   updatedAt?: Date;
+  file_url: string;
 }
 
 export interface BlueprintCategory {
