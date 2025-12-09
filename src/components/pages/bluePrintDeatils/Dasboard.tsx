@@ -40,7 +40,7 @@ const
           </div>
           <div className="flex w-full gap-6">
             <DataGrid data={blueprintDetails?.class_totals ?? []} />
-            <ImageCard blueprint_images={blueprintDetails?.blueprint_images ?? []} />
+            <ImageCard blueprint_images={blueprintDetails?.blueprint_images} />
           </div>
           {/* Bottom Section */}
 

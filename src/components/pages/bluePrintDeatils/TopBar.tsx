@@ -2,6 +2,7 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { File, ChevronDown, Share2, PanelLeft } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface TopBarProps {
   onToggleRightPanel: () => void;
@@ -12,9 +13,18 @@ const TopBar: React.FC<TopBarProps> = ({
   onToggleRightPanel,
   blueprintDetails,
 }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [selectedVersionId, setSelectedVersionId] = useState<string | null>(searchParams.get("versionId"));
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const versionId = searchParams.get("versionId");
+    if (versionId) {
+      setSelectedVersionId(versionId);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -60,6 +70,9 @@ const TopBar: React.FC<TopBarProps> = ({
                       setSelectedVersionId(version._id);
                       setIsOpen(false);
                       console.log("Selected Version ID:", version._id);
+                      const params = new URLSearchParams(searchParams.toString());
+                      params.set("versionId", version._id);
+                      router.push(`?${params.toString()}`);
                     }}
                     className={`flex w-full uppercase items-center rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-white/50 ${selectedVersionId === version._id ? 'bg-white/50 font-semibold' : ''}`}
                   >

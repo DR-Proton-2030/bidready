@@ -102,8 +102,8 @@ const ImageCard: React.FC<ImageCardProps> = ({
 
   // initialize with blueprint_images if provided
   useEffect(() => {
-    if (!blueprint_images || !blueprint_images.length) return;
-    const preloaded: PreviewType[] = blueprint_images.map((img: any) => ({
+    // Transform new remote images
+    const preloaded: PreviewType[] = (blueprint_images || []).map((img: any) => ({
       file: null,
       src: img.file_url,
       name: img.file_url?.split("/").pop?.() ?? img.file_url,
@@ -112,13 +112,15 @@ const ImageCard: React.FC<ImageCardProps> = ({
       overlay: Boolean(img.svg_overlay_url),
       overlayData: img.svg_overlay_url,
     }));
-    // append preloaded images after any existing previews (but keep existing local ones on top)
-    // avoid duplicates (React Strict Mode may run this effect twice in development)
-    setPreviews((cur) => {
-      const existing = new Set(cur.map((p) => p.src));
-      const toAdd = preloaded.filter((p) => !existing.has(p.src));
-      if (!toAdd.length) return cur;
-      return [...cur, ...toAdd];
+
+    setPreviews((prev) => {
+      // Keep existing LOCAL uploads
+      const localFiles = prev.filter((p) => !p.remote);
+
+      // Combine local uploads + new remote images
+      // (Local uploads stay on top/first as per existing behavior in addFiles, 
+      // but typically we might want remote loaded ones to replace old remote ones)
+      return [...localFiles, ...preloaded];
     });
   }, [blueprint_images]);
 

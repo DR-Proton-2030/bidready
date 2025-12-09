@@ -45,12 +45,13 @@ export const getBlueprints = async (
 
 export const getBlueprintDetails = async (
   blueprintId: string,
-  token?: string
+  token?: string,
+  versionId?: string
 ): Promise<any> => {
   try {
     const response = await get(
       `/${initialRoute}/get-blueprint-details/${blueprintId}`,
-      {},
+      versionId ? { versionId } : {},
       token
     );
     if (response) {
