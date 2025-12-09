@@ -8,7 +8,7 @@ interface Props {
 }
 
 const BlueprintDetails = async ({ blueprintDetails }: Props) => {
-  const id = blueprintDetails?.blueprint?._id ?? "68f93ac666d6b7928e00052d";
+  const id = blueprintDetails?.blueprint?._id;
 
   try {
     const data = await getBlueprintDetails(id);

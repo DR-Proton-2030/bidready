@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log("-====> api call")
+    // console.log("-====> api call")
     const blueprintId = params.id;
     const token = (await cookies()).get("token")?.value;
   // Upstream endpoint that returns blueprint images

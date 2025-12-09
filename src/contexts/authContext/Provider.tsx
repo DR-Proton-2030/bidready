@@ -49,11 +49,11 @@ const AuthContextProvider = ({ children }: ContextProviderProps) => {
       setIsOnProtectedRoute(
         ProtectedRoutes.some((route) => currentPath.startsWith(route.replace("/", "")))
       );
-      console.log("path is", window.location.pathname);
+      // console.log("path is", window.location.pathname);
     }
   }, []);
 
-  console.log("Is on Protected Route:", isOnProtectedRoute);
+  // console.log("Is on Protected Route:", isOnProtectedRoute);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

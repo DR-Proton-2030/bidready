@@ -11,7 +11,7 @@ interface BlueprintDetailsClientProps {
 
 const BlueprintDetailsClient: React.FC<BlueprintDetailsClientProps> = ({ blueprintDetails }) => {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
-  console.log("=====>festxhed details of blue print ", blueprintDetails)
+  // console.log("=====>festxhed details of blue print ", blueprintDetails)
   return (
     <div className="overflow-block">
       <Dasboard blueprintDetails={blueprintDetails} />

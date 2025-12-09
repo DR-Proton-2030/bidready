@@ -29,7 +29,7 @@ export const configurePdfWorker = async () => {
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
 
     isConfigured = true;
-    console.log("PDF.js worker configured successfully");
+    // console.log("PDF.js worker configured successfully");
   } catch (error) {
     console.error("Failed to configure PDF.js worker:", error);
   }

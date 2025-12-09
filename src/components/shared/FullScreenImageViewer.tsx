@@ -638,12 +638,12 @@ export default function FullScreenImageViewer({
   // Call API when current image changes or viewer opens
   useEffect(() => {
     if (isOpen && currentImage && onImageChange) {
-      console.log(
-        "=====> Calling API for image:",
-        currentImage.name,
-        "at index:",
-        currentIndex
-      );
+      // console.log(
+      //   "=====> Calling API for image:",
+      //   currentImage.name,
+      //   "at index:",
+      //   currentIndex
+      // );
       onImageChange(currentImage, currentIndex);
     }
   }, [currentIndex, isOpen]); // Removed currentImage and onImageChange from dependencies to avoid infinite loops
