@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { File, ChevronDown, Share2, PanelLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import CreateVersionButton from "./CreateVersionButton";
 
 interface TopBarProps {
   onToggleRightPanel: () => void;
@@ -85,9 +86,7 @@ const TopBar: React.FC<TopBarProps> = ({
         )}
 
 
-        <button className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-xl shadow-slate-900/20 transition hover:-translate-y-0.5">
-          Create Task
-        </button>
+        <CreateVersionButton blueprintId={blueprintDetails?.blueprint?._id} />
       </div>
     </header>
   );
