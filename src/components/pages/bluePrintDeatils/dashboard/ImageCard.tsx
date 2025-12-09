@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { X, Upload, ArrowUpRight, Image, Check, Map } from "lucide-react";
 import ImagePreview, { FilePreview as PreviewType } from "./ImagePreview";
+import useImageDetect from "@/hooks/useImageDetect";
 
 type ImageCardProps = {
   maxFiles?: number;
@@ -150,49 +151,95 @@ const ImageCard: React.FC<ImageCardProps> = ({
     };
   }, []);
 
-  const viewDetection = (p: FilePreview) => {
-    if (typeof window === "undefined") return;
-    try {
-      // store payload in localStorage under a short key to avoid long query strings
-      const payload = { file_url: p.src, svg_overlay_url: p.overlayData };
-      const key = `blueprint_detection_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      // Helper to set and delete short-lived cookies
-      const setTempCookie = (name: string, value: string, maxAgeSec = 60 * 5) => {
-        try {
-          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-          document.cookie = `${encodeURIComponent(name)}=${value}; Max-Age=${maxAgeSec}; Path=/; SameSite=Lax${secure}`;
-        } catch (e) {
-          // ignore cookie failures
-        }
-      };
-      const deleteCookie = (name: string) => {
-        try {
-          const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-          document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
-        } catch (e) {
-          // ignore cookie failures
-        }
-      };
+  const { detectImage, loading: detectingError } = useImageDetect();
+  const [detectingId, setDetectingId] = useState<string | null>(null);
+
+  const viewDetection = async (p: FilePreview) => {
+    // If we already have a plan/overlay, view it
+    if (p.overlay) {
+      if (typeof window === "undefined") return;
       try {
-        localStorage.setItem(key, JSON.stringify(payload));
-        // Also set a short‑lived cookie with the same key so another tab can read it if preferred
-        // Only store a compact encoded version to respect cookie size limits
-        const compact = encodeURIComponent(JSON.stringify(payload));
-        // Note: cookies have ~4KB limit; this value should only hold small URLs/metadata
-        setTempCookie(key, compact, 60 * 5);
-        // Safety cleanup after 5 minutes in case the target page doesn't remove it
-        setTimeout(() => deleteCookie(key), 60 * 5 * 1000);
-      } catch (err) {
-        // fallback to direct open with data if localStorage fails
-        const encoded = encodeURIComponent(JSON.stringify(payload));
-        const url = `/blueprint-detection?data=${encoded}`;
+        const payload = { file_url: p.src, svg_overlay_url: p.overlayData };
+        const key = `blueprint_detection_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+        const setTempCookie = (name: string, value: string, maxAgeSec = 60 * 5) => {
+          try {
+            const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+            document.cookie = `${encodeURIComponent(name)}=${value}; Max-Age=${maxAgeSec}; Path=/; SameSite=Lax${secure}`;
+          } catch (e) { }
+        };
+        const deleteCookie = (name: string) => {
+          try {
+            const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+            document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+          } catch (e) { }
+        };
+
+        try {
+          localStorage.setItem(key, JSON.stringify(payload));
+          const compact = encodeURIComponent(JSON.stringify(payload));
+          setTempCookie(key, compact, 60 * 5);
+          setTimeout(() => deleteCookie(key), 60 * 5 * 1000);
+        } catch (err) {
+          const encoded = encodeURIComponent(JSON.stringify(payload));
+          const url = `/blueprint-detection?data=${encoded}`;
+          window.open(url, "_blank");
+          return;
+        }
+        const url = `/blueprint-detection?key=${encodeURIComponent(key)}`;
         window.open(url, "_blank");
-        return;
+      } catch (err) {
+        console.error("Failed to open detection page", err);
       }
-      const url = `/blueprint-detection?key=${encodeURIComponent(key)}`;
-      window.open(url, "_blank");
-    } catch (err) {
-      console.error("Failed to open detection page", err);
+    } else {
+      // Trigger detection
+      try {
+        if (detectingId) return; // prevent multiple
+        const id = p.id || p.src;
+        setDetectingId(id);
+        console.log("Starting detection for", p.src);
+        const result = await detectImage(p.src);
+        console.log("Detection Result:", result);
+
+        // Open viewer with result
+        if (typeof window !== "undefined") {
+          try {
+            const payload = { file_url: p.src, svg_overlay_url: result };
+            const key = `blueprint_detection_new_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+            // reuse helper logic would be cleaner but for now duplicate to ensure scope access
+            const setTempCookie = (name: string, value: string, maxAgeSec = 60 * 5) => {
+              try {
+                const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+                document.cookie = `${encodeURIComponent(name)}=${value}; Max-Age=${maxAgeSec}; Path=/; SameSite=Lax${secure}`;
+              } catch (e) { }
+            };
+            const deleteCookie = (name: string) => {
+              try {
+                const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+                document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
+              } catch (e) { }
+            };
+
+            localStorage.setItem(key, JSON.stringify(payload));
+            const compact = encodeURIComponent(JSON.stringify(payload));
+            setTempCookie(key, compact, 60 * 5);
+            setTimeout(() => deleteCookie(key), 60 * 5 * 1000);
+
+            const url = `/blueprint-detection?key=${encodeURIComponent(key)}`;
+            window.open(url, "_blank");
+
+          } catch (navErr) {
+            console.error("Failed to open viewer after detection", navErr);
+          }
+        }
+
+      } catch (err) {
+        console.error("Detection failed:", err);
+        // alert("Detection failed.");
+      } finally {
+        setDetectingId(null);
+      }
     }
   };
 
@@ -299,6 +346,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
                             idx={idx}
                             onRemove={(i) => removeAt(i)}
                             onViewDetection={(preview) => viewDetection(preview)}
+                            loading={detectingId === (p.id || p.src)}
                           />
                         ))}
                       </div>

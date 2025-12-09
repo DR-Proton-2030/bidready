@@ -17,9 +17,10 @@ type Props = {
   idx: number
   onRemove: (index: number) => void
   onViewDetection: (p: FilePreview) => void
+  loading?: boolean
 }
 
-const ImagePreview: React.FC<Props> = ({ p, idx, onRemove, onViewDetection }) => {
+const ImagePreview: React.FC<Props> = ({ p, idx, onRemove, onViewDetection, loading }) => {
   const animationDelay = `${idx * 100}ms`
 
   return (
@@ -71,12 +72,18 @@ const ImagePreview: React.FC<Props> = ({ p, idx, onRemove, onViewDetection }) =>
       </div>
 
       {/* Center Action Button (Visible on Hover) */}
-      <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 pointer-events-none">
+      <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${loading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
         <button
           onClick={() => onViewDetection(p)}
-          className="pointer-events-auto flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition-transform hover:scale-105 active:scale-95"
+          disabled={loading}
+          className="pointer-events-auto flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-80 disabled:hover:scale-100"
         >
-          {p.overlay ? (
+          {loading ? (
+            <>
+              <span className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin"></span>
+              <span>Detecting...</span>
+            </>
+          ) : p.overlay ? (
             <>
               <span>View Plan</span>
               <ArrowUpRight className="w-4 h-4 text-slate-500" />
