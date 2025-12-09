@@ -307,7 +307,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-900">
+    <div className="fixed inset-0 z-[9999] bg-gray-900">
       {/* Top toolbar/header */}
       <div className="flex items-center justify-between h-16 px-4 bg-white/5 backdrop-blur border-b border-white/6">
         <div className="flex items-center gap-3">

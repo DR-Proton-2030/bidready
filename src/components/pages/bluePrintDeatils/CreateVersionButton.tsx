@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Upload, X } from "lucide-react";
 
 import useCreateVersion from "@/hooks/useCreateVersion";
@@ -95,13 +96,13 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
 
     if (!isOpen) return null;
 
-    // If PDF handler is active, show it full screen
-    if (showPdfHandler) {
-        return (
+    // If PDF handler is active, show it full screen using Portal to escape stacking contexts
+    if (showPdfHandler && typeof document !== "undefined") {
+        return createPortal(
             <>
                 {/* Progress bar overlay if still streaming - Fixed on top of everything */}
                 {isStreaming && (
-                    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[60] bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-lg min-w-[300px]">
+                    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[10000] bg-blue-50 border border-blue-200 rounded-lg p-4 shadow-lg min-w-[300px]">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium text-blue-900">Processing Pages...</span>
                             <span className="text-sm font-medium text-blue-900">{streamingProgress}%</span>
@@ -129,8 +130,9 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
                     externalPDFHook={pdfAnnotationHook}
                     onError={(err) => console.error(err)}
                 />
-            </>
-        )
+            </>,
+            document.body
+        );
     }
 
     return (
