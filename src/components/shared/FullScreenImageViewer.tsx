@@ -21,6 +21,7 @@ interface Image {
   name: string;
   path: string;
   pageNumber?: number;
+  crop?: { x: number; y: number; width: number; height: number };
 }
 
 interface Detection {
@@ -186,6 +187,7 @@ export default function FullScreenImageViewer({
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
   const snackbarTimerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const imageRef = useRef<HTMLImageElement>(null);
 
   const [overlayImageId, setOverlayImageId] = useState<string | null>(null);
   const [overlayOpacity, setOverlayOpacity] = useState(0.5);
@@ -223,12 +225,17 @@ export default function FullScreenImageViewer({
   const handleOverlayCopyCurrent = () => {
     if (!currentImage) return;
     const newImage: Image = {
-      id: `copy-${Date.now()}`,
+      id: `copy-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: `${currentImage.name} (Copy)`,
       path: currentImage.path,
     };
     setLocalOverlays(prev => [...prev, newImage]);
     setOverlayImageId(newImage.id);
+  };
+
+  const handleCropStart = () => {
+    setActiveTool("crop-overlay");
+    setIsOverlayInteractive(false);
   };
 
   // Clean up object URLs on unmount
@@ -1024,6 +1031,25 @@ export default function FullScreenImageViewer({
           height: 0,
         });
       }
+    } else if (activeTool === "crop-overlay") {
+      const imageRect = e.currentTarget.getBoundingClientRect();
+
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+
+        const x = (e.clientX - imageRect.left) * scaleX;
+        const y = (e.clientY - imageRect.top) * scaleY;
+
+        setIsDrawing(true);
+        setStartPoint({ x, y });
+        setCurrentBox({
+          x,
+          y,
+          width: 0,
+          height: 0,
+        });
+      }
     } else if (zoom > 1) {
       setIsDragging(true);
       setDragStart({
@@ -1101,6 +1127,23 @@ export default function FullScreenImageViewer({
           height: Math.abs(currentY - startPoint.y),
         });
       }
+    } else if (activeTool === "crop-overlay" && isDrawing) {
+      const imageRect = e.currentTarget.getBoundingClientRect();
+
+      if (imageRect && imageDimensions.width > 0) {
+        const scaleX = imageDimensions.width / imageRect.width;
+        const scaleY = imageDimensions.height / imageRect.height;
+
+        const currentX = (e.clientX - imageRect.left) * scaleX;
+        const currentY = (e.clientY - imageRect.top) * scaleY;
+
+        setCurrentBox({
+          x: Math.min(startPoint.x, currentX),
+          y: Math.min(startPoint.y, currentY),
+          width: Math.abs(currentX - startPoint.x),
+          height: Math.abs(currentY - startPoint.y),
+        });
+      }
     } else if ((activeTool === "linear" || activeTool === "measure") && isMeasuring && measurementDraft) {
       const imageRect = e.currentTarget.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
@@ -1159,11 +1202,36 @@ export default function FullScreenImageViewer({
   };
 
   const handleMouseUp = () => {
-    if (activeTool === "annotate" && isDrawing && currentBox) {
-      // Only create annotation if box has meaningful size
-      if (currentBox.width > 10 && currentBox.height > 10) {
-        setPendingAnnotation(currentBox);
-        setShowClassSelector(true);
+    if (isDrawing) {
+      if (activeTool === "annotate") {
+        if (currentBox && currentBox.width > 5 && currentBox.height > 5) {
+          setPendingAnnotation({
+            type: "box",
+            x: currentBox.x + currentBox.width / 2,
+            y: currentBox.y + currentBox.height / 2,
+            width: currentBox.width,
+            height: currentBox.height,
+          } as any);
+          setShowClassSelector(true);
+        }
+      } else if (activeTool === "crop-overlay") {
+        if (currentBox && currentBox.width > 5 && currentBox.height > 5) {
+          // Smart Crop (Metadata based)
+          const newImage: Image = {
+            id: `crop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: `${currentImage?.name || 'Image'} (Crop)`,
+            path: currentImage?.path || '',
+            crop: {
+              x: currentBox.x,
+              y: currentBox.y,
+              width: currentBox.width,
+              height: currentBox.height
+            }
+          };
+          setLocalOverlays(prev => [...prev, newImage]);
+          setOverlayImageId(newImage.id);
+        }
+        setActiveTool("overlay");
       }
       setIsDrawing(false);
       setCurrentBox(null);
@@ -1193,7 +1261,7 @@ export default function FullScreenImageViewer({
         x: pointerX,
         y: pointerY,
         name,
-        area: areaText,
+        area: areaText || "",
         color,
       });
     },
@@ -1820,6 +1888,7 @@ export default function FullScreenImageViewer({
         onRotationChange={setOverlayRotation}
         isInteractive={isOverlayInteractive}
         onToggleInteraction={() => setIsOverlayInteractive(!isOverlayInteractive)}
+        onCropStart={handleCropStart}
       />
 
       {/* Image Container */}
@@ -1876,17 +1945,18 @@ export default function FullScreenImageViewer({
                     : "default",
             }}
             onLoad={handleImageLoad}
+            ref={imageRef}
             onMouseDown={
-              activeTool === "annotate" || activeTool === "polygon" ? handleMouseDown : undefined
+              activeTool === "annotate" || activeTool === "polygon" || activeTool === "crop-overlay" ? handleMouseDown : undefined
             }
             onMouseMove={
-              activeTool === "annotate" ? handleMouseMove : undefined
+              activeTool === "annotate" || activeTool === "crop-overlay" ? handleMouseMove : undefined
             }
-            onMouseUp={activeTool === "annotate" ? handleMouseUp : undefined}
-            onMouseLeave={activeTool === "annotate" ? handleMouseUp : undefined}
+            onMouseUp={activeTool === "annotate" || activeTool === "crop-overlay" ? handleMouseUp : undefined}
+            onMouseLeave={activeTool === "annotate" || activeTool === "crop-overlay" ? handleMouseUp : undefined}
             onError={(e) => {
               e.currentTarget.src =
-                "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
+                "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
             }}
             draggable={false}
           />
@@ -1909,6 +1979,7 @@ export default function FullScreenImageViewer({
               isInteractive={isOverlayInteractive}
               onOffsetChange={setOverlayOffset}
               zoom={zoom}
+              crop={overlayImage.crop}
             />
           )}
 
@@ -1978,7 +2049,49 @@ export default function FullScreenImageViewer({
             </svg>
           )}
 
-          {/* Detection Overlay */}
+          {/* Crop Spotlight Overlay */}
+          {activeTool === "crop-overlay" && imageDimensions.width > 0 && (
+            <svg
+              className="absolute top-0 left-0 pointer-events-none"
+              style={{
+                width: "100%",
+                height: "100%",
+                transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                transformOrigin: "center center", // Ensure matching transform origin with img
+              }}
+              viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {/* Dimmer / Mask */}
+              <path
+                d={`M0 0 h${imageDimensions.width} v${imageDimensions.height} h-${imageDimensions.width} z ${isDrawing && currentBox
+                    ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
+                    : ""
+                  }`}
+                fill="rgba(0, 0, 0, 0.6)"
+                fillRule="evenodd"
+              />
+
+              {/* Highlight Border & Crosshair Guides */}
+              {isDrawing && currentBox && (
+                <>
+                  <rect
+                    x={currentBox.x}
+                    y={currentBox.y}
+                    width={currentBox.width}
+                    height={currentBox.height}
+                    fill="none"
+                    stroke="white"
+                    strokeWidth={2 / zoom} // Keep stroke consistent visual width
+                    className="drop-shadow-md"
+                  />
+                  {/* Optional: Add nice corner handles or crosshair center if desired, but rect is clean */}
+                </>
+              )}
+            </svg>
+          )}
+
+          {/* User Annotations Overlay */}
           {imageDimensions.width > 0 && (
             <svg
               className={`absolute inset-0 ${activeTool === "annotate"
@@ -2310,175 +2423,163 @@ export default function FullScreenImageViewer({
                 );
               })()}
 
-              {/* Current drawing box */}
-              {currentBox && isDrawing && (
-                <g>
-                  <rect
-                    x={currentBox.x}
-                    y={currentBox.y}
-                    width={currentBox.width}
-                    height={currentBox.height}
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="3"
-                    strokeDasharray="5,5"
-                    strokeOpacity="0.8"
+              height={currentBox.height}
+              fill="#3b82f6"
+              fillOpacity="0.1"
                   />
-                  <rect
-                    x={currentBox.x}
-                    y={currentBox.y}
-                    width={currentBox.width}
-                    height={currentBox.height}
-                    fill="#3b82f6"
-                    fillOpacity="0.1"
-                  />
-                </g>
-              )}
+            </g>
+          )}
 
-              {/* Polygon in-progress drawing */}
-              {polygonPoints.length > 0 && (() => {
-                const liveAreaPx = computePolygonArea(polygonPoints);
-                const liveInfo = convertPixelArea(liveAreaPx);
-                const liveCentroid = computePolygonCentroid(polygonPoints);
-                return (
-                  <g>
-                    {/* Semi-transparent fill */}
-                    <polygon
-                      points={polygonPoints.map((p) => `${p.x},${p.y}`).join(" ")}
-                      fill="#60a5fa"
-                      fillOpacity={0.2}
+          {/* Polygon in-progress drawing */}
+          {polygonPoints.length > 0 && (() => {
+            const liveAreaPx = computePolygonArea(polygonPoints);
+            const liveInfo = convertPixelArea(liveAreaPx);
+            const liveCentroid = computePolygonCentroid(polygonPoints);
+            return (
+              <g>
+                {/* Semi-transparent fill */}
+                <polygon
+                  points={polygonPoints.map((p) => `${p.x},${p.y}`).join(" ")}
+                  fill="#60a5fa"
+                  fillOpacity={0.2}
+                  stroke="#60a5fa"
+                  strokeWidth={2}
+                  strokeOpacity={0.9}
+                />
+                {/* Corner point handles - larger circles with white fill and colored border */}
+                {polygonPoints.map((p, idx) => (
+                  <g key={idx}>
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={8}
+                      fill="white"
                       stroke="#60a5fa"
-                      strokeWidth={2}
-                      strokeOpacity={0.9}
+                      strokeWidth={3}
+                      style={{ cursor: 'move' }}
                     />
-                    {/* Corner point handles - larger circles with white fill and colored border */}
-                    {polygonPoints.map((p, idx) => (
-                      <g key={idx}>
-                        <circle
-                          cx={p.x}
-                          cy={p.y}
-                          r={8}
-                          fill="white"
-                          stroke="#60a5fa"
-                          strokeWidth={3}
-                          style={{ cursor: 'move' }}
-                        />
-                        <circle
-                          cx={p.x}
-                          cy={p.y}
-                          r={3}
-                          fill="#60a5fa"
-                        />
-                      </g>
-                    ))}
-                    {polygonPoints.length > 2 && (
-                      <text
-                        x={liveCentroid.x}
-                        y={liveCentroid.y}
-                        fill="#0f172a"
-                        fontSize={13}
-                        fontWeight="bold"
-                        textAnchor="middle"
-                        style={{ paintOrder: 'stroke', stroke: 'rgba(248,250,252,0.85)', strokeWidth: 4 }}
-                      >
-                        {liveInfo.formatted}
-                      </text>
-                    )}
+                    <circle
+                      cx={p.x}
+                      cy={p.y}
+                      r={3}
+                      fill="#60a5fa"
+                    />
                   </g>
-                );
-              })()}
+                ))}
+                {polygonPoints.length > 2 && (
+                  <text
+                    x={liveCentroid.x}
+                    y={liveCentroid.y}
+                    fill="#0f172a"
+                    fontSize={13}
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    style={{ paintOrder: 'stroke', stroke: 'rgba(248,250,252,0.85)', strokeWidth: 4 }}
+                  >
+                    {liveInfo.formatted}
+                  </text>
+                )}
+              </g>
+            );
+          })()}
 
-              {/* Debug: Show if we're in drawing mode */}
-              {isDrawing && (
-                <text x="50" y="50" fill="red" fontSize="20" fontWeight="bold">
-                  DRAWING MODE
-                </text>
-              )}
-            </svg>
+          {/* Debug: Show if we're in drawing mode */}
+          {isDrawing && (
+            <text x="50" y="50" fill="red" fontSize="20" fontWeight="bold">
+              DRAWING MODE
+            </text>
           )}
-        </div>
+        </svg>
+          )}
       </div>
+    </div>
 
-      {shapeTooltip && showDimensions && (
-        <div
-          className="pointer-events-none absolute z-[55] flex min-w-[160px] max-w-[200px] flex-col gap-2 rounded-xl border border-white/60 bg-slate-900/90 px-3 py-2 text-white shadow-2xl backdrop-blur"
-          style={{
-            left: Math.max(
-              12,
-              Math.min(
-                shapeTooltip.x + 18,
-                (containerRef.current?.clientWidth ?? 0) - 200
-              )
-            ),
-            top: Math.max(
-              12,
-              Math.min(
-                shapeTooltip.y + 18,
-                (containerRef.current?.clientHeight ?? 0) - 120
-              )
-            ),
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-flex h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: shapeTooltip.color }}
-            />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-              {shapeTooltip.name}
-            </span>
-          </div>
-          {shapeTooltip.area ? (
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-200">Area</span>
-              <span className="font-bold" style={{ color: shapeTooltip.color }}>
-                {shapeTooltip.area}
-              </span>
-            </div>
-          ) : (
-            <span className="text-[11px] text-slate-400">Area unavailable</span>
-          )}
-          <span className="text-[10px] uppercase tracking-wide text-slate-500">
-            Hover for live values
+      {
+    shapeTooltip && showDimensions && (
+      <div
+        className="pointer-events-none absolute z-[55] flex min-w-[160px] max-w-[200px] flex-col gap-2 rounded-xl border border-white/60 bg-slate-900/90 px-3 py-2 text-white shadow-2xl backdrop-blur"
+        style={{
+          left: Math.max(
+            12,
+            Math.min(
+              shapeTooltip.x + 18,
+              (containerRef.current?.clientWidth ?? 0) - 200
+            )
+          ),
+          top: Math.max(
+            12,
+            Math.min(
+              shapeTooltip.y + 18,
+              (containerRef.current?.clientHeight ?? 0) - 120
+            )
+          ),
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className="inline-flex h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: shapeTooltip.color }}
+          />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+            {shapeTooltip.name}
           </span>
         </div>
-      )}
-
-      {/* Image Counter */}
-      {images.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="flex space-x-1">
-            {images.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => setCurrentIndex(index)}
-                className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
-                  ? "bg-white"
-                  : "bg-white bg-opacity-50 hover:bg-opacity-75"
-                  }`}
-              />
-            ))}
+        {shapeTooltip.area ? (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-200">Area</span>
+            <span className="font-bold" style={{ color: shapeTooltip.color }}>
+              {shapeTooltip.area}
+            </span>
           </div>
-        </div>
-      )}
+        ) : (
+          <span className="text-[11px] text-slate-400">Area unavailable</span>
+        )}
+        <span className="text-[10px] uppercase tracking-wide text-slate-500">
+          Hover for live values
+        </span>
+      </div>
+    )
+  }
 
-      {/* Snackbar */}
-      {snackbar.visible && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
-          <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
-            <span className="text-sm">{snackbar.message}</span>
+  {/* Image Counter */ }
+  {
+    images.length > 1 && (
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+        <div className="flex space-x-1">
+          {images.map((_, index) => (
             <button
-              className="text-green-400 hover:text-green-300 font-semibold text-sm"
-              onClick={undoLast}
-            >
-              Undo
-            </button>
-          </div>
+              key={index}
+              onClick={() => setCurrentIndex(index)}
+              className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
+                ? "bg-white"
+                : "bg-white bg-opacity-50 hover:bg-opacity-75"
+                }`}
+            />
+          ))}
         </div>
-      )}
+      </div>
+    )
+  }
 
-      {/* Instructions */}
-      {/* <div className="absolute bottom-4 left-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
+  {/* Snackbar */ }
+  {
+    snackbar.visible && (
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+        <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
+          <span className="text-sm">{snackbar.message}</span>
+          <button
+            className="text-green-400 hover:text-green-300 font-semibold text-sm"
+            onClick={undoLast}
+          >
+            Undo
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Instructions */ }
+  {/* <div className="absolute bottom-4 left-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
         <p className="text-xs text-gray-300 space-y-1">
           <span className="block">Use arrow keys or buttons to navigate</span>
           <span className="block">
@@ -2493,8 +2594,8 @@ export default function FullScreenImageViewer({
         </p>
       </div> */}
 
-      {/* Detection Results Panel (collapsible sidebar) */}
-      {/* AI Detection Sidebar */}
+  {/* Detection Results Panel (collapsible sidebar) */ }
+  {/* AI Detection Sidebar */ }
       <AiDetectionSidebar
         detectionResults={detectionResults}
         sidebarOpen={sidebarOpen}
@@ -2519,119 +2620,125 @@ export default function FullScreenImageViewer({
         detectionContext={detectionContext}
       />
 
-      {/* Class Selector Modal for Annotations */}
-      {showClassSelector && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60">
-          <div className="bg-white rounded-lg p-6 w-96 w-md mx-4 max-h-[70vh] overflow-y-auto">
-            {/* Create New Class */}
-            <div className="">
-              <h4 className="text-md font-semibold text-gray-900  mb-2">
-                Create New Class
-              </h4>
-              <input
-                type="text"
-                placeholder="Enter new class name..."
-                value={selectedAnnotationClass}
-                onChange={(e) => setSelectedAnnotationClass(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
-                onKeyPress={(e) =>
-                  e.key === "Enter" && handleCreateNewClassForAnnotation()
-                }
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCreateNewClassForAnnotation}
-                  disabled={!selectedAnnotationClass.trim()}
-                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg
-                   hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed 
-                   transition-colors text-sm"
-                >
-                  Create & Assign
-                </button>
-                <button
-                  onClick={() => {
-                    setShowClassSelector(false);
-                    setPendingAnnotation(null);
-                    setSelectedAnnotationClass("");
-                  }}
-                  className="flex-1 px-4 py-2 bg-gray-800 text-gray-100 rounded-lg
-                   hover:bg-gray-300 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-
-            {/* Existing Classes */}
-            <div className="my-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                Existing Classes:
-              </h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto">
-                {getAllAvailableClasses().map((className) => (
-                  <button
-                    key={className}
-                    onClick={() => handleAssignClass(className)}
-                    className="w-full flex items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div
-                      className="w-4 h-4 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: getColorForClass(className) }}
-                    ></div>
-                    <span className="capitalize text-sm">{className}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add New Class Modal */}
-      {showAddClassModal && (
-        <div className="fixed inset-0 bg-black/50 bg-blur-sm bg-opacity-50 flex items-center justify-center 0 z-60">
-          <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4">
-            <h3 className="text-lg font-semibold mb-4">Add New Class</h3>
+  {/* Class Selector Modal for Annotations */ }
+  {
+    showClassSelector && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60">
+        <div className="bg-white rounded-lg p-6 w-96 w-md mx-4 max-h-[70vh] overflow-y-auto">
+          {/* Create New Class */}
+          <div className="">
+            <h4 className="text-md font-semibold text-gray-900  mb-2">
+              Create New Class
+            </h4>
             <input
               type="text"
-              placeholder="Enter class name..."
-              value={newClassName}
-              onChange={(e) => setNewClassName(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-              onKeyPress={(e) => e.key === "Enter" && handleAddNewClass()}
+              placeholder="Enter new class name..."
+              value={selectedAnnotationClass}
+              onChange={(e) => setSelectedAnnotationClass(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+              onKeyPress={(e) =>
+                e.key === "Enter" && handleCreateNewClassForAnnotation()
+              }
             />
             <div className="flex gap-3">
               <button
-                onClick={handleAddNewClass}
-                disabled={!newClassName.trim()}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                onClick={handleCreateNewClassForAnnotation}
+                disabled={!selectedAnnotationClass.trim()}
+                className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg
+                   hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed 
+                   transition-colors text-sm"
               >
-                Add Class
+                Create & Assign
               </button>
               <button
                 onClick={() => {
-                  setShowAddClassModal(false);
-                  setNewClassName("");
+                  setShowClassSelector(false);
+                  setPendingAnnotation(null);
+                  setSelectedAnnotationClass("");
                 }}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                className="flex-1 px-4 py-2 bg-gray-800 text-gray-100 rounded-lg
+                   hover:bg-gray-300 transition-colors text-sm"
               >
                 Cancel
               </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Toggle Sidebar Button (when closed) */}
-      {!sidebarOpen && detectionResults && (
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="absolute top-24 right-4 z-10 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
-          title="Show Detection Panel"
-        >
-          <Search className="w-5 h-5" />
-        </button>
-      )}
-    </div>
+          {/* Existing Classes */}
+          <div className="my-4">
+            <h4 className="text-sm font-medium text-gray-700 mb-2">
+              Existing Classes:
+            </h4>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+              {getAllAvailableClasses().map((className) => (
+                <button
+                  key={className}
+                  onClick={() => handleAssignClass(className)}
+                  className="w-full flex items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div
+                    className="w-4 h-4 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: getColorForClass(className) }}
+                  ></div>
+                  <span className="capitalize text-sm">{className}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Add New Class Modal */ }
+  {
+    showAddClassModal && (
+      <div className="fixed inset-0 bg-black/50 bg-blur-sm bg-opacity-50 flex items-center justify-center 0 z-60">
+        <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4">
+          <h3 className="text-lg font-semibold mb-4">Add New Class</h3>
+          <input
+            type="text"
+            placeholder="Enter class name..."
+            value={newClassName}
+            onChange={(e) => setNewClassName(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+            onKeyPress={(e) => e.key === "Enter" && handleAddNewClass()}
+          />
+          <div className="flex gap-3">
+            <button
+              onClick={handleAddNewClass}
+              disabled={!newClassName.trim()}
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            >
+              Add Class
+            </button>
+            <button
+              onClick={() => {
+                setShowAddClassModal(false);
+                setNewClassName("");
+              }}
+              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Toggle Sidebar Button (when closed) */ }
+  {
+    !sidebarOpen && detectionResults && (
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="absolute top-24 right-4 z-10 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
+        title="Show Detection Panel"
+      >
+        <Search className="w-5 h-5" />
+      </button>
+    )
+  }
+    </div >
   );
 }

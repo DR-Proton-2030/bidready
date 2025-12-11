@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { X, Layers, Upload, Copy, Move, RotateCw, RefreshCcw, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Minus, Plus, Hand } from 'lucide-react';
+import { X, Layers, Upload, Copy, Move, RotateCw, RefreshCcw, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Minus, Plus, Hand, Crop } from 'lucide-react';
 import { useRef } from 'react';
 
 interface Image {
@@ -30,6 +30,7 @@ interface OverlayControlPanelProps {
     onRotationChange: (rotation: number) => void;
     isInteractive: boolean;
     onToggleInteraction: () => void;
+    onCropStart?: () => void;
 }
 
 const BLEND_MODES = [
@@ -64,6 +65,7 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
     onRotationChange,
     isInteractive,
     onToggleInteraction,
+    onCropStart,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showAlignment, setShowAlignment] = useState(false);
@@ -132,10 +134,19 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
                     )}
 
                     {onCopyCurrent && (
-                        <div className="mt-1 text-right">
+                        <div className="mt-1 flex justify-end gap-2">
+                            {onCropStart && (
+                                <button
+                                    onClick={onCropStart}
+                                    className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                                >
+                                    <Crop className="w-3 h-3" />
+                                    Crop Part
+                                </button>
+                            )}
                             <button
                                 onClick={onCopyCurrent}
-                                className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium ml-auto"
+                                className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
                             >
                                 <Copy className="w-3 h-3" />
                                 Use Current Image
@@ -207,8 +218,8 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
                                 <button
                                     onClick={onToggleInteraction}
                                     className={`p-1.5 rounded-md transition-all ${isInteractive
-                                            ? 'bg-blue-500 text-white shadow-sm'
-                                            : 'bg-white text-blue-500 hover:bg-blue-100'
+                                        ? 'bg-blue-500 text-white shadow-sm'
+                                        : 'bg-white text-blue-500 hover:bg-blue-100'
                                         }`}
                                     title="Toggle Drag Mode"
                                 >

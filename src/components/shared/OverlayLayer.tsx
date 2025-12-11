@@ -12,6 +12,7 @@ interface OverlayLayerProps {
     isInteractive?: boolean;
     onOffsetChange?: (offset: { x: number; y: number }) => void;
     zoom?: number;
+    crop?: { x: number; y: number; width: number; height: number };
 }
 
 export const OverlayLayer: React.FC<OverlayLayerProps> = ({
@@ -25,6 +26,7 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
     isInteractive = false,
     onOffsetChange,
     zoom = 1,
+    crop,
 }) => {
     const isDragging = useRef(false);
     const dragStart = useRef({ x: 0, y: 0 });
@@ -89,6 +91,16 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
 
     if (!imageSrc) return null;
 
+    const cropStyle: React.CSSProperties = crop ? {
+        width: `${crop.width}px`,
+        height: `${crop.height}px`,
+        objectFit: 'none',
+        objectPosition: `-${crop.x}px -${crop.y}px`,
+    } : {
+        width: '100%',
+        height: '100%',
+    };
+
     return (
         <div
             className={`absolute inset-0 z-10 overflow-visible ${isInteractive ? 'pointer-events-auto cursor-move' : 'pointer-events-none'}`}
@@ -98,10 +110,9 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
             <img
                 src={imageSrc}
                 alt="Overlay Layer"
-                className="max-w-full max-h-full object-contain"
+                className={crop ? "max-w-none max-h-none" : "max-w-full max-h-full object-contain"}
                 style={{
-                    width: '100%',
-                    height: '100%',
+                    ...cropStyle,
                     opacity: opacity,
                     mixBlendMode: blendMode,
                     transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale}) rotate(${rotation}deg)`,
