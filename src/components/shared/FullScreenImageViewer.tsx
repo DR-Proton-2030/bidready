@@ -222,6 +222,13 @@ export default function FullScreenImageViewer({
     setIsOverlayInteractive(false);
   }, [overlayImageId]);
 
+  // Auto-close sidebar when overlay is active to prevent clutter
+  useEffect(() => {
+    if (activeTool === "overlay") {
+      setSidebarOpen(false);
+    }
+  }, [activeTool]);
+
   const handleOverlayCopyCurrent = () => {
     if (!currentImage) return;
     const newImage: Image = {

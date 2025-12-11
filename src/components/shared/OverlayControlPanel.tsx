@@ -73,7 +73,7 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="absolute top-24 right-96 z-30 w-72 bg-white/60 backdrop-blur-xl border border-white/40 
+        <div className="absolute top-24 right-20 z-30 w-80 bg-white/60 backdrop-blur-xl border border-white/40 
         shadow-xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200">
             <div className="p-4 border-b border-gray-200/50 flex items-center justify-between bg-white/40">
                 <div className="flex items-center gap-2 text-gray-800 font-semibold">
