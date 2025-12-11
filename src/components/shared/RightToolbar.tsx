@@ -11,6 +11,7 @@ import {
   Search,
   Eraser,
   Pentagon,
+  Layers,
 } from "lucide-react";
 
 interface ToolButtonProps {
@@ -109,6 +110,13 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
           activeTool={activeTool}
           onClick={() => setTool("pan")}
           tooltip="Pan"
+        />
+        <ToolButton
+          icon={Layers}
+          label="overlay"
+          activeTool={activeTool}
+          onClick={() => setTool("overlay")}
+          tooltip="Overlay Layers"
         />
 
         <ToolbarDivider />

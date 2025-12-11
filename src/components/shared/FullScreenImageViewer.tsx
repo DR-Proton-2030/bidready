@@ -13,6 +13,8 @@ import { AiDetectionSidebar } from "./AiDetectionSidebar";
 import CompanyLogo from "./companyLogo/CompanyLogo";
 import AskAISidePanel from "./AskAISidePanel";
 import { FullScreenImageHeader } from "./FullScreenImageHeader";
+import { OverlayLayer } from "./OverlayLayer";
+import { OverlayControlPanel } from "./OverlayControlPanel";
 
 interface Image {
   id: string;
@@ -184,6 +186,57 @@ export default function FullScreenImageViewer({
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
   const snackbarTimerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const [overlayImageId, setOverlayImageId] = useState<string | null>(null);
+  const [overlayOpacity, setOverlayOpacity] = useState(0.5);
+  const [overlayBlendMode, setOverlayBlendMode] = useState("normal");
+  const [overlayOffset, setOverlayOffset] = useState({ x: 0, y: 0 });
+  const [overlayScale, setOverlayScale] = useState(1);
+  const [overlayRotation, setOverlayRotation] = useState(0);
+  const [isOverlayInteractive, setIsOverlayInteractive] = useState(false);
+  const [localOverlays, setLocalOverlays] = useState<Image[]>([]);
+
+  const overlayImage = useMemo(() => {
+    if (!overlayImageId) return null;
+    return [...images, ...localOverlays].find(img => img.id === overlayImageId);
+  }, [overlayImageId, images, localOverlays]);
+
+  const handleOverlayUpload = (file: File) => {
+    const objectUrl = URL.createObjectURL(file);
+    const newImage: Image = {
+      id: `local-${Date.now()}`,
+      name: file.name,
+      path: objectUrl,
+    };
+    setLocalOverlays(prev => [...prev, newImage]);
+    setOverlayImageId(newImage.id);
+  };
+
+  // Reset alignment when overlay image changes (optional, but good UX)
+  useEffect(() => {
+    setOverlayOffset({ x: 0, y: 0 });
+    setOverlayScale(1);
+    setOverlayRotation(0);
+    setIsOverlayInteractive(false);
+  }, [overlayImageId]);
+
+  const handleOverlayCopyCurrent = () => {
+    if (!currentImage) return;
+    const newImage: Image = {
+      id: `copy-${Date.now()}`,
+      name: `${currentImage.name} (Copy)`,
+      path: currentImage.path,
+    };
+    setLocalOverlays(prev => [...prev, newImage]);
+    setOverlayImageId(newImage.id);
+  };
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      localOverlays.forEach(img => URL.revokeObjectURL(img.path));
+    };
+  }, [localOverlays]);
 
   const calibrationInfo = useMemo(() => {
     const cal = detectionResults?.dimension_calibration;
@@ -1747,6 +1800,28 @@ export default function FullScreenImageViewer({
         </div>
       )}
 
+      <OverlayControlPanel
+        isOpen={activeTool === "overlay"}
+        onClose={() => setActiveTool("select")}
+        images={[...images.filter(img => img.id !== currentImage.id), ...localOverlays]}
+        selectedOverlayId={overlayImageId}
+        onSelectOverlay={setOverlayImageId}
+        opacity={overlayOpacity}
+        onOpacityChange={setOverlayOpacity}
+        blendMode={overlayBlendMode}
+        onBlendModeChange={setOverlayBlendMode}
+        onUpload={handleOverlayUpload}
+        onCopyCurrent={handleOverlayCopyCurrent}
+        offset={overlayOffset}
+        onOffsetChange={setOverlayOffset}
+        scale={overlayScale}
+        onScaleChange={setOverlayScale}
+        rotation={overlayRotation}
+        onRotationChange={setOverlayRotation}
+        isInteractive={isOverlayInteractive}
+        onToggleInteraction={() => setIsOverlayInteractive(!isOverlayInteractive)}
+      />
+
       {/* Image Container */}
       <div
         className={`flex-1 flex items-center justify-center relative ${leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
@@ -1815,6 +1890,27 @@ export default function FullScreenImageViewer({
             }}
             draggable={false}
           />
+
+          {/* Overlay Layer */}
+          {overlayImage && (
+            <OverlayLayer
+              imageSrc={overlayImage.path}
+              opacity={overlayOpacity}
+              blendMode={overlayBlendMode as any}
+              transformStyle={{
+                transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
+                transformOrigin: "center center",
+                width: "100%",
+                height: "100%",
+              }}
+              offset={overlayOffset}
+              scale={overlayScale}
+              rotation={overlayRotation}
+              isInteractive={isOverlayInteractive}
+              onOffsetChange={setOverlayOffset}
+              zoom={zoom}
+            />
+          )}
 
           {/* Dimension Shapes Overlay */}
           {showDimensions && detectionResults?.shapes && imageDimensions.width > 0 && (
@@ -2099,7 +2195,7 @@ export default function FullScreenImageViewer({
                           textAnchor="start"
                           style={{ paintOrder: "stroke", stroke: "rgba(255,255,255,0.95)", strokeWidth: 2 }}
                         >
-                          {/* {`${Math.round(detection.confidence * 100)}%`} */}
+                          {`${Math.round(detection.confidence * 100)}%`}
                         </text>
                       )}
 

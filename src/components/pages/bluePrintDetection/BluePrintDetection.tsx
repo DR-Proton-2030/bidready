@@ -154,8 +154,18 @@ const BluePrintDetection = ({ id: propId }: any) => {
         return next;
       });
       if (openViewer) {
-        setViewerImages([{ id: cacheKey, name: cacheKey, path: imageUrl }]);
-        setViewerIndex(0);
+        const allViewerImages = images
+          .filter((img) => !!img.url)
+          .map((img) => ({
+            id: img.id,
+            name: img.id,
+            path: img.url!,
+          }));
+        const targetId = imageId ?? imageUrl;
+        const idx = allViewerImages.findIndex((img) => img.id === targetId || img.path === targetId);
+
+        setViewerImages(allViewerImages);
+        setViewerIndex(idx >= 0 ? idx : 0);
         setViewerOpen(true);
       }
       return;
@@ -220,8 +230,18 @@ const BluePrintDetection = ({ id: propId }: any) => {
 
       // open full screen viewer with this image (unless caller asked not to)
       if (openViewer) {
-        setViewerImages([{ id: imageId ?? imageUrl, name: imageId ?? "image", path: imageUrl }]);
-        setViewerIndex(0);
+        const allViewerImages = images
+          .filter((img) => !!img.url)
+          .map((img) => ({
+            id: img.id,
+            name: img.id,
+            path: img.url!,
+          }));
+        const targetId = imageId ?? imageUrl;
+        const idx = allViewerImages.findIndex((img) => img.id === targetId || img.path === targetId);
+
+        setViewerImages(allViewerImages);
+        setViewerIndex(idx >= 0 ? idx : 0);
         setViewerOpen(true);
       }
     } catch (err: any) {
