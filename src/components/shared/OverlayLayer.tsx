@@ -115,7 +115,7 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
                     ...cropStyle,
                     opacity: opacity,
                     mixBlendMode: blendMode,
-                    transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale}) rotate(${rotation}deg)`,
+                    transform: `translate(${(crop?.x || 0) + offset.x}px, ${(crop?.y || 0) + offset.y}px) scale(${scale}) rotate(${rotation}deg)`,
                     transformOrigin: 'center center',
                 }}
                 draggable={false}

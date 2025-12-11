@@ -2065,8 +2065,8 @@ export default function FullScreenImageViewer({
               {/* Dimmer / Mask */}
               <path
                 d={`M0 0 h${imageDimensions.width} v${imageDimensions.height} h-${imageDimensions.width} z ${isDrawing && currentBox
-                    ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
-                    : ""
+                  ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
+                  : ""
                   }`}
                 fill="rgba(0, 0, 0, 0.6)"
                 fillRule="evenodd"
@@ -2423,163 +2423,169 @@ export default function FullScreenImageViewer({
                 );
               })()}
 
-              height={currentBox.height}
-              fill="#3b82f6"
-              fillOpacity="0.1"
-                  />
-            </g>
-          )}
-
-          {/* Polygon in-progress drawing */}
-          {polygonPoints.length > 0 && (() => {
-            const liveAreaPx = computePolygonArea(polygonPoints);
-            const liveInfo = convertPixelArea(liveAreaPx);
-            const liveCentroid = computePolygonCentroid(polygonPoints);
-            return (
-              <g>
-                {/* Semi-transparent fill */}
-                <polygon
-                  points={polygonPoints.map((p) => `${p.x},${p.y}`).join(" ")}
-                  fill="#60a5fa"
-                  fillOpacity={0.2}
-                  stroke="#60a5fa"
-                  strokeWidth={2}
-                  strokeOpacity={0.9}
-                />
-                {/* Corner point handles - larger circles with white fill and colored border */}
-                {polygonPoints.map((p, idx) => (
-                  <g key={idx}>
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={8}
-                      fill="white"
-                      stroke="#60a5fa"
-                      strokeWidth={3}
-                      style={{ cursor: 'move' }}
-                    />
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={3}
+              {/* Polygon in-progress drawing */}
+              {polygonPoints.length > 0 && (() => {
+                const liveAreaPx = computePolygonArea(polygonPoints);
+                const liveInfo = convertPixelArea(liveAreaPx);
+                const liveCentroid = computePolygonCentroid(polygonPoints);
+                return (
+                  <g>
+                    {/* Semi-transparent fill */}
+                    <polygon
+                      points={polygonPoints.map((p) => `${p.x},${p.y}`).join(" ")}
                       fill="#60a5fa"
+                      fillOpacity={0.2}
+                      stroke="#60a5fa"
+                      strokeWidth={2}
+                      strokeOpacity={0.9}
                     />
+                    {/* Corner point handles - larger circles with white fill and colored border */}
+                    {polygonPoints.map((p, idx) => (
+                      <g key={idx}>
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r={8}
+                          fill="white"
+                          stroke="#60a5fa"
+                          strokeWidth={3}
+                          style={{ cursor: 'move' }}
+                        />
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r={3}
+                          fill="#60a5fa"
+                        />
+                      </g>
+                    ))}
+                    {polygonPoints.length > 2 && (
+                      <text
+                        x={liveCentroid.x}
+                        y={liveCentroid.y}
+                        fill="#0f172a"
+                        fontSize={13}
+                        fontWeight="bold"
+                        textAnchor="middle"
+                        style={{ paintOrder: 'stroke', stroke: 'rgba(248,250,252,0.85)', strokeWidth: 4 }}
+                      >
+                        {liveInfo.formatted}
+                      </text>
+                    )}
                   </g>
-                ))}
-                {polygonPoints.length > 2 && (
-                  <text
-                    x={liveCentroid.x}
-                    y={liveCentroid.y}
-                    fill="#0f172a"
-                    fontSize={13}
-                    fontWeight="bold"
-                    textAnchor="middle"
-                    style={{ paintOrder: 'stroke', stroke: 'rgba(248,250,252,0.85)', strokeWidth: 4 }}
-                  >
-                    {liveInfo.formatted}
-                  </text>
-                )}
-              </g>
-            );
-          })()}
+                );
+              })()}
 
-          {/* Debug: Show if we're in drawing mode */}
-          {isDrawing && (
-            <text x="50" y="50" fill="red" fontSize="20" fontWeight="bold">
-              DRAWING MODE
-            </text>
+              {/* Debug: Show if we're in drawing mode */}
+              {isDrawing && (
+                <text x="50" y="50" fill="red" fontSize="20" fontWeight="bold">
+                  DRAWING MODE
+                </text>
+              )}
+            </svg>
           )}
-        </svg>
+
+          {/* Drawing Box (Detection Creation) */}
+          {activeTool === "annotate" && isDrawing && currentBox && (
+            <div
+              className="absolute border-2 border-blue-500"
+              style={{
+                left: currentBox.x,
+                top: currentBox.y,
+                width: currentBox.width,
+                height: currentBox.height,
+              }}
+            />
           )}
+        </div>
       </div>
-    </div>
 
       {
-    shapeTooltip && showDimensions && (
-      <div
-        className="pointer-events-none absolute z-[55] flex min-w-[160px] max-w-[200px] flex-col gap-2 rounded-xl border border-white/60 bg-slate-900/90 px-3 py-2 text-white shadow-2xl backdrop-blur"
-        style={{
-          left: Math.max(
-            12,
-            Math.min(
-              shapeTooltip.x + 18,
-              (containerRef.current?.clientWidth ?? 0) - 200
-            )
-          ),
-          top: Math.max(
-            12,
-            Math.min(
-              shapeTooltip.y + 18,
-              (containerRef.current?.clientHeight ?? 0) - 120
-            )
-          ),
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <span
-            className="inline-flex h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: shapeTooltip.color }}
-          />
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-            {shapeTooltip.name}
-          </span>
-        </div>
-        {shapeTooltip.area ? (
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-200">Area</span>
-            <span className="font-bold" style={{ color: shapeTooltip.color }}>
-              {shapeTooltip.area}
+        shapeTooltip && showDimensions && (
+          <div
+            className="pointer-events-none absolute z-[55] flex min-w-[160px] max-w-[200px] flex-col gap-2 rounded-xl border border-white/60 bg-slate-900/90 px-3 py-2 text-white shadow-2xl backdrop-blur"
+            style={{
+              left: Math.max(
+                12,
+                Math.min(
+                  shapeTooltip.x + 18,
+                  (containerRef.current?.clientWidth ?? 0) - 200
+                )
+              ),
+              top: Math.max(
+                12,
+                Math.min(
+                  shapeTooltip.y + 18,
+                  (containerRef.current?.clientHeight ?? 0) - 120
+                )
+              ),
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className="inline-flex h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: shapeTooltip.color }}
+              />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+                {shapeTooltip.name}
+              </span>
+            </div>
+            {shapeTooltip.area ? (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-200">Area</span>
+                <span className="font-bold" style={{ color: shapeTooltip.color }}>
+                  {shapeTooltip.area}
+                </span>
+              </div>
+            ) : (
+              <span className="text-[11px] text-slate-400">Area unavailable</span>
+            )}
+            <span className="text-[10px] uppercase tracking-wide text-slate-500">
+              Hover for live values
             </span>
           </div>
-        ) : (
-          <span className="text-[11px] text-slate-400">Area unavailable</span>
-        )}
-        <span className="text-[10px] uppercase tracking-wide text-slate-500">
-          Hover for live values
-        </span>
-      </div>
-    )
-  }
+        )
+      }
 
-  {/* Image Counter */ }
-  {
-    images.length > 1 && (
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-        <div className="flex space-x-1">
-          {images.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
-                ? "bg-white"
-                : "bg-white bg-opacity-50 hover:bg-opacity-75"
-                }`}
-            />
-          ))}
-        </div>
-      </div>
-    )
-  }
+      {/* Image Counter */}
+      {
+        images.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="flex space-x-1">
+              {images.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentIndex(index)}
+                  className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
+                    ? "bg-white"
+                    : "bg-white bg-opacity-50 hover:bg-opacity-75"
+                    }`}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      }
 
-  {/* Snackbar */ }
-  {
-    snackbar.visible && (
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
-        <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
-          <span className="text-sm">{snackbar.message}</span>
-          <button
-            className="text-green-400 hover:text-green-300 font-semibold text-sm"
-            onClick={undoLast}
-          >
-            Undo
-          </button>
-        </div>
-      </div>
-    )
-  }
+      {/* Snackbar */}
+      {
+        snackbar.visible && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+            <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
+              <span className="text-sm">{snackbar.message}</span>
+              <button
+                className="text-green-400 hover:text-green-300 font-semibold text-sm"
+                onClick={undoLast}
+              >
+                Undo
+              </button>
+            </div>
+          </div>
+        )
+      }
 
-  {/* Instructions */ }
-  {/* <div className="absolute bottom-4 left-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
+      {/* Instructions */}
+      {/* <div className="absolute bottom-4 left-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
         <p className="text-xs text-gray-300 space-y-1">
           <span className="block">Use arrow keys or buttons to navigate</span>
           <span className="block">
@@ -2594,8 +2600,8 @@ export default function FullScreenImageViewer({
         </p>
       </div> */}
 
-  {/* Detection Results Panel (collapsible sidebar) */ }
-  {/* AI Detection Sidebar */ }
+      {/* Detection Results Panel (collapsible sidebar) */}
+      {/* AI Detection Sidebar */}
       <AiDetectionSidebar
         detectionResults={detectionResults}
         sidebarOpen={sidebarOpen}
@@ -2620,125 +2626,125 @@ export default function FullScreenImageViewer({
         detectionContext={detectionContext}
       />
 
-  {/* Class Selector Modal for Annotations */ }
-  {
-    showClassSelector && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60">
-        <div className="bg-white rounded-lg p-6 w-96 w-md mx-4 max-h-[70vh] overflow-y-auto">
-          {/* Create New Class */}
-          <div className="">
-            <h4 className="text-md font-semibold text-gray-900  mb-2">
-              Create New Class
-            </h4>
-            <input
-              type="text"
-              placeholder="Enter new class name..."
-              value={selectedAnnotationClass}
-              onChange={(e) => setSelectedAnnotationClass(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
-              onKeyPress={(e) =>
-                e.key === "Enter" && handleCreateNewClassForAnnotation()
-              }
-            />
-            <div className="flex gap-3">
-              <button
-                onClick={handleCreateNewClassForAnnotation}
-                disabled={!selectedAnnotationClass.trim()}
-                className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg
+      {/* Class Selector Modal for Annotations */}
+      {
+        showClassSelector && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60">
+            <div className="bg-white rounded-lg p-6 w-96 w-md mx-4 max-h-[70vh] overflow-y-auto">
+              {/* Create New Class */}
+              <div className="">
+                <h4 className="text-md font-semibold text-gray-900  mb-2">
+                  Create New Class
+                </h4>
+                <input
+                  type="text"
+                  placeholder="Enter new class name..."
+                  value={selectedAnnotationClass}
+                  onChange={(e) => setSelectedAnnotationClass(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                  onKeyPress={(e) =>
+                    e.key === "Enter" && handleCreateNewClassForAnnotation()
+                  }
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCreateNewClassForAnnotation}
+                    disabled={!selectedAnnotationClass.trim()}
+                    className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg
                    hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed 
                    transition-colors text-sm"
-              >
-                Create & Assign
-              </button>
-              <button
-                onClick={() => {
-                  setShowClassSelector(false);
-                  setPendingAnnotation(null);
-                  setSelectedAnnotationClass("");
-                }}
-                className="flex-1 px-4 py-2 bg-gray-800 text-gray-100 rounded-lg
+                  >
+                    Create & Assign
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowClassSelector(false);
+                      setPendingAnnotation(null);
+                      setSelectedAnnotationClass("");
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-800 text-gray-100 rounded-lg
                    hover:bg-gray-300 transition-colors text-sm"
-              >
-                Cancel
-              </button>
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+
+              {/* Existing Classes */}
+              <div className="my-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Existing Classes:
+                </h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {getAllAvailableClasses().map((className) => (
+                    <button
+                      key={className}
+                      onClick={() => handleAssignClass(className)}
+                      className="w-full flex items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div
+                        className="w-4 h-4 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: getColorForClass(className) }}
+                      ></div>
+                      <span className="capitalize text-sm">{className}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
+        )
+      }
 
-          {/* Existing Classes */}
-          <div className="my-4">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">
-              Existing Classes:
-            </h4>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {getAllAvailableClasses().map((className) => (
+      {/* Add New Class Modal */}
+      {
+        showAddClassModal && (
+          <div className="fixed inset-0 bg-black/50 bg-blur-sm bg-opacity-50 flex items-center justify-center 0 z-60">
+            <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4">
+              <h3 className="text-lg font-semibold mb-4">Add New Class</h3>
+              <input
+                type="text"
+                placeholder="Enter class name..."
+                value={newClassName}
+                onChange={(e) => setNewClassName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+                onKeyPress={(e) => e.key === "Enter" && handleAddNewClass()}
+              />
+              <div className="flex gap-3">
                 <button
-                  key={className}
-                  onClick={() => handleAssignClass(className)}
-                  className="w-full flex items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={handleAddNewClass}
+                  disabled={!newClassName.trim()}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
-                  <div
-                    className="w-4 h-4 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: getColorForClass(className) }}
-                  ></div>
-                  <span className="capitalize text-sm">{className}</span>
+                  Add Class
                 </button>
-              ))}
+                <button
+                  onClick={() => {
+                    setShowAddClassModal(false);
+                    setNewClassName("");
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
-    )
-  }
+        )
+      }
 
-  {/* Add New Class Modal */ }
-  {
-    showAddClassModal && (
-      <div className="fixed inset-0 bg-black/50 bg-blur-sm bg-opacity-50 flex items-center justify-center 0 z-60">
-        <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4">
-          <h3 className="text-lg font-semibold mb-4">Add New Class</h3>
-          <input
-            type="text"
-            placeholder="Enter class name..."
-            value={newClassName}
-            onChange={(e) => setNewClassName(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-            onKeyPress={(e) => e.key === "Enter" && handleAddNewClass()}
-          />
-          <div className="flex gap-3">
-            <button
-              onClick={handleAddNewClass}
-              disabled={!newClassName.trim()}
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              Add Class
-            </button>
-            <button
-              onClick={() => {
-                setShowAddClassModal(false);
-                setNewClassName("");
-              }}
-              className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  {/* Toggle Sidebar Button (when closed) */ }
-  {
-    !sidebarOpen && detectionResults && (
-      <button
-        onClick={() => setSidebarOpen(true)}
-        className="absolute top-24 right-4 z-10 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
-        title="Show Detection Panel"
-      >
-        <Search className="w-5 h-5" />
-      </button>
-    )
-  }
+      {/* Toggle Sidebar Button (when closed) */}
+      {
+        !sidebarOpen && detectionResults && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute top-24 right-4 z-10 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
+            title="Show Detection Panel"
+          >
+            <Search className="w-5 h-5" />
+          </button>
+        )
+      }
     </div >
   );
 }
