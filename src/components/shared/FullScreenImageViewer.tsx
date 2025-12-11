@@ -196,6 +196,7 @@ export default function FullScreenImageViewer({
   const [overlayScale, setOverlayScale] = useState(1);
   const [overlayRotation, setOverlayRotation] = useState(0);
   const [isOverlayInteractive, setIsOverlayInteractive] = useState(false);
+  const [overlayColor, setOverlayColor] = useState('none');
   const [localOverlays, setLocalOverlays] = useState<Image[]>([]);
 
   const overlayImage = useMemo(() => {
@@ -220,6 +221,8 @@ export default function FullScreenImageViewer({
     setOverlayScale(1);
     setOverlayRotation(0);
     setIsOverlayInteractive(false);
+    setOverlayColor('none');
+    setOverlayBlendMode('normal');
   }, [overlayImageId]);
 
   // Auto-close sidebar when overlay is active to prevent clutter
@@ -1896,6 +1899,16 @@ export default function FullScreenImageViewer({
         isInteractive={isOverlayInteractive}
         onToggleInteraction={() => setIsOverlayInteractive(!isOverlayInteractive)}
         onCropStart={handleCropStart}
+        overlayColor={overlayColor}
+        onOverlayColorChange={(color) => {
+          setOverlayColor(color);
+          // Auto-switch blend mode for best visibility when coloring is active
+          if (color !== 'none') {
+            setOverlayBlendMode('multiply'); // Multiply is best for Colored Lines on White Paper
+          } else {
+            setOverlayBlendMode('normal');
+          }
+        }}
       />
 
       {/* Image Container */}
@@ -1987,6 +2000,7 @@ export default function FullScreenImageViewer({
               onOffsetChange={setOverlayOffset}
               zoom={zoom}
               crop={overlayImage.crop}
+              color={overlayColor}
             />
           )}
 

@@ -13,7 +13,17 @@ interface OverlayLayerProps {
     onOffsetChange?: (offset: { x: number; y: number }) => void;
     zoom?: number;
     crop?: { x: number; y: number; width: number; height: number };
+    color?: string;
 }
+
+const COLOR_FILTERS: Record<string, string> = {
+    // Logic: Contrast (Force White) -> Invert -> Colorize -> Invert
+    // We add contrast(1.2) to ensure the background is pure white (255,255,255) so Multiply makes it transparent.
+    red: 'contrast(120%) invert(100%) sepia(100%) saturate(5000%) hue-rotate(130deg) invert(100%)',
+    green: 'contrast(120%) invert(100%) sepia(100%) saturate(5000%) hue-rotate(250deg) invert(100%)',
+    blue: 'contrast(120%) invert(100%) sepia(100%) saturate(5000%) hue-rotate(25deg) invert(100%)',
+    none: 'none'
+};
 
 export const OverlayLayer: React.FC<OverlayLayerProps> = ({
     imageSrc,
@@ -27,6 +37,7 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
     onOffsetChange,
     zoom = 1,
     crop,
+    color = 'none',
 }) => {
     const isDragging = useRef(false);
     const dragStart = useRef({ x: 0, y: 0 });
@@ -103,9 +114,11 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
 
     return (
         <div
-            className={`absolute inset-0 z-10 overflow-visible ${isInteractive ? 'pointer-events-auto cursor-move' : 'pointer-events-none'}`}
-            style={transformStyle}
-            onMouseDown={handleMouseDown}
+            className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden"
+            style={{
+                zIndex: 10,
+                mixBlendMode: blendMode as any // Apply blend mode to container to avoid conflict with filter
+            }}
         >
             <img
                 src={imageSrc}
@@ -114,11 +127,15 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
                 style={{
                     ...cropStyle,
                     opacity: opacity,
-                    mixBlendMode: blendMode,
+                    // mixBlendMode moved to parent
                     transform: `translate(${(crop?.x || 0) + offset.x}px, ${(crop?.y || 0) + offset.y}px) scale(${scale}) rotate(${rotation}deg)`,
                     transformOrigin: 'center center',
+                    filter: COLOR_FILTERS[color] || 'none',
+                    pointerEvents: isInteractive ? 'auto' : 'none',
+                    cursor: isInteractive ? 'move' : 'default'
                 }}
                 draggable={false}
+                onMouseDown={handleMouseDown}
             />
         </div>
     );

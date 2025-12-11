@@ -31,7 +31,16 @@ interface OverlayControlPanelProps {
     isInteractive: boolean;
     onToggleInteraction: () => void;
     onCropStart?: () => void;
+    overlayColor: string;
+    onOverlayColorChange: (color: string) => void;
 }
+
+const OVERLAY_COLORS = [
+    { value: 'none', label: 'Original', color: 'bg-gray-200' },
+    { value: 'red', label: 'Red', color: 'bg-red-500' },
+    { value: 'green', label: 'Green', color: 'bg-green-500' },
+    { value: 'blue', label: 'Blue', color: 'bg-blue-500' },
+];
 
 const BLEND_MODES = [
     { value: 'normal', label: 'Normal' },
@@ -66,6 +75,8 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
     isInteractive,
     onToggleInteraction,
     onCropStart,
+    overlayColor,
+    onOverlayColorChange,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showAlignment, setShowAlignment] = useState(false);
@@ -180,6 +191,26 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
                                 onChange={(e) => onOpacityChange(parseFloat(e.target.value))}
                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
                             />
+                        </div>
+
+                        {/* Color Overlay Selection */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                                Overlay Color
+                            </label>
+                            <div className="flex gap-2">
+                                {OVERLAY_COLORS.map((color) => (
+                                    <button
+                                        key={color.value}
+                                        onClick={() => onOverlayColorChange(color.value)}
+                                        className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center
+                                            ${overlayColor === color.value ? 'border-blue-500 scale-110 shadow-sm' : 'border-transparent hover:scale-105'}`}
+                                        title={color.label}
+                                    >
+                                        <div className={`w-6 h-6 rounded-full ${color.color} ${color.value === 'none' ? 'border border-gray-300' : ''}`} />
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         {/* Blend Mode Selector */}
