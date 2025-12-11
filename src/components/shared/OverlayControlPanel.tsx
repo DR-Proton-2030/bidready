@@ -1,6 +1,6 @@
 'use client'
 import React, { useState } from 'react';
-import { X, Layers, Upload, Copy, Move, RotateCw, RefreshCcw, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Minus, Plus, Hand, Crop } from 'lucide-react';
+import { X, Layers, Upload, Copy, Move, RotateCw, RefreshCcw, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Minus, Plus, Hand, Crop, ChevronDown, ChevronRight, Palette } from 'lucide-react';
 import { useRef } from 'react';
 
 interface Image {
@@ -69,6 +69,7 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showAlignment, setShowAlignment] = useState(false);
+    const [showBlendMode, setShowBlendMode] = useState(false);
 
     if (!isOpen) return null;
 
@@ -77,7 +78,7 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
         shadow-xl rounded-2xl overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200">
             <div className="p-4 border-b border-gray-200/50 flex items-center justify-between bg-white/40">
                 <div className="flex items-center gap-2 text-gray-800 font-semibold">
-                    <Layers className="w-5 h-5 text-blue-500" />
+                    <Layers className="w-5 h-5 text-orange-500" />
                     <span>Overlay Comparison</span>
                 </div>
                 <button
@@ -106,53 +107,56 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
                             </option>
                         ))}
                     </select>
-
-                    {onUpload && (
-                        <div className="mt-2 text-right">
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                className="hidden"
-                                accept="image/*"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                        onUpload(file);
-                                        // Reset input so same file can be selected again
-                                        e.target.value = '';
-                                    }
-                                }}
-                            />
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                                <Upload className="w-3 h-3" />
-                                Upload Local File
-                            </button>
-                        </div>
-                    )}
-
-                    {onCopyCurrent && (
-                        <div className="mt-1 flex justify-end gap-2">
-                            {onCropStart && (
+                    <div className="flex justify-between mt-1">
+                        {onUpload && (
+                            <div className=" text-right">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                            onUpload(file);
+                                            // Reset input so same file can be selected again
+                                            e.target.value = '';
+                                        }
+                                    }}
+                                />
                                 <button
-                                    onClick={onCropStart}
-                                    className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="text-xs flex bg-gray-100 py-1 px-2 rounded-xl 
+                                    items-center gap-1 text-gray-600 hover:text-blue-700 font-medium"
                                 >
-                                    <Crop className="w-3 h-3" />
-                                    Crop Part
+                                    <Upload className="w-3 h-3" />
+                                    Upload
                                 </button>
-                            )}
-                            <button
-                                onClick={onCopyCurrent}
-                                className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium"
-                            >
-                                <Copy className="w-3 h-3" />
-                                Use Current Image
-                            </button>
-                        </div>
-                    )}
+                            </div>
+                        )}
+
+                        {onCopyCurrent && (
+                            <div className=" flex justify-between gap-2">
+                                {onCropStart && (
+                                    <button
+                                        onClick={onCropStart}
+                                        className="text-xs flex items-center gap-1  text-gray-600 hover:text-blue-700 font-medium"
+                                    >
+                                        <Crop className="w-3 h-3" />
+                                        Crop
+                                    </button>
+                                )}
+                                <button
+                                    onClick={onCopyCurrent}
+                                    className="text-xs flex items-center gap-1 text-gray-600 hover:text-blue-700 font-medium"
+                                >
+                                    <Copy className="w-3 h-3" />
+                                    Use Current Image
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
                 </div>
 
                 {selectedOverlayId && (
@@ -174,32 +178,39 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
                                 step="0.05"
                                 value={opacity}
                                 onChange={(e) => onOpacityChange(parseFloat(e.target.value))}
-                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
                             />
                         </div>
 
                         {/* Blend Mode Selector */}
-                        <div className="space-y-2">
-                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                Blend Mode
-                            </label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {BLEND_MODES.map((mode) => (
-                                    <button
-                                        key={mode.value}
-                                        onClick={() => onBlendModeChange(mode.value)}
-                                        className={`
-                      text-xs px-3 py-2 rounded-lg font-medium transition-all
-                      ${blendMode === mode.value
-                                                ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
-                                                : 'bg-white/50 text-gray-600 hover:bg-white hover:shadow-sm'
-                                            }
-                    `}
-                                    >
-                                        {mode.label}
-                                    </button>
-                                ))}
-                            </div>
+                        <div className="space-y-2 pt-2 border-t border-gray-200/50">
+                            <button
+                                onClick={() => setShowBlendMode(!showBlendMode)}
+                                className="flex items-center justify-between w-full text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-700 mb-2"
+                            >
+                                <span>Blend Mode</span>
+                                {showBlendMode ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                            </button>
+
+                            {showBlendMode && (
+                                <div className="grid grid-cols-2 gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                                    {BLEND_MODES.map((mode) => (
+                                        <button
+                                            key={mode.value}
+                                            onClick={() => onBlendModeChange(mode.value)}
+                                            className={`
+                                            text-xs px-3 py-2 rounded-lg font-medium transition-all
+                                            ${blendMode === mode.value
+                                                    ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
+                                                    : 'bg-white/50 text-gray-600 hover:bg-white hover:shadow-sm'
+                                                }
+                                            `}
+                                        >
+                                            {mode.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Alignment Section */}
@@ -213,13 +224,13 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
                             </button>
 
                             {/* Interactive Mode Toggle */}
-                            <div className="mb-3 flex items-center justify-between bg-blue-50 p-2 rounded-lg border border-blue-100">
-                                <span className="text-xs font-medium text-blue-800">Drag to Move</span>
+                            <div className="mb-3 flex items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                <span className="text-xs font-medium text-gray-800">Drag to Move</span>
                                 <button
                                     onClick={onToggleInteraction}
                                     className={`p-1.5 rounded-md transition-all ${isInteractive
-                                        ? 'bg-blue-500 text-white shadow-sm'
-                                        : 'bg-white text-blue-500 hover:bg-blue-100'
+                                        ? 'bg-gray-500 text-white shadow-sm'
+                                        : 'bg-white text-orange-500 hover:bg-orange-100'
                                         }`}
                                     title="Toggle Drag Mode"
                                 >
