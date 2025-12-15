@@ -23,7 +23,7 @@ export default function AskAISidePanel({ open, onClose, imageName, detectionCont
     }, []);
 
 
-    console.log("====>detection ", detectionContext)
+    console.log("====>ai detection calibration", detectionContext)
     const [prompt, setPrompt] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);

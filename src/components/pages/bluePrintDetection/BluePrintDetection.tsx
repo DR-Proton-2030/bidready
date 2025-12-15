@@ -174,6 +174,7 @@ const BluePrintDetection = ({ id: propId }: any) => {
     try {
       setDetecting(true);
       const transformed = await detectImage(imageUrl);
+      console.log("====>detection result", transformed)
       setDetectionResults(transformed);
 
       // Also call the Roboflow electrical model and store the normalized response for later integration

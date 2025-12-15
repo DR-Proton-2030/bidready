@@ -127,7 +127,7 @@ export default function FullScreenImageViewer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  // console.log("=========>detectionResults", detectionResults);
+  console.log("=========>detectionResults", detectionResults);
   const [imageDimensions, setImageDimensions] = useState({
     width: 0,
     height: 0,
@@ -256,38 +256,82 @@ export default function FullScreenImageViewer({
   }, [localOverlays]);
 
   const calibrationInfo = useMemo(() => {
+    console.log('object', detectionResults.dimension_calibration)
     const cal = detectionResults?.dimension_calibration;
     if (!cal || typeof cal !== "object") return null;
     if (typeof cal.error === "string" && cal.error.length > 0) return null;
 
-    const unit =
-      (typeof cal.unit === "string" && cal.unit) ||
-      (typeof cal.units === "string" && cal.units) ||
-      (typeof cal.unit_name === "string" && cal.unit_name) ||
-      (typeof cal.measurement_unit === "string" && cal.measurement_unit) ||
-      (typeof cal.display_unit === "string" && cal.display_unit) ||
-      "units";
-
     const numeric = (value: unknown) =>
       typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
 
-    let pixelsPerUnit =
-      numeric((cal as any).pixels_per_unit) ??
-      numeric((cal as any).px_per_unit) ??
-      numeric((cal as any).pixel_per_unit) ??
-      numeric((cal as any).pixelsPerUnit) ??
-      numeric((cal as any).pixelPerUnit) ??
-      null;
+    let unit = "units";
+    let pixelsPerUnit: number | null = null;
+    let unitsPerPixel: number | null = null;
 
-    let unitsPerPixel =
-      numeric((cal as any).unit_per_pixel) ??
-      numeric((cal as any).units_per_pixel) ??
-      numeric((cal as any).unitPerPixel) ??
-      numeric((cal as any).unitsPerPixel) ??
-      null;
+    // Check for px_per_inch pattern first (e.g., px_per_inch, px_per_foot, px_per_meter)
+    const pxPerPattern = Object.keys(cal).find(key => /^px_per_/i.test(key));
+    if (pxPerPattern) {
+      const value = numeric((cal as any)[pxPerPattern]);
+      if (value) {
+        pixelsPerUnit = value;
+        // Extract unit from field name: px_per_inch -> inch
+        const unitMatch = pxPerPattern.match(/^px_per_(.+)$/i);
+        if (unitMatch && unitMatch[1]) {
+          unit = unitMatch[1];
+        }
+      }
+    }
+
+    // Fallback to other field patterns
+    if (!pixelsPerUnit) {
+      pixelsPerUnit =
+        numeric((cal as any).pixels_per_unit) ??
+        numeric((cal as any).px_per_unit) ??
+        numeric((cal as any).pixel_per_unit) ??
+        numeric((cal as any).pixelsPerUnit) ??
+        numeric((cal as any).pixelPerUnit) ??
+        null;
+    }
+
+    if (!unitsPerPixel) {
+      unitsPerPixel =
+        numeric((cal as any).unit_per_pixel) ??
+        numeric((cal as any).units_per_pixel) ??
+        numeric((cal as any).unitPerPixel) ??
+        numeric((cal as any).unitsPerPixel) ??
+        null;
+    }
+
+    // Extract unit name from explicit fields if not already set
+    if (unit === "units") {
+      unit =
+        (typeof cal.unit === "string" && cal.unit) ||
+        (typeof cal.units === "string" && cal.units) ||
+        (typeof cal.unit_name === "string" && cal.unit_name) ||
+        (typeof cal.measurement_unit === "string" && cal.measurement_unit) ||
+        (typeof cal.display_unit === "string" && cal.display_unit) ||
+        "units";
+    }
 
     if (!unitsPerPixel && pixelsPerUnit) {
       unitsPerPixel = 1 / pixelsPerUnit;
+    }
+
+    // Check for px_length and real_inches (or similar direct field pairs)
+    if (!unitsPerPixel) {
+      const pixelLength =
+        numeric((cal as any).px_length) ??
+        numeric((cal as any).pixel_length) ??
+        null;
+      const realLength =
+        numeric((cal as any).real_inches) ??
+        numeric((cal as any).real_length) ??
+        numeric((cal as any).real_units) ??
+        null;
+
+      if (pixelLength && realLength) {
+        unitsPerPixel = realLength / pixelLength;
+      }
     }
 
     if (!unitsPerPixel && cal.reference && typeof cal.reference === "object") {

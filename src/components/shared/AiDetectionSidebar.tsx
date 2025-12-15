@@ -35,6 +35,7 @@ export const AiDetectionSidebar: React.FC<AiDetectionSidebarProps> = ({
     getColorForClass,
 }) => {
     if (!detectionResults || !sidebarOpen) return null;
+    // console.log("====detectionResults ai", detectionResults?.dimension_calibration)
 
     return (
         <div className="absolute right-4 top-24 w-80 h-[80vh] 
