@@ -127,7 +127,7 @@ export default function FullScreenImageViewer({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  console.log("=========>detectionResults", detectionResults);
+  // console.log("=========>detectionResults", detectionResults);
   const [imageDimensions, setImageDimensions] = useState({
     width: 0,
     height: 0,
