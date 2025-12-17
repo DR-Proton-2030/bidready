@@ -112,6 +112,9 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
         height: '100%',
     };
 
+    // Combine the main image zoom with the overlay's own scale adjustment
+    const combinedScale = zoom * scale;
+
     return (
         <div
             className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden"
@@ -128,7 +131,8 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
                     ...cropStyle,
                     opacity: opacity,
                     // mixBlendMode moved to parent
-                    transform: `translate(${(crop?.x || 0) + offset.x}px, ${(crop?.y || 0) + offset.y}px) scale(${scale}) rotate(${rotation}deg)`,
+                    // Use combinedScale (zoom * scale) so overlay zooms with main image
+                    transform: `translate(${(crop?.x || 0) + offset.x}px, ${(crop?.y || 0) + offset.y}px) scale(${combinedScale}) rotate(${rotation}deg)`,
                     transformOrigin: 'center center',
                     filter: COLOR_FILTERS[color] || 'none',
                     pointerEvents: isInteractive ? 'auto' : 'none',
