@@ -16,13 +16,59 @@ interface OverlayLayerProps {
     color?: string;
 }
 
-const COLOR_FILTERS: Record<string, string> = {
-    // Logic: Contrast (Force White) -> Invert -> Colorize -> Invert
-    // We add contrast(1.2) to ensure the background is pure white (255,255,255) so Multiply makes it transparent.
-    red: 'contrast(120%) invert(100%) sepia(100%) saturate(5000%) hue-rotate(130deg) invert(100%)',
-    green: 'contrast(120%) invert(100%) sepia(100%) saturate(5000%) hue-rotate(250deg) invert(100%)',
-    blue: 'contrast(120%) invert(100%) sepia(100%) saturate(5000%) hue-rotate(25deg) invert(100%)',
-    none: 'none'
+// Preset hue-rotate values for common colors (more accurate than calculating)
+const PRESET_HUE_ROTATIONS: Record<string, number> = {
+    red: 0,
+    green: 90,
+    blue: 200,
+    cyan: 155,
+    magenta: 270,
+    yellow: 35,
+    orange: 20,
+    purple: 240,
+    pink: 300,
+};
+
+// Convert hex color to HSL and return hue in degrees
+const hexToHue = (hex: string): number => {
+    const cleanHex = hex.replace('#', '');
+    let r, g, b;
+    
+    if (cleanHex.length === 3) {
+        r = parseInt(cleanHex[0] + cleanHex[0], 16) / 255;
+        g = parseInt(cleanHex[1] + cleanHex[1], 16) / 255;
+        b = parseInt(cleanHex[2] + cleanHex[2], 16) / 255;
+    } else {
+        r = parseInt(cleanHex.substring(0, 2), 16) / 255;
+        g = parseInt(cleanHex.substring(2, 4), 16) / 255;
+        b = parseInt(cleanHex.substring(4, 6), 16) / 255;
+    }
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0;
+
+    if (max !== min) {
+        const d = max - min;
+        switch (max) {
+            case r:
+                h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+                break;
+            case g:
+                h = ((b - r) / d + 2) / 6;
+                break;
+            case b:
+                h = ((r - g) / d + 4) / 6;
+                break;
+        }
+    }
+
+    return h * 360;
+};
+
+// Generate a unique filter ID for custom colors
+const getFilterId = (color: string): string => {
+    return `colorize-${color.replace('#', '')}`;
 };
 
 export const OverlayLayer: React.FC<OverlayLayerProps> = ({
@@ -115,6 +161,41 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
     // Combine the main image zoom with the overlay's own scale adjustment
     const combinedScale = zoom * scale;
 
+    // Determine if we need SVG filter for custom color
+    const isCustomHex = color && color.startsWith('#') && (color.length === 7 || color.length === 4);
+    const isPresetColor = color && PRESET_HUE_ROTATIONS[color] !== undefined;
+    const filterId = isCustomHex ? getFilterId(color) : null;
+
+    // Parse hex to RGB for SVG filter
+    const hexToRgb = (hex: string) => {
+        const cleanHex = hex.replace('#', '');
+        let r, g, b;
+        if (cleanHex.length === 3) {
+            r = parseInt(cleanHex[0] + cleanHex[0], 16);
+            g = parseInt(cleanHex[1] + cleanHex[1], 16);
+            b = parseInt(cleanHex[2] + cleanHex[2], 16);
+        } else {
+            r = parseInt(cleanHex.substring(0, 2), 16);
+            g = parseInt(cleanHex.substring(2, 4), 16);
+            b = parseInt(cleanHex.substring(4, 6), 16);
+        }
+        return { r: r / 255, g: g / 255, b: b / 255 };
+    };
+
+    const rgb = isCustomHex ? hexToRgb(color) : null;
+
+    // Build filter style
+    let filterStyle = 'none';
+    if (color === 'none' || !color) {
+        filterStyle = 'none';
+    } else if (isPresetColor) {
+        // Use hue-rotate for preset colors
+        const hue = PRESET_HUE_ROTATIONS[color];
+        filterStyle = `grayscale(100%) sepia(100%) saturate(400%) hue-rotate(${hue}deg)`;
+    } else if (isCustomHex && filterId) {
+        filterStyle = `url(#${filterId})`;
+    }
+
     return (
         <div
             className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden"
@@ -123,6 +204,31 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
                 mixBlendMode: blendMode as any // Apply blend mode to container to avoid conflict with filter
             }}
         >
+            {/* SVG Filter Definition for Custom Colors */}
+            {isCustomHex && rgb && filterId && (
+                <svg width="0" height="0" style={{ position: 'absolute' }}>
+                    <defs>
+                        <filter id={filterId} colorInterpolationFilters="sRGB">
+                            {/* Convert to grayscale first */}
+                            <feColorMatrix
+                                type="matrix"
+                                values="0.33 0.33 0.33 0 0
+                                        0.33 0.33 0.33 0 0
+                                        0.33 0.33 0.33 0 0
+                                        0    0    0    1 0"
+                            />
+                            {/* Then colorize with the target color */}
+                            <feColorMatrix
+                                type="matrix"
+                                values={`${rgb.r} 0 0 0 0
+                                         0 ${rgb.g} 0 0 0
+                                         0 0 ${rgb.b} 0 0
+                                         0 0 0 1 0`}
+                            />
+                        </filter>
+                    </defs>
+                </svg>
+            )}
             <img
                 src={imageSrc}
                 alt="Overlay Layer"
@@ -134,7 +240,7 @@ export const OverlayLayer: React.FC<OverlayLayerProps> = ({
                     // Use combinedScale (zoom * scale) so overlay zooms with main image
                     transform: `translate(${(crop?.x || 0) + offset.x}px, ${(crop?.y || 0) + offset.y}px) scale(${combinedScale}) rotate(${rotation}deg)`,
                     transformOrigin: 'center center',
-                    filter: COLOR_FILTERS[color] || 'none',
+                    filter: filterStyle,
                     pointerEvents: isInteractive ? 'auto' : 'none',
                     cursor: isInteractive ? 'move' : 'default'
                 }}

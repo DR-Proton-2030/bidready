@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { analyzeFloorPlan } from "@/services/geminiService";
+import { AIAnalysisResult } from "@/types/gemini";
 import {
   X,
   ChevronLeft,
   ChevronRight,
   Search,
   Clock3,
+  ScanSearch,
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import { AiDetectionSidebar } from "./AiDetectionSidebar";
@@ -136,6 +139,8 @@ export default function FullScreenImageViewer({
     width: 0,
     height: 0,
   });
+
+  const currentImage = images[currentIndex];
   const [showDetections, setShowDetections] = useState(true);
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
@@ -215,7 +220,6 @@ export default function FullScreenImageViewer({
     setOverlayImageId(newImage.id);
   };
 
-  // Reset alignment when overlay image changes (optional, but good UX)
   useEffect(() => {
     setOverlayOffset({ x: 0, y: 0 });
     setOverlayScale(1);
@@ -224,6 +228,41 @@ export default function FullScreenImageViewer({
     setOverlayColor('none');
     setOverlayBlendMode('normal');
   }, [overlayImageId]);
+
+  const [isDeepScanning, setIsDeepScanning] = useState(false);
+  const [aiCalibrationData, setAiCalibrationData] = useState<any>(null);
+
+  const handleDeepScan = async () => {
+    if (!currentImage) return;
+    setIsDeepScanning(true);
+    try {
+      // Use proxy to avoid CORS issues with S3 images
+      const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(currentImage.path)}`;
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error("Failed to fetch image via proxy");
+      const blob = await response.blob();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const result = await analyzeFloorPlan(base64);
+
+      if (result.autoCalibration) {
+        setAiCalibrationData(result.autoCalibration);
+        setSnackbar({ visible: true, message: "Calibration updated from Deep Scan" });
+      } else {
+        setSnackbar({ visible: true, message: "Deep Scan complete. No calibration found." });
+      }
+    } catch (e) {
+      console.error("Deep Scan failed", e);
+      setSnackbar({ visible: true, message: "Deep Scan failed. Try again." });
+    } finally {
+      setIsDeepScanning(false);
+    }
+  };
 
   // Auto-close sidebar when overlay is active to prevent clutter
   useEffect(() => {
@@ -256,7 +295,32 @@ export default function FullScreenImageViewer({
   }, [localOverlays]);
 
   const calibrationInfo = useMemo(() => {
-    console.log('object', detectionResults.dimension_calibration)
+    if (aiCalibrationData) {
+      const { realValue, startNormalized, endNormalized, unit } = aiCalibrationData;
+      // Calculate pixel distance from normalized coordinates (0-1000 range)
+      // We need image dimensions for this.
+      // If we don't have exact dimensions yet, this might be tricky, 
+      // but usually we rely on current image aspect ratio or assume standard.
+      // Wait, normalized implies we need actual width/height.
+
+      // Let's use imageDimensions if available, or fallback
+      const w = imageDimensions.width || 1000;
+      const h = imageDimensions.height || 1000;
+
+      const p1 = { x: (startNormalized[1] / 1000) * w, y: (startNormalized[0] / 1000) * h };
+      const p2 = { x: (endNormalized[1] / 1000) * w, y: (endNormalized[0] / 1000) * h };
+      const pixelDist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+
+      if (pixelDist > 0 && realValue > 0) {
+        const unitsPerPixel = realValue / pixelDist;
+        return {
+          unit: unit === 'feet' || unit === 'ft' || unit.includes("'") ? 'ft' : 'm',
+          unitsPerPixel,
+          pixelsPerUnit: pixelDist / realValue
+        } as const;
+      }
+    }
+
     const cal = detectionResults?.dimension_calibration;
     if (!cal || typeof cal !== "object") return null;
     if (typeof cal.error === "string" && cal.error.length > 0) return null;
@@ -385,7 +449,7 @@ export default function FullScreenImageViewer({
       unitsPerPixel,
       pixelsPerUnit: 1 / unitsPerPixel,
     } as const;
-  }, [detectionResults?.dimension_calibration]);
+  }, [detectionResults?.dimension_calibration, aiCalibrationData, imageDimensions]);
 
   const convertPixelDistance = useCallback(
     (pixels: number) => {
@@ -550,7 +614,7 @@ export default function FullScreenImageViewer({
     showUndoSnackbar("Deleted. Undo?");
   };
 
-  const currentImage = images[currentIndex];
+
 
   // Predefined colors for consistent class mapping
   const classColors = [
@@ -1901,6 +1965,8 @@ export default function FullScreenImageViewer({
         polygonPointsLength={polygonPoints.length}
         onFinishPolygon={finishPolygon}
         onCancelPolygon={cancelPolygon}
+        onRunDeepScan={handleDeepScan}
+        isScanning={isDeepScanning}
       />
 
       {/* Left Toolbar */}
@@ -1917,7 +1983,6 @@ export default function FullScreenImageViewer({
             onAddNote={handleAddNote}
             onCalculate={handleCalculate}
             showGrid={showGrid}
-            className=" shadow-xl border border-gray-200"
           />
         </div>
       )}

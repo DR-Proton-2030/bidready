@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ZoomIn, ZoomOut, RotateCw, Download, X, Check, Ruler, Minimize2, LayoutTemplate, PanelTop, Save, Image } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCw, Download, X, Check, Ruler, Minimize2, LayoutTemplate, PanelTop, Save, Image, ScanSearch } from "lucide-react";
 import AiButton from "./aiButton/AiButton";
 
 interface FullScreenImageHeaderProps {
@@ -17,6 +17,8 @@ interface FullScreenImageHeaderProps {
     polygonPointsLength: number;
     onFinishPolygon: () => void;
     onCancelPolygon: () => void;
+    onRunDeepScan: () => void;
+    isScanning: boolean;
 }
 
 export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (props) => {
@@ -37,6 +39,8 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
         polygonPointsLength,
         onFinishPolygon,
         onCancelPolygon,
+        onRunDeepScan,
+        isScanning,
     } = props;
 
     const ToggleButton = () => (
@@ -138,6 +142,21 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
                             <div className="transform hover:scale-105 transition-transform duration-200">
                                 <AiButton onClick={onAskAiOpen} />
                             </div>
+
+                            <button
+                                onClick={onRunDeepScan}
+                                disabled={isScanning}
+                                className={`p-2.5 rounded-xl transition-all duration-200 hover:shadow-sm ${isScanning
+                                    ? "bg-indigo-100 text-indigo-500 cursor-not-allowed"
+                                    : "text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/80"}`}
+                                title="Run Deep Scan for Calibration"
+                            >
+                                {isScanning ? (
+                                    <div className="w-[18px] h-[18px] border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <ScanSearch size={18} />
+                                )}
+                            </button>
 
                             <ToggleButton />
 
@@ -257,6 +276,21 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
                     <div className="transform scale-95">
                         <AiButton onClick={onAskAiOpen} />
                     </div>
+
+                    <button
+                        onClick={onRunDeepScan}
+                        disabled={isScanning}
+                        className={`p-2 rounded-lg transition-all duration-200 ${isScanning
+                            ? "bg-indigo-50 text-indigo-500 cursor-not-allowed"
+                            : "text-gray-500 hover:text-indigo-600 hover:bg-indigo-50"}`}
+                        title="Run Deep Scan for Calibration"
+                    >
+                        {isScanning ? (
+                            <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <ScanSearch size={16} />
+                        )}
+                    </button>
 
                     <div className="h-6 w-[1px] bg-gray-200 mx-1 hidden md:block" />
 

@@ -40,6 +40,7 @@ const OVERLAY_COLORS = [
     { value: 'red', label: 'Red', color: 'bg-red-500' },
     { value: 'green', label: 'Green', color: 'bg-green-500' },
     { value: 'blue', label: 'Blue', color: 'bg-blue-500' },
+    { value: 'custom', label: 'Custom', color: 'custom' },
 ];
 
 const BLEND_MODES = [
@@ -79,8 +80,13 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
     onOverlayColorChange,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const colorInputRef = useRef<HTMLInputElement>(null);
     const [showAlignment, setShowAlignment] = useState(false);
     const [showBlendMode, setShowBlendMode] = useState(false);
+    const [customColor, setCustomColor] = useState('#ff6600');
+
+    // Check if current overlay color is a custom hex color
+    const isCustomColor = overlayColor.startsWith('#');
 
     if (!isOpen) return null;
 
@@ -198,19 +204,67 @@ export const OverlayControlPanel: React.FC<OverlayControlPanelProps> = ({
                             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                 Overlay Color
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 items-center flex-wrap">
                                 {OVERLAY_COLORS.map((color) => (
                                     <button
                                         key={color.value}
-                                        onClick={() => onOverlayColorChange(color.value)}
+                                        onClick={() => {
+                                            if (color.value === 'custom') {
+                                                colorInputRef.current?.click();
+                                            } else {
+                                                onOverlayColorChange(color.value);
+                                            }
+                                        }}
                                         className={`w-8 h-8 rounded-full border-2 transition-all flex items-center justify-center
-                                            ${overlayColor === color.value ? 'border-blue-500 scale-110 shadow-sm' : 'border-transparent hover:scale-105'}`}
+                                            ${color.value === 'custom'
+                                                ? (isCustomColor ? 'border-blue-500 scale-110 shadow-sm' : 'border-transparent hover:scale-105')
+                                                : (overlayColor === color.value ? 'border-blue-500 scale-110 shadow-sm' : 'border-transparent hover:scale-105')
+                                            }`}
                                         title={color.label}
                                     >
-                                        <div className={`w-6 h-6 rounded-full ${color.color} ${color.value === 'none' ? 'border border-gray-300' : ''}`} />
+                                        {color.value === 'custom' ? (
+                                            <div
+                                                className="w-6 h-6 rounded-full border border-gray-300 flex items-center justify-center overflow-hidden"
+                                                style={{
+                                                    background: isCustomColor
+                                                        ? overlayColor
+                                                        : 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)'
+                                                }}
+                                            >
+                                                {!isCustomColor && <Palette className="w-3 h-3 text-white drop-shadow" />}
+                                            </div>
+                                        ) : (
+                                            <div className={`w-6 h-6 rounded-full ${color.color} ${color.value === 'none' ? 'border border-gray-300' : ''}`} />
+                                        )}
                                     </button>
                                 ))}
+                                {/* Hidden color input */}
+                                <input
+                                    ref={colorInputRef}
+                                    type="color"
+                                    value={isCustomColor ? overlayColor : customColor}
+                                    onChange={(e) => {
+                                        setCustomColor(e.target.value);
+                                        onOverlayColorChange(e.target.value);
+                                    }}
+                                    className="sr-only"
+                                />
                             </div>
+                            {isCustomColor && (
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div
+                                        className="w-4 h-4 rounded border border-gray-300"
+                                        style={{ backgroundColor: overlayColor }}
+                                    />
+                                    <span className="text-xs text-gray-600 font-mono">{overlayColor.toUpperCase()}</span>
+                                    <button
+                                        onClick={() => colorInputRef.current?.click()}
+                                        className="text-xs text-blue-600 hover:underline ml-auto"
+                                    >
+                                        Change
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Blend Mode Selector */}
