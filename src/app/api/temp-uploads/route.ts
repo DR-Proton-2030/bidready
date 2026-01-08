@@ -21,10 +21,8 @@ export async function POST(req: NextRequest) {
 
     const { token, files: stored } = await saveFiles(files)
 
-    // set cookie with token (client will also set a cookie as fallback)
-    const res = NextResponse.json({ token, files: stored })
-    res.cookies.set('TempUploadToken', token, { maxAge: 60 * 5, path: '/', sameSite: 'lax' })
-    return res
+    // Return token in response; client can store it as needed
+    return NextResponse.json({ token, files: stored })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || 'upload failed' }, { status: 500 })
   }

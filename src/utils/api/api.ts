@@ -11,7 +11,9 @@ import axios, {
 const API: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BASE_URL,
   headers,
-  withCredentials: true, // Enables cookies
+  // Only use credentials if we are on the same domain or explicitly needed.
+  // For Bearer auth, this is usually not needed and can cause cookie domain errors.
+  withCredentials: false, 
 });
 
 // 🔹 Request interceptor (Add Authorization header)

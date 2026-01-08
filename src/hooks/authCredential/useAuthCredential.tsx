@@ -28,12 +28,14 @@ const useAuthCredential = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    
+
     try {
       setIsLoading(true);
       const result = await api.auth.loginUser(loginCredential);
       if (result) {
         const { token, user } = result;
+        localStorage.setItem("@token", token);
+        document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
         setUser(user);
         router.push("/dashboard");
       }
@@ -47,6 +49,8 @@ const useAuthCredential = () => {
   const logoutUserCreadintial = async () => {
     const result = await api.auth.logoutUser();
     console.log("result===>", result);
+    localStorage.removeItem("@token");
+    document.cookie = "token=; path=/; max-age=0; SameSite=Lax";
     setUser(null);
     router.push("/login");
   };

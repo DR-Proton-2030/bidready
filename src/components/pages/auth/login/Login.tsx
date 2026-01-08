@@ -53,6 +53,9 @@ const Login = () => {
           const { user, company, token, isNew } = response;
 
           localStorage.setItem("@token", token);
+          // Set cookie for server-side access (Next.js cookies() helper)
+          document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
+
 
           const userWithCompany = {
             ...user,
