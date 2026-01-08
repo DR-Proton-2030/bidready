@@ -106,7 +106,7 @@ export default function CreateBlueprintPage({
       console.log("Sending request to detection API...");
 
       // API endpoint for detection
-      const apiResponse = await fetch("http://localhost:5050/detect", {
+      const apiResponse = await fetch("https://d1z68al0r0qxyd.cloudfront.net/detect", {
         method: "POST",
         body: formData,
       });
@@ -154,11 +154,11 @@ export default function CreateBlueprintPage({
       if (current === svgData) return prev; // No change, avoid update
       return new Map(prev.set(imageId, svgData));
     });
-    
+
     // Also update the processedImages array to include SVG overlay info
-    setProcessedImages(prev => 
-      prev.map(img => 
-        img.id === imageId 
+    setProcessedImages(prev =>
+      prev.map(img =>
+        img.id === imageId
           ? { ...img, svgOverlay: svgData }
           : img
       )
@@ -173,10 +173,10 @@ export default function CreateBlueprintPage({
 
     try {
       const filesArray = Array.from(files);
-      
+
       // Check if any file is a PDF
       const hasPDF = filesArray.some(file => file.type === "application/pdf");
-      
+
       if (hasPDF) {
         // If PDF, handle PDF upload separately and redirect to PDF annotation page
         if (filesArray.length > 1) {
@@ -294,10 +294,10 @@ export default function CreateBlueprintPage({
           const imageResponse = await fetch(image.path);
           const imageBlob = await imageResponse.blob();
           const imageFile = new File([imageBlob], image.name, { type: imageBlob.type });
-          
+
           // Get SVG overlay for this image (null if no detection/annotation was done)
           const svgOverlay = svgOverlays.get(image.id) || image.svgOverlay || null;
-          
+
           return {
             image: imageFile,
             svg_overlay: svgOverlay,
@@ -324,7 +324,7 @@ export default function CreateBlueprintPage({
         pageNumber: pair.pageNumber,
         hasSvgOverlay: !!pair.svg_overlay
       }));
-      
+
       fd.append("image_pairs", JSON.stringify(imagePairsMetadata));
       fd.append("blueprint_files_count", String(processedImages.length));
 
@@ -448,10 +448,9 @@ export default function CreateBlueprintPage({
                 disabled={isUploading || processedImages.length === 0}
                 className={`
                   px-6 py-2 rounded-md flex items-center space-x-2
-                  ${
-                    isUploading || processedImages.length === 0
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  ${isUploading || processedImages.length === 0
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
                   }
                 `}
               >

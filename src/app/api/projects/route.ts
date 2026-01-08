@@ -5,7 +5,9 @@ import { api } from "@/utils/api";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    console.log("====>body", body);
     const cookieStore = await cookies();
+    console.log("====>cookieStore", cookieStore);
     const token = cookieStore.get("token")?.value;
     console.log("======>token", token);
     if (!token)
