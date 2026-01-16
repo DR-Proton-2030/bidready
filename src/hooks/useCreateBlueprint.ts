@@ -25,8 +25,13 @@ export default function useCreateBlueprint() {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
+      const BACKEND_URL =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL ||
+        "http://localhost:8989/api/v1";
+
       try {
-        const res = await fetch("/api/blueprints/create-blueprint", {
+        const res = await fetch(`${BACKEND_URL}/blueprints/create-blueprint`, {
           method: "POST",
           body: fd,
           headers,

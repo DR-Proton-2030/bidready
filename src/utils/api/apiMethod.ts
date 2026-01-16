@@ -56,12 +56,10 @@ export const post = async (
       config.headers = { Authorization: `Bearer ${token}` };
     }
 
-    // If FormData, override headers
+    // If FormData, let the browser set the Content-Type with the boundary
     if (payload instanceof FormData) {
-      config.headers = {
-        ...config.headers,
-        "Content-Type": "multipart/form-data",
-      };
+      // Delete Content-Type to allow browser to set it with boundary
+      if (config.headers) delete config.headers["Content-Type"];
     } else {
       config.headers = {
         ...config.headers,

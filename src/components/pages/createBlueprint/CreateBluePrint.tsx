@@ -254,10 +254,20 @@ export default function CreateBlueprint({
         const fd = await buildBlueprintFormData(form, processedImages, svgOverlays);
         console.log("=====>formdata body", fd)
 
+        const BACKEND_URL =
+          process.env.NEXT_PUBLIC_BASE_URL ||
+          process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL ||
+          "http://localhost:8989/api/v1";
+
+        const token = typeof window !== "undefined" ? localStorage.getItem("@token") : null;
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         setIsUploading(true);
-        const res = await fetch("/api/blueprints/create-blueprint", {
+        const res = await fetch(`${BACKEND_URL}/blueprints/create-blueprint`, {
           method: "POST",
           body: fd,
+          headers,
         });
 
         if (!res.ok) {
