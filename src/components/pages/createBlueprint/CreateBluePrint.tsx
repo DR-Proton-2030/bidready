@@ -45,12 +45,12 @@ export default function CreateBlueprint({
   const [processedImages, setProcessedImages] = useState<ProcessedImage[]>([]);
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false);
   const [fullScreenIndex, setFullScreenIndex] = useState(0);
-  
+
   const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(new Map());
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const { handleNewBlueprint } = useBlueprints();
-  
+
   // State for streaming
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingProgress, setStreamingProgress] = useState(0);
@@ -59,7 +59,7 @@ export default function CreateBlueprint({
 
 
   const [pdfUrl, setPdfUrl] = useState<string>("");
-  
+
   // PDF Annotation Hook
   const pdfAnnotationHook = usePDFAnnotation();
   const { loadPDFFromUrl, addStreamedImage, state: pdfState } = pdfAnnotationHook;
@@ -67,17 +67,17 @@ export default function CreateBlueprint({
   const { createBlueprintWithStreaming } = useCreateBlueprint();
 
   // Check if we have processed images from URL params (coming from processing page)
-//   useEffect(() => {
-//     const imagesParam = searchParams.get("processedImages");
-//     if (imagesParam) {
-//       try {
-//         const images = JSON.parse(decodeURIComponent(imagesParam));
-//         setProcessedImages(images);
-//       } catch (error) {
-//         console.error("Error parsing processed images:", error);
-//       }
-//     }
-//   }, [searchParams]);
+  //   useEffect(() => {
+  //     const imagesParam = searchParams.get("processedImages");
+  //     if (imagesParam) {
+  //       try {
+  //         const images = JSON.parse(decodeURIComponent(imagesParam));
+  //         setProcessedImages(images);
+  //       } catch (error) {
+  //         console.error("Error parsing processed images:", error);
+  //       }
+  //     }
+  //   }, [searchParams]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -104,7 +104,7 @@ export default function CreateBlueprint({
     handleImageClick(index);
   };
 
- 
+
 
   const handleFileUpload = async (files: FileList) => {
     if (!files || files.length === 0) return;
@@ -114,7 +114,7 @@ export default function CreateBlueprint({
     try {
       const filesArray = Array.from(files);
       const hasPDF = filesArray.some(file => file.type === "application/pdf");
-      
+
       if (hasPDF) {
         // If PDF, open PDF editor immediately (no server upload yet)
         if (filesArray.length > 1) {
@@ -159,11 +159,11 @@ export default function CreateBlueprint({
     return () => {
       try {
         URL.revokeObjectURL(url);
-      } catch (e) {}
+      } catch (e) { }
     };
   }, [pdfFile]);
 
-  
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,20 +252,19 @@ export default function CreateBlueprint({
       } else {
         // Handle non-PDF blueprint creation
         const fd = await buildBlueprintFormData(form, processedImages, svgOverlays);
-        console.log("=====>formdata body",fd)
-        
+        console.log("=====>formdata body", fd)
+
         setIsUploading(true);
-        const res = await fetch("/api/blueprints/create-blueprint-only", {
+        const res = await fetch("/api/blueprints/create-blueprint", {
           method: "POST",
           body: fd,
-          credentials: "include",
         });
 
         if (!res.ok) {
           let errBody: any = { message: "Failed to create blueprint" };
           try {
             errBody = await res.json();
-          } catch (e) {}
+          } catch (e) { }
           throw new Error(errBody.message || "Failed to create blueprint");
         }
 
@@ -283,7 +282,7 @@ export default function CreateBlueprint({
       setIsStreaming(false);
     }
   };
-  
+
 
   // If showing PDF handler, render that instead
   if (showPdfHandler && pdfFile) {
@@ -432,10 +431,9 @@ export default function CreateBlueprint({
                 disabled={isUploading || (processedImages.length === 0 && !pdfFile)}
                 className={`
                   px-6 py-2 rounded-md flex items-center space-x-2
-                  ${
-                    isUploading || (processedImages.length === 0 && !pdfFile)
-                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  ${isUploading || (processedImages.length === 0 && !pdfFile)
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
                   }
                 `}
               >
@@ -450,10 +448,10 @@ export default function CreateBlueprint({
       {/* no detection overlay */}
 
       {/* Full Screen Image Viewer */}
-     {
-      isUploading && 
-      <Loader/>
-     }
+      {
+        isUploading &&
+        <Loader />
+      }
     </div>
   );
 }

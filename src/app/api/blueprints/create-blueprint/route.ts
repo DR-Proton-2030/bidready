@@ -37,11 +37,14 @@ export async function POST(request: Request) {
     });
 
     const contentType = res.headers.get('content-type') || 'application/json';
-    const body = await res.arrayBuffer();
 
-    return new Response(body, {
+    // Stream the response back to the client to support progress updates
+    return new Response(res.body, {
       status: res.status,
-      headers: { 'content-type': contentType },
+      headers: {
+        ...Object.fromEntries(res.headers.entries()),
+        'content-type': contentType,
+      },
     });
   } catch (err) {
     console.error('Proxy create-blueprint-only error', err);
