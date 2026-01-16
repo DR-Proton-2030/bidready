@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 // Forward to the "create-blueprint-only" upstream route which accepts arbitrary file fields
-const UPSTREAM_URL = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.BLUEPRINTS_API_URL || 'http://localhost:8989'}/blueprints/create-blueprint`;
+const UPSTREAM_URL = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.BLUEPRINTS_API_URL || 'http://localhost:8989/api/v1'}/blueprints/create-blueprint`;
 
 export async function POST(request: Request) {
   try {

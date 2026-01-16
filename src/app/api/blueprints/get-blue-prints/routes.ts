@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const EXTERNAL_URL_BASE = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.BLUEPRINTS_API_URL || 'http://localhost:8989'}/api/v1/blueprints`;
+const EXTERNAL_URL_BASE = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.BLUEPRINTS_API_URL || 'http://localhost:8989/api/v1'}/blueprints`;
 
 export async function GET(
   req: Request,
@@ -12,7 +12,7 @@ export async function GET(
     const blueprintId = params.id;
     const token = (await cookies()).get("token")?.value;
   // Upstream endpoint that returns blueprint images
-  const url = `http://localhost:8989/api/v1/blueprints/get-blueprint-images/${encodeURIComponent(blueprintId)}`;
+  const url = `${EXTERNAL_URL_BASE}/get-blueprint-images/${encodeURIComponent(blueprintId)}`;
 
     const resp = await fetch(url, {
       method: "GET",

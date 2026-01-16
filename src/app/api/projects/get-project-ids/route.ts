@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
-const EXTERNAL_URL = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.BLUEPRINTS_API_URL || 'http://localhost:8989'}/api/v1/project/get-projectIds`;
+const EXTERNAL_URL = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.BLUEPRINTS_API_URL || 'http://localhost:8989/api/v1'}/project/get-projectIds`;
 
 export async function GET(req: Request) {
   try {
