@@ -2,6 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "../types/gemini";
 
+//services
+
 export const analyzeFloorPlan = async (base64Image: string): Promise<AIAnalysisResult> => {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
