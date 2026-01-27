@@ -111,7 +111,7 @@ const DetectionVelocityCard: React.FC<DetectionVelocityCardProps> = ({
         <article className="w-full lg:flex-[1.15] space-y-8 rounded-[36px] border border-white/70 bg-gradient-to-br from-white/95 via-slate-50/80 to-amber-50/70 p-6 shadow-[0_35px_90px_rgba(15,23,42,0.12)]">
             <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                 <div className="space-y-2">
-                    <p className="text-sm font-medium uppercase tracking-[0.35em] text-slate-400">Detection velocity</p>
+                    <p className="text-xl font-medium  text-slate-400">Detection velocity</p>
                     <div className="flex items-baseline gap-3">
                         <h3 className="text-4xl font-semibold text-slate-900">{latest}%</h3>
                         <span className={`text-sm font-semibold ${delta >= 0 ? "text-orange-600" : "text-rose-600"}`}>
@@ -119,14 +119,10 @@ const DetectionVelocityCard: React.FC<DetectionVelocityCardProps> = ({
                             {delta.toFixed(1)} pts
                         </span>
                     </div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-orange-500">real-time boost</p>
+                    <p className="text-xs font-semibold  text-orange-500">real-time boost</p>
                 </div>
                 <div className="flex flex-col gap-4 md:items-end">
-                    <div className="rounded-[26px] border border-white/70 bg-white/80 px-5 py-4 text-center shadow-sm md:text-right">
-                        <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Current shift</p>
-                        <p className="text-lg font-semibold text-slate-900">High throughput</p>
-                        <p className="text-sm font-medium text-orange-500">98% confidence median</p>
-                    </div>
+
                     <div className="flex gap-2 self-stretch md:self-end">
                         {timeframes.map((frame) => (
                             <button
@@ -160,7 +156,7 @@ const DetectionVelocityCard: React.FC<DetectionVelocityCardProps> = ({
                         { label: "Throughput", value: "112 ops/hr" },
                     ].map(({ label, value }) => (
                         <div key={label} className="rounded-2xl border border-white/60 bg-white/80 px-4 py-3">
-                            <p className="text-[0.6rem] font-medium uppercase tracking-[0.35em] text-slate-400">{label}</p>
+                            <p className="text-[0.6rem] font-medium  text-slate-400">{label}</p>
                             <p className="text-xl text-slate-900">{value}</p>
                         </div>
                     ))}

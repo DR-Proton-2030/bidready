@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
       "bidready.s3.ap-south-1.amazonaws.com",
       "upload.wikimedia.org",
       "cdn.shopify.com",
+      "encrypted-tbn0.gstatic.com",
+      "lh3.googleusercontent.com",
     ], // ✅ allow S3, Wikimedia and Shopify CDN images
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",

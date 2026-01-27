@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Payload } from "@/@types/api/api.types";
-import { get, post } from "../apiMethod";
+import { get, post, patch, del } from "../apiMethod";
 
 const initialRoute = "auth";
 export const signupUser = async (payload: FormData): Promise<any> => {
@@ -60,13 +60,19 @@ export const googleLogin = async (payload: any) => {
   }
 };
 
-export const createUsers = async (payload: FormData): Promise<any> => {
+export const createUsers = async (payload: any): Promise<any> => {
   try {
     const token = localStorage.getItem("@token");
     if (!token) {
       throw new Error("Token not found");
     }
-    const response = await post(`/${initialRoute}/create-user`, payload);
+    
+    let finalPayload = payload;
+    if (!(payload instanceof FormData)) {
+      finalPayload = { user_details: payload };
+    }
+
+    const response = await post(`/${initialRoute}/create-user`, finalPayload, token);
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "User Add failed");
@@ -99,5 +105,43 @@ export const logoutUser = async (): Promise<any> => {
   } catch (error: any) {
     console.error("Error logging out:", error);
     throw new Error(error.response?.data?.message || "Logout failed");
+  }
+};
+
+export const getProfile = async (): Promise<any> => {
+  try {
+    const response = await get(`/${initialRoute}/profile`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Failed to fetch profile");
+  }
+};
+
+export const updateProfile = async (payload: any): Promise<any> => {
+  try {
+    const response = await patch(`/${initialRoute}/update-profile`, payload);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Failed to update profile");
+  }
+};
+
+export const updateUser = async (userId: string, payload: any): Promise<any> => {
+  try {
+    const token = localStorage.getItem("@token");
+    const response = await patch(`/${initialRoute}/update-user/${userId}`, payload, token || undefined);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Failed to update user");
+  }
+};
+
+export const deleteUser = async (userId: string): Promise<any> => {
+  try {
+    const token = localStorage.getItem("@token");
+    const response = await del(`/${initialRoute}/delete-user/${userId}`, token || undefined);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Failed to delete user");
   }
 };

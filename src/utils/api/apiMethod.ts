@@ -76,10 +76,31 @@ export const post = async (
 
 export const patch = async (
   endPoint: string,
-  payload: object
+  payload: object,
+  token?: string
 ): Promise<any> => {
   try {
-    const response = await API.patch<any>(endPoint, payload);
+    const config: any = {};
+    if (token) {
+      config.headers = { Authorization: `Bearer ${token}` };
+    }
+    const response = await API.patch<any>(endPoint, payload, config);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Something Went Wrong");
+  }
+};
+
+export const del = async (
+  endPoint: string,
+  token?: string
+): Promise<any> => {
+  try {
+    const config: any = {};
+    if (token) {
+      config.headers = { Authorization: `Bearer ${token}` };
+    }
+    const response = await API.delete<any>(endPoint, config);
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "Something Went Wrong");

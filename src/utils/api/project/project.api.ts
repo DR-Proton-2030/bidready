@@ -58,3 +58,12 @@ export const getProjectDetails = async (
     throw new Error(error.response?.data?.message || "Project fetch failed");
   }
 };
+
+export const getDashboardStats = async (token?: string): Promise<any> => {
+  try {
+    const response = await get(`/${initialRoute}/get-dashboard-stats`, {}, token);
+    return response;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Dashboard stats fetch failed");
+  }
+};
