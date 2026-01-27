@@ -65,7 +65,7 @@ export const AnimatedSearch = () => {
           id: p._id,
           title: p.title,
           category: "Projects",
-          route: `/projects/${p._id}`,
+          route: `/project-details/${p._id}`,
           icon: <FolderOpen className="w-5 h-5 text-blue-500" />,
           description: p.description
         }));
