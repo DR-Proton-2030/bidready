@@ -24,6 +24,7 @@ import {
   getBlueprints,
   getBlueprintDetails,
 } from "./blueprint/blueprint.api";
+import { globalSearch } from "./search/search.api";
 
 export const api = {
   auth: {
@@ -51,5 +52,8 @@ export const api = {
     createBlueprint,
     getBlueprints,
     getBlueprintDetails,
+  },
+  search: {
+    globalSearch,
   },
 };

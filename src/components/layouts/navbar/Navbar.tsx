@@ -102,10 +102,7 @@ const Navbar = () => {
               )}
             </div>
 
-            {/* Settings */}
-            <button className="h-10 w-10 rounded-xl bg-gray-50 hover:bg-gray-200 flex items-center justify-center transition-all border border-gray-200 relative">
-              <Settings className="w-5 h-5 text-gray-700" />
-            </button>
+
 
             {/* User menu */}
             <div className="relative">
@@ -130,9 +127,9 @@ const Navbar = () => {
                   <span className="text-sm font-medium text-gray-900 line-clamp-1">
                     {user?.full_name}
                   </span>
-                  <span className="text-xs text-gray-500 -mt-1 line-clamp-1">
+                  {/* <span className="text-xs text-gray-500 -mt-1 line-clamp-1">
                     {user?.company_details?.company_name}
-                  </span>
+                  </span> */}
                 </div>
                 <ChevronDown className="w-4 h-4 text-gray-600" />
               </button>

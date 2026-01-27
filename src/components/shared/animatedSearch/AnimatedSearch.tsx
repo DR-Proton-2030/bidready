@@ -58,13 +58,10 @@ export const AnimatedSearch = () => {
 
     const fetchResults = async () => {
       try {
-        const [projectsRes, blueprintsRes, usersRes] = await Promise.all([
-          api.project.getProjects(),
-          api.blueprint.getBlueprints(),
-          api.auth.getUsers({})
-        ]);
+        const res = await api.search.globalSearch(query);
+        const { projects, blueprints, users } = res || {};
 
-        const projectResults: SearchResult[] = (projectsRes.data || []).map((p: any) => ({
+        const projectResults: SearchResult[] = (projects || []).map((p: any) => ({
           id: p._id,
           title: p.title,
           category: "Projects",
@@ -73,7 +70,7 @@ export const AnimatedSearch = () => {
           description: p.description
         }));
 
-        const blueprintResults: SearchResult[] = (blueprintsRes.data || []).map((b: any) => ({
+        const blueprintResults: SearchResult[] = (blueprints || []).map((b: any) => ({
           id: b._id,
           title: b.name,
           category: "Blueprints",
@@ -82,12 +79,12 @@ export const AnimatedSearch = () => {
           description: b.description
         }));
 
-        const userResults: SearchResult[] = (Array.isArray(usersRes) ? usersRes : usersRes.data || []).map((u: any) => ({
+        const userResults: SearchResult[] = (users || []).map((u: any) => ({
           id: u._id,
           title: u.full_name,
           category: "Team" as any,
-          route: `/access-management`, // Navigation to user management for now
-          icon: <User className="w-5 h-5 text-emerald-500" />,
+          route: `/access-management`,
+          icon: <User className="w-5 h-5 text-white -500" />,
           description: u.email
         }));
 
@@ -97,9 +94,9 @@ export const AnimatedSearch = () => {
 
         const allResults = [
           ...filteredNav,
-          ...projectResults.filter(p => p.title.toLowerCase().includes(query.toLowerCase())),
-          ...blueprintResults.filter(b => b.title.toLowerCase().includes(query.toLowerCase())),
-          ...userResults.filter(u => u.title.toLowerCase().includes(query.toLowerCase()))
+          ...projectResults,
+          ...blueprintResults,
+          ...userResults
         ];
 
         setResults(allResults);
@@ -162,7 +159,7 @@ export const AnimatedSearch = () => {
       {/* Mobile search trigger */}
       <button
         onClick={() => setIsOpen(true)}
-        className="md:hidden p-2.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all border border-slate-200"
+        className="md:hidden p-2.5 text-slate-600 hover:text-orange-500 hover:bg-blue-50 rounded-xl transition-all border border-slate-200"
       >
         <Search className="w-5 h-5" />
       </button>
@@ -253,7 +250,7 @@ export const AnimatedSearch = () => {
                               onMouseEnter={() => setSelectedIndex(itemIndex)}
                               onClick={() => handleSelect(item)}
                               className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all text-left ${isActive
-                                ? "bg-blue-600 text-white shadow-lg shadow-blue-200"
+                                ? "bg-orange-500 text-white shadow-lg shadow-blue-200"
                                 : "text-slate-600 hover:bg-slate-50"
                                 }`}
                             >
