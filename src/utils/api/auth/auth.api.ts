@@ -60,13 +60,19 @@ export const googleLogin = async (payload: any) => {
   }
 };
 
-export const createUsers = async (payload: FormData): Promise<any> => {
+export const createUsers = async (payload: any): Promise<any> => {
   try {
     const token = localStorage.getItem("@token");
     if (!token) {
       throw new Error("Token not found");
     }
-    const response = await post(`/${initialRoute}/create-user`, payload);
+    
+    let finalPayload = payload;
+    if (!(payload instanceof FormData)) {
+      finalPayload = { user_details: payload };
+    }
+
+    const response = await post(`/${initialRoute}/create-user`, finalPayload, token);
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "User Add failed");

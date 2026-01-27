@@ -10,6 +10,8 @@ const Users: React.FC = () => {
     activeRole,
     filteredUsers,
     isLoading,
+    searchQuery,
+    setSearchQuery,
     handleRoleChange,
     handleAddUser,
     handleUpdateUser,
@@ -22,12 +24,12 @@ const Users: React.FC = () => {
     full_name: "",
     email: "",
     password: "",
-    role: "User",
+    role: "user",
   });
 
   const handleOpenAddModal = () => {
     setEditingUser(null);
-    setFormData({ full_name: "", email: "", password: "", role: "User" });
+    setFormData({ full_name: "", email: "", password: "", role: "user" });
     setIsModalOpen(true);
   };
 
@@ -37,7 +39,7 @@ const Users: React.FC = () => {
       full_name: user.full_name || "",
       email: user.email || "",
       password: "", // Don't show password
-      role: user.role || "User",
+      role: user.role || "user",
     });
     setIsModalOpen(true);
   };
@@ -88,6 +90,8 @@ const Users: React.FC = () => {
             <input
               type="text"
               placeholder="Search by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-transparent border-none focus:ring-0 text-sm w-full outline-none"
             />
           </div>
@@ -98,8 +102,8 @@ const Users: React.FC = () => {
                 key={role}
                 onClick={() => handleRoleChange(role)}
                 className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeRole === role
-                    ? "bg-slate-900 text-white shadow-md shadow-slate-200"
-                    : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-100"
+                  ? "bg-slate-900 text-white shadow-md shadow-slate-200"
+                  : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-100"
                   }`}
               >
                 {role}
@@ -195,13 +199,13 @@ const Users: React.FC = () => {
             <div>
               <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Role</label>
               <select
-                value={formData.role}
+                value={formData.role ?? "user"}
                 onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                 className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none text-slate-700"
               >
-                <option value="User">Standard User</option>
-                <option value="Manager">Manager</option>
-                <option value="Admin">Administrator</option>
+                <option value="user">Standard User</option>
+                <option value="project_admin">Manager</option>
+                <option value="company_admin">Administrator</option>
               </select>
             </div>
           </div>

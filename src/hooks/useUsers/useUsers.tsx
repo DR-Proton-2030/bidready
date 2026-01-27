@@ -12,9 +12,12 @@ export const useUsers = () => {
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await api.auth.getUsers({});
-      if (response && response.data) {
-        setUsers(response.data);
+      const result = await api.auth.getUsers({});
+      // getUsers returns response.data which IS the array
+      if (Array.isArray(result)) {
+        setUsers(result);
+      } else if (result && Array.isArray(result.data)) {
+        setUsers(result.data);
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to fetch users");
@@ -27,11 +30,39 @@ export const useUsers = () => {
     fetchUsers();
   }, [fetchUsers]);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const filteredUsers = useMemo(() => {
-    return activeRole === "All"
-      ? users
-      : users.filter((user) => user.role === activeRole);
-  }, [activeRole, users]);
+    let filtered = users;
+
+    // Role filtering with mapping
+    if (activeRole !== "All") {
+      filtered = filtered.filter((user) => {
+        const userRole = (user.role || "").toLowerCase();
+        const selectedRole = activeRole.toLowerCase();
+
+        if (selectedRole === "admin") {
+          return userRole === "admin" || userRole === "company_admin" || userRole === "client_admin";
+        }
+        if (selectedRole === "manager") {
+          return userRole === "manager" || userRole === "project_admin";
+        }
+        return userRole === selectedRole;
+      });
+    }
+
+    // Search filtering
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (user) =>
+          user.full_name?.toLowerCase().includes(query) ||
+          user.email?.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [activeRole, users, searchQuery]);
 
   const handleRoleChange = (role: string) => {
     setActiveRole(role);
@@ -76,6 +107,8 @@ export const useUsers = () => {
     activeRole,
     filteredUsers,
     isLoading,
+    searchQuery,
+    setSearchQuery,
     handleRoleChange,
     handleAddUser,
     handleUpdateUser,
