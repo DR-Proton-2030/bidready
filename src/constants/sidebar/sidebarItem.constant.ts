@@ -10,7 +10,8 @@ import {
   Settings,
   Clock,
   MessageSquare,
-  ScrollText
+  ScrollText,
+  User
 } from "lucide-react";
 import { ISidebarItem } from "@/@types/interface/sidebarItem.interface";
 

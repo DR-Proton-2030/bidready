@@ -1,11 +1,13 @@
 import {
   createUsers,
   getOtp,
+  getProfile,
   getUsers,
   googleLogin,
   loginUser,
   logoutUser,
   signupUser,
+  updateProfile,
   verifyToken,
 } from "./auth/auth.api";
 import { changePassword } from "./auth/forgetPassword";
@@ -31,6 +33,8 @@ export const api = {
     getUsers,
     logoutUser,
     changePassword,
+    getProfile,
+    updateProfile,
   },
   project: {
     createProject,

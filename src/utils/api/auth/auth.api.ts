@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Payload } from "@/@types/api/api.types";
-import { get, post } from "../apiMethod";
+import { get, post, patch } from "../apiMethod";
 
 const initialRoute = "auth";
 export const signupUser = async (payload: FormData): Promise<any> => {
@@ -99,5 +99,23 @@ export const logoutUser = async (): Promise<any> => {
   } catch (error: any) {
     console.error("Error logging out:", error);
     throw new Error(error.response?.data?.message || "Logout failed");
+  }
+};
+
+export const getProfile = async (): Promise<any> => {
+  try {
+    const response = await get(`/${initialRoute}/profile`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Failed to fetch profile");
+  }
+};
+
+export const updateProfile = async (payload: any): Promise<any> => {
+  try {
+    const response = await patch(`/${initialRoute}/update-profile`, payload);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Failed to update profile");
   }
 };

@@ -2,6 +2,7 @@
 import React, { useContext, useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import {
   Menu,
   Search,
@@ -204,14 +205,22 @@ const Navbar = () => {
                   </div>
 
                   <div className="py-1">
-                    <a className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
                       <User className="w-4 h-4" />
                       Profile
-                    </a>
-                    <a className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                    </Link>
+                    <Link
+                      href="/settings"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
                       <Settings className="w-4 h-4" />
                       Settings
-                    </a>
+                    </Link>
                     <a className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                       <HelpCircle className="w-4 h-4" />
                       Help
