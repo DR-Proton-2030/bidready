@@ -6,7 +6,7 @@ interface InsightTilesGridProps {
 }
 
 const InsightTilesGrid: React.FC<InsightTilesGridProps> = ({ insightTiles }) => (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4">
         {insightTiles.map(({ title, value, delta, caption, tone }) => (
             <article key={title} className="relative overflow-hidden rounded-3xl border border-white/50 bg-white/50 p-5 shadow-[0_25px_55px_rgba(15,23,42,0.1)] backdrop-blur">
                 <div className={`absolute inset-0 bg-gradient-to-br ${tone} opacity-80`} />
@@ -15,7 +15,7 @@ const InsightTilesGrid: React.FC<InsightTilesGridProps> = ({ insightTiles }) => 
                     <p className="text-sm font-medium text-slate-600">{title}</p>
                     <p className="mt-2 text-3xl font-semibold text-slate-900">{value}</p>
                     <div className="mt-4 flex items-center gap-2 text-sm">
-                        <span className="rounded-full bg-white/70 px-3 py-0.5 font-semibold text-emerald-600 backdrop-blur">{delta}</span>
+                        {delta && <span className="rounded-full bg-white/70 px-3 py-0.5 font-semibold text-emerald-600 backdrop-blur">{delta}</span>}
                         <span className="text-slate-600">{caption}</span>
                     </div>
                 </div>

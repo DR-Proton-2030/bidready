@@ -1,35 +1,17 @@
 "use client";
 import React from "react";
-import DetectionVelocityCard from "./today-tasks/DetectionVelocityCard";
 import HeroHeader from "./today-tasks/HeroHeader";
-import InsightTilesGrid from "./today-tasks/InsightTilesGrid";
-import LiveOpsPanel from "./today-tasks/LiveOpsPanel";
-import OpsTimelineCard from "./today-tasks/OpsTimelineCard";
-import PipelineMonitorCard from "./today-tasks/PipelineMonitorCard";
 import QuickStatsGrid from "./today-tasks/QuickStatsGrid";
-import SystemHealthCard from "./today-tasks/SystemHealthCard";
-import {
-    heroBadges,
-    insightTiles,
-    modeToggles,
-    pipelineStages,
-    priorityList,
-    quickStats,
-    sparkline,
-    systemHealth,
-    teamMembers,
-    timeline,
-    throughputDelta,
-} from "./today-tasks/constants";
+import OpsTimelineCard from "./today-tasks/OpsTimelineCard";
+import InsightTilesGrid from "./today-tasks/InsightTilesGrid";
+import { DashboardCharts } from "./today-tasks/DashboardCharts";
 import { useReadableDate } from "./today-tasks/hooks";
-
 import useDashboardStats from "@/hooks/useDashboardStats";
 import {
-    CircleArrowOutUpLeft,
     CircleArrowOutUpRight,
-    GitCompareArrows,
     GitGraph,
-    CircleCheck,
+    Users,
+    Layers,
     FolderLock
 } from "lucide-react";
 
@@ -39,36 +21,36 @@ const TodayTasks: React.FC = () => {
 
     const dynamicQuickStats = [
         {
-            label: "Blueprints",
-            value: stats?.stats?.totalBlueprints || "0",
-            trend: "Total in library",
-            progress: 100,
-            accent: "from-emerald-400/90 to-emerald-600",
-            Icon: CircleArrowOutUpRight,
-        },
-        {
-            label: "Projects",
+            label: "Total Projects",
             value: stats?.stats?.totalProjects || "0",
-            trend: `${stats?.stats?.activeProjects || 0} active currently`,
+            trend: "Projects in organization",
             progress: 100,
             accent: "from-indigo-400/90 to-indigo-600",
             Icon: GitGraph,
         },
         {
-            label: "Automation coverage",
-            value: `${stats?.stats?.automationCoverage || 86}%`,
-            trend: "AI agents active",
-            progress: stats?.stats?.automationCoverage || 86,
-            accent: "from-amber-400/90 to-amber-600",
-            Icon: GitCompareArrows,
+            label: "Active Projects",
+            value: stats?.stats?.activeProjects || "0",
+            trend: "Currently in progress",
+            progress: 100,
+            accent: "from-emerald-400/90 to-emerald-600",
+            Icon: FolderLock,
         },
         {
-            label: "Turnaround speed",
-            value: stats?.stats?.turnaroundSpeed || "6.4h",
-            trend: "Avg processing time",
-            progress: 63,
+            label: "Total Blueprints",
+            value: stats?.stats?.totalBlueprints || "0",
+            trend: "Uploads in library",
+            progress: 100,
+            accent: "from-amber-400/90 to-amber-600",
+            Icon: CircleArrowOutUpRight,
+        },
+        {
+            label: "Team Growth",
+            value: stats?.stats?.totalUsers || "0",
+            trend: "Active members",
+            progress: 100,
             accent: "from-purple-400/90 to-purple-600",
-            Icon: CircleArrowOutUpLeft,
+            Icon: Users,
         },
     ];
 
@@ -85,67 +67,78 @@ const TodayTasks: React.FC = () => {
             value: `Type: ${bp.type}`,
             time: new Date(bp.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             iconClass: "bg-indigo-50 text-indigo-600",
-            Icon: CircleArrowOutUpRight,
+            Icon: Layers,
         })) || [])
-    ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 3);
+    ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 5);
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-screen bg-white/50 backdrop-blur-xl">
+            <div className="flex items-center justify-center h-screen bg-white shadow-xl">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+                <p className="ml-4 text-slate-500 font-medium">Synchronizing organization data...</p>
             </div>
         );
     }
 
     const dynamicInsightTiles = [
         {
-            title: "QA latency",
-            value: "2m 18s",
-            delta: "-34%",
-            caption: "vs rolling avg",
-            tone: "from-rose-100/80 to-orange-100/70",
+            title: "Total Blueprints",
+            value: stats?.stats?.totalBlueprints || "0",
+            delta: "",
+            caption: "Files analyzed",
+            tone: "from-emerald-100/80 to-lime-100/70",
         },
         {
-            title: "Team Members",
+            title: "Organization Team",
             value: stats?.stats?.totalUsers || "0",
-            delta: "+1",
-            caption: "currently in organization",
+            delta: "",
+            caption: "Active members",
             tone: "from-sky-100/80 to-blue-100/70",
         },
         {
-            title: "Sync health",
-            value: "99.2%",
-            delta: "+0.6%",
-            caption: "uptime past 24h",
-            tone: "from-emerald-100/80 to-lime-100/70",
+            title: "Project Throughput",
+            value: stats?.stats?.totalProjects || "0",
+            delta: "",
+            caption: "Lifecycle active",
+            tone: "from-rose-100/80 to-orange-100/70",
         },
     ];
 
     return (
-        <section className="lg:col-span-2 relative overflow-y-auto h-screen  border border-white/70 bg-gradient-to-br from-white/90 via-slate-50/80 to-blue-50/90 text-slate-900 shadow-[0_35px_120px_rgba(15,23,42,0.15)] backdrop-blur-2xl">
+        <section className="min-h-screen relative overflow-y-auto  border border-white/70 bg-gradient-to-br from-white/90 via-slate-50/80 to-blue-50/90 text-slate-900 shadow-[0_35px_120px_rgba(15,23,42,0.15)] backdrop-blur-2xl">
             <div className="absolute inset-0 opacity-90" style={{ backgroundImage: "radial-gradient(circle at 20% 20%, rgba(14,165,233,0.12), transparent 55%), radial-gradient(circle at 80% 0%, rgba(248,113,113,0.15), transparent 45%), radial-gradient(circle at 50% 100%, rgba(59,130,246,0.08), transparent 60%)" }} />
-            <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/60 blur-3xl" />
-            <div className="pointer-events-none absolute -right-10 top-20 h-52 w-52 rounded-[40%] bg-sky-200/40 blur-3xl" />
-            <div className="relative z-10 space-y-10 p-8 lg:p-10">
+
+            <div className="relative z-10 space-y-10 p-8 lg:p-12 max-w-7xl mx-auto">
                 <HeroHeader readableDate={readableDate} />
-                <QuickStatsGrid stats={dynamicQuickStats} />
 
-                <div className=" gap-6  flex w-full">
-                    <DetectionVelocityCard priorityList={priorityList} sparklineValues={sparkline} />
-                    <OpsTimelineCard timeline={dynamicTimeline.length > 0 ? dynamicTimeline : timeline} />
-                </div>
+                <div className="grid gap-8">
+                    <QuickStatsGrid stats={dynamicQuickStats} />
 
-                <div className="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
-                    <LiveOpsPanel heroBadges={heroBadges} teamMembers={teamMembers} />
-                    <SystemHealthCard
-                        systemHealth={systemHealth}
-                        throughputDelta={throughputDelta}
-                        modeToggles={modeToggles}
+                    <DashboardCharts
+                        activityData={stats?.blueprintActivity || []}
+                        distributionData={stats?.projectDistribution || []}
                     />
-                </div>
 
-                <InsightTilesGrid insightTiles={dynamicInsightTiles} />
-                <PipelineMonitorCard pipelineStages={pipelineStages} />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <div className="lg:col-span-2">
+                            <OpsTimelineCard
+                                timeline={dynamicTimeline.length > 0 ? dynamicTimeline : [
+                                    {
+                                        label: "System Ready",
+                                        value: "No recent activity found",
+                                        time: "Now",
+                                        iconClass: "bg-slate-50 text-slate-400",
+                                        Icon: GitGraph
+                                    }
+                                ]}
+                            />
+                        </div>
+                        <div className="space-y-6">
+                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest ml-2">Quick Insights</h3>
+                            <InsightTilesGrid insightTiles={dynamicInsightTiles} />
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     );
