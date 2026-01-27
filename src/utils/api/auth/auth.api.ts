@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Payload } from "@/@types/api/api.types";
-import { get, post, patch } from "../apiMethod";
+import { get, post, patch, del } from "../apiMethod";
 
 const initialRoute = "auth";
 export const signupUser = async (payload: FormData): Promise<any> => {
@@ -117,5 +117,25 @@ export const updateProfile = async (payload: any): Promise<any> => {
     return response.data;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "Failed to update profile");
+  }
+};
+
+export const updateUser = async (userId: string, payload: any): Promise<any> => {
+  try {
+    const token = localStorage.getItem("@token");
+    const response = await patch(`/${initialRoute}/update-user/${userId}`, payload, token || undefined);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Failed to update user");
+  }
+};
+
+export const deleteUser = async (userId: string): Promise<any> => {
+  try {
+    const token = localStorage.getItem("@token");
+    const response = await del(`/${initialRoute}/delete-user/${userId}`, token || undefined);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.response?.data?.message || "Failed to delete user");
   }
 };

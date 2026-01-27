@@ -1,8 +1,8 @@
-// import AccessManagement from '@/components/pages/accessManagement/AccessManagement';
+import Users from '@/components/pages/users/Users';
 import React from "react";
 
 const AccessManagementPage = () => {
-  return <>{/* <AccessManagement />; */}</>;
+  return <Users />;
 };
 
 export default AccessManagementPage;
