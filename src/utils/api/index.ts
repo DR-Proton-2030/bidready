@@ -13,6 +13,7 @@ import {
 import { changePassword } from "./auth/forgetPassword";
 import {
   createProject,
+  getDashboardStats,
   getProjectDetails,
   getProjects,
 } from "./project/project.api";
@@ -40,6 +41,7 @@ export const api = {
     createProject,
     getProjects,
     getProjectDetails,
+    getDashboardStats,
   },
   blueprint: {
     createBlueprint,

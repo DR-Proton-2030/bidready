@@ -86,7 +86,7 @@ const Navbar = () => {
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0  h-18">
+    <nav className="bg-white border-b border-gray-200 sticky top-0 h-18 z-[100]">
       <div className="px-6 h-full">
         <div className="flex items-center justify-between h-full">
           {/* Left side */}
@@ -132,7 +132,7 @@ const Navbar = () => {
 
               {/* Notification dropdown */}
               {isNotificationOpen && (
-                <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-50 animate-fade-in">
+                <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-[110] animate-fade-in">
                   <div className="p-4 border-b border-gray-100">
                     <h3 className="text-sm font-semibold text-gray-900">
                       Notifications
@@ -196,7 +196,7 @@ const Navbar = () => {
 
               {/* User dropdown */}
               {isUserMenuOpen && (
-                <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl py-2 z-50 animate-fade-in">
+                <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl py-2 z-[110] animate-fade-in">
                   <div className="px-4 py-3 border-b border-gray-100">
                     <p className="text-sm font-semibold text-gray-900">
                       {user?.full_name}
@@ -246,7 +246,7 @@ const Navbar = () => {
       {/* Click outside to close dropdowns */}
       {(isUserMenuOpen || isNotificationOpen) && (
         <div
-          className="fixed inset-0 z-10"
+          className="fixed inset-0 z-[90]"
           onClick={() => {
             setIsUserMenuOpen(false);
             setIsNotificationOpen(false);
