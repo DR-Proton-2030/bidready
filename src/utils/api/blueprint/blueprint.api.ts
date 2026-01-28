@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { get, post, patch } from "../apiMethod";
+import { get, post, patch, del } from "../apiMethod";
 
 const initialRoute = "blueprints";
 
@@ -83,4 +83,24 @@ export const updateBlueprint = async (
     throw new Error(error.response?.data?.message || "Blueprint update failed");
   }
 };
+
+export const deleteBlueprint = async (
+  blueprintId: string,
+  token?: string
+): Promise<any> => {
+  try {
+    if (!token) {
+      throw new Error("Token not found");
+    }
+    const response = await del(
+      `/${initialRoute}/delete-blueprint/${blueprintId}`,
+      token
+    );
+    return response;
+  } catch (error: any) {
+    console.log("===>error", error);
+    throw new Error(error.response?.data?.message || "Blueprint deletion failed");
+  }
+};
+
 

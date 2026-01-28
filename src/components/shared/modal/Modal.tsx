@@ -58,7 +58,7 @@ const Modal: React.FC<ModalProps> = ({
     <div className="fixed inset-0 z-[999] overflow-y-auto m0">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/10 backdrop-blur-sm transition-all duration-300"
+        className="fixed inset-0 bg-black/30 backdrop-blur-sm transition-all duration-300"
         onClick={handleOverlayClick}
       />
 

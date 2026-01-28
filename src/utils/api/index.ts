@@ -26,6 +26,7 @@ import {
   getBlueprints,
   getBlueprintDetails,
   updateBlueprint,
+  deleteBlueprint,
 } from "./blueprint/blueprint.api";
 import { globalSearch } from "./search/search.api";
 
@@ -58,10 +59,12 @@ export const api = {
     getBlueprints,
     getBlueprintDetails,
     updateBlueprint,
+    deleteBlueprint,
   },
   search: {
     globalSearch,
   },
 };
+
 
 

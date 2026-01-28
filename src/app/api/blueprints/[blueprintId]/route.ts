@@ -30,3 +30,28 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ message }, { status: 500 });
   }
 }
+
+// DELETE - Delete blueprint and all associated data
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { blueprintId } = await params;
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        { message: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const response = await api.blueprint.deleteBlueprint(blueprintId, token);
+
+    return NextResponse.json(response);
+  } catch (error: unknown) {
+    console.error("Failed to delete blueprint:", error);
+    const message = error instanceof Error ? error.message : "Failed to delete blueprint";
+    return NextResponse.json({ message }, { status: 500 });
+  }
+}
+

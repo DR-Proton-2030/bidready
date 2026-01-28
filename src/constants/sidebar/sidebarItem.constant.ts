@@ -44,12 +44,12 @@ export const sidebarItems: ISidebarItem[] = [
     route: "/access-management",
     icon: React.createElement(Shield, { className: "w-6 h-6" }),
   },
-  {
-    id: "settings",
-    label: "Settings",
-    route: "/settings",
-    icon: React.createElement(Settings, { className: "w-6 h-6" }),
-  },
+  // {
+  //   id: "settings",
+  //   label: "Settings",
+  //   route: "/settings",
+  //   icon: React.createElement(Settings, { className: "w-6 h-6" }),
+  // },
   {
     id: "help",
     label: "Help & Support",

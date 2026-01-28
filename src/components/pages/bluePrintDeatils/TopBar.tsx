@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import React, { useEffect, useRef, useState } from "react";
-import { File, ChevronDown, Share2, PanelLeft, Edit3 } from "lucide-react";
+import { File, ChevronDown, Share2, PanelLeft, Edit3, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import CreateVersionButton from "./CreateVersionButton";
-import { EditBlueprintModal } from "@/components/shared";
+import { EditBlueprintModal, DeleteBlueprintModal } from "@/components/shared";
 import { toast } from "react-toastify";
 
 interface TopBarProps {
@@ -80,6 +80,39 @@ const TopBar: React.FC<TopBarProps> = ({
     }
   };
 
+  /* Delete functionality */
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const blueprintId = blueprintDetails?.blueprint?._id;
+      if (!blueprintId) {
+        throw new Error("Blueprint ID not found");
+      }
+
+      const res = await fetch(`/api/blueprints/${blueprintId}`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to delete blueprint");
+      }
+
+      toast.success("Blueprint deleted successfully!");
+      // Redirect to blueprints list
+      router.push("/blueprints");
+    } catch (error) {
+      console.error("Failed to delete blueprint:", error);
+      toast.error("Failed to delete blueprint");
+    } finally {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+    }
+  };
+
   return (
     <>
       <header className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
@@ -135,6 +168,16 @@ const TopBar: React.FC<TopBarProps> = ({
             Edit
           </button>
 
+          {/* Delete Blueprint Button */}
+          <button
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="flex items-center gap-2 rounded-2xl border border-white/70 bg-white/70 px-4 py-2.5 text-sm font-medium text-slate-700 backdrop-blur transition hover:border-red-500/30 hover:bg-white hover:text-red-500"
+            title="Delete Blueprint"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </button>
+
           <CreateVersionButton blueprintId={blueprintDetails?.blueprint?._id} />
         </div>
       </header>
@@ -146,6 +189,15 @@ const TopBar: React.FC<TopBarProps> = ({
         blueprint={blueprintDetails?.blueprint || null}
         onSave={handleEditSave}
         isLoading={isLoading}
+      />
+
+      {/* Delete Blueprint Modal */}
+      <DeleteBlueprintModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        blueprint={blueprintDetails?.blueprint || null}
+        onConfirm={handleDelete}
+        isLoading={isDeleting}
       />
     </>
   );
