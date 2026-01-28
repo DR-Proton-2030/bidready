@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { IProjectDetailsResponse } from "@/@types/api/project/project.interface";
-import { get, post } from "../apiMethod";
+import { get, post, patch, del } from "../apiMethod";
 
 const initialRoute = "project";
 
@@ -67,3 +67,44 @@ export const getDashboardStats = async (token?: string): Promise<any> => {
     throw new Error(error.response?.data?.message || "Dashboard stats fetch failed");
   }
 };
+
+export const updateProject = async (
+  projectId: string,
+  payload: object,
+  token?: string
+): Promise<any> => {
+  try {
+    if (!token) {
+      throw new Error("Token not found");
+    }
+    const response = await patch(
+      `/${initialRoute}/update-project/${projectId}`,
+      payload,
+      token
+    );
+    return response;
+  } catch (error: any) {
+    console.log("===>error", error);
+    throw new Error(error.response?.data?.message || "Project update failed");
+  }
+};
+
+export const deleteProject = async (
+  projectId: string,
+  token?: string
+): Promise<any> => {
+  try {
+    if (!token) {
+      throw new Error("Token not found");
+    }
+    const response = await del(
+      `/${initialRoute}/delete-project/${projectId}`,
+      token
+    );
+    return response;
+  } catch (error: any) {
+    console.log("===>error", error);
+    throw new Error(error.response?.data?.message || "Project deletion failed");
+  }
+};
+

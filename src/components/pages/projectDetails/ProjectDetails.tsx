@@ -16,9 +16,13 @@ import {
   ProjectDetailsHeader,
   ProjectInfoCard,
   BlueprintsList,
+  EditProjectModal,
+  DeleteProjectModal,
 } from "@/components/shared";
 import { IProjectDetailsResponse } from "@/@types/api/project/project.interface";
+import { IProject } from "@/@types/interface/project.interface";
 import Link from "next/link";
+import { toast } from "react-toastify";
 
 interface ProjectDetailsProps {
   projectData: IProjectDetailsResponse;
@@ -31,6 +35,9 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
 }) => {
   const router = useRouter();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Extract project and blueprints from the API response
   const project = projectData;
@@ -55,10 +62,69 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
     );
   };
 
+  const handleEditClick = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = () => {
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleEditSave = async (data: Partial<IProject>) => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to update project");
+      }
+      toast.success("Project updated successfully!");
+      // Refresh the page to get updated data
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to update project:", error);
+      toast.error("Failed to update project");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to delete project");
+      }
+      toast.success("Project deleted successfully!");
+      // Navigate back to projects list
+      router.push("/projects");
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+      toast.error("Failed to delete project");
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6 px-16 pt-10">
       {/* Header */}
-      <ProjectDetailsHeader project={project} onBackClick={handleBackClick} />
+      <ProjectDetailsHeader
+        project={project}
+        onBackClick={handleBackClick}
+        onEditClick={handleEditClick}
+        onDeleteClick={handleDeleteClick}
+      />
 
       {/* Project Info Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -116,21 +182,19 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
             </Link>
             <button
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === "grid"
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              className={`p-2 rounded-lg transition-colors ${viewMode === "grid"
+                ? "bg-primary text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
             >
               <Grid3X3 className="w-4 h-4" />
             </button>
             <button
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-lg transition-colors ${
-                viewMode === "list"
-                  ? "bg-primary text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              className={`p-2 rounded-lg transition-colors ${viewMode === "list"
+                ? "bg-primary text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
             >
               <List className="w-4 h-4" />
             </button>
@@ -144,8 +208,27 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
           onDownload={handleDownloadBlueprint}
         />
       </div>
+
+      {/* Edit Project Modal */}
+      <EditProjectModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        project={project}
+        onSave={handleEditSave}
+        isLoading={isLoading}
+      />
+
+      {/* Delete Project Modal */}
+      <DeleteProjectModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        projectTitle={project.title}
+        onConfirm={handleDeleteConfirm}
+        isLoading={isLoading}
+      />
     </div>
   );
 };
 
 export default ProjectDetails;
+

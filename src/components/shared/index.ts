@@ -18,5 +18,8 @@ export { default as ProjectInfoCard } from './projectInfoCard/ProjectInfoCard';
 export { default as BlueprintsList } from './blueprintsList/BlueprintsList';
 export { default as LoadingSpinner } from './loadingSpinner/LoadingSpinner';
 export { default as ProjectDetailsSkeleton } from './projectDetailsSkeleton/ProjectDetailsSkeleton';
+export { default as EditProjectModal } from './editProjectModal/EditProjectModal';
+export { default as DeleteProjectModal } from './deleteProjectModal/DeleteProjectModal';
 export * from './OverlayLayer';
 export * from './OverlayControlPanel';
+
