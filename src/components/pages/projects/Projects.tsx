@@ -2,19 +2,20 @@
 
 import React, { useState } from "react";
 import { PageHeader, ProjectCard, ProjectListItem } from "@/components/shared";
-import { Search, LayoutGrid, List, FolderClosed } from "lucide-react";
+import { Search, LayoutGrid, List, FolderClosed, Kanban } from "lucide-react";
 import {
   PROJECT_STATUSES,
   PROJECTS_TEXT,
 } from "@/constants/projects/projects.constant";
 import { IGetProjectResponse } from "@/@types/api/project/project.interface";
+import ProjectKanbanBoard from "./ProjectKanbanBoard";
 
 const Projects: React.FC<IGetProjectResponse> = ({
   data,
   pagination,
   total,
 }) => {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'board'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredProjects = data?.filter((project) =>
@@ -65,10 +66,20 @@ const Projects: React.FC<IGetProjectResponse> = ({
           >
             <List className="w-5 h-5" />
           </button>
+          <button
+            onClick={() => setViewMode('board')}
+            className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === 'board'
+              ? 'bg-white shadow-sm text-primary ring-1 ring-black/5'
+              : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+              }`}
+            title="Board View"
+          >
+            <Kanban className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
-      <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "flex flex-col gap-4"}>
+      <div className="min-h-[400px]">
         {
           filteredProjects?.length === 0 && (
             <div className="text-center py-20 col-span-full bg-white/30 rounded-3xl border border-white/50 backdrop-blur-sm">
@@ -85,16 +96,33 @@ const Projects: React.FC<IGetProjectResponse> = ({
             </div>
           )
         }
-        {filteredProjects.map((project) => (
-          viewMode === 'grid' ? (
-            <ProjectCard
-              key={project._id}
-              {...project}
-            />
-          ) : (
-            <ProjectListItem key={project._id} {...project} />
-          )
-        ))}
+
+        {filteredProjects?.length > 0 && (
+          <>
+            {viewMode === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProjects.map((project) => (
+                  <ProjectCard
+                    key={project._id}
+                    {...project}
+                  />
+                ))}
+              </div>
+            )}
+
+            {viewMode === 'list' && (
+              <div className="flex flex-col gap-4">
+                {filteredProjects.map((project) => (
+                  <ProjectListItem key={project._id} {...project} />
+                ))}
+              </div>
+            )}
+
+            {viewMode === 'board' && (
+              <ProjectKanbanBoard projects={filteredProjects} />
+            )}
+          </>
+        )}
       </div>
     </div>
   );
