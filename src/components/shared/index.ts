@@ -22,6 +22,8 @@ export { default as EditProjectModal } from './editProjectModal/EditProjectModal
 export { default as DeleteProjectModal } from './deleteProjectModal/DeleteProjectModal';
 export { default as EditBlueprintModal } from './editBlueprintModal/EditBlueprintModal';
 export { default as DeleteBlueprintModal } from './deleteBlueprintModal/DeleteBlueprintModal';
+export { default as BlueprintListItem } from './blueprintListItem/BlueprintListItem';
+export { default as ProjectListItem } from './projectListItem/ProjectListItem';
 export * from './OverlayLayer';
 export * from './OverlayControlPanel';
 
