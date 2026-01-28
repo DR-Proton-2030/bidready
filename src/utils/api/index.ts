@@ -25,6 +25,7 @@ import {
   createBlueprint,
   getBlueprints,
   getBlueprintDetails,
+  updateBlueprint,
 } from "./blueprint/blueprint.api";
 import { globalSearch } from "./search/search.api";
 
@@ -56,9 +57,11 @@ export const api = {
     createBlueprint,
     getBlueprints,
     getBlueprintDetails,
+    updateBlueprint,
   },
   search: {
     globalSearch,
   },
 };
+
 

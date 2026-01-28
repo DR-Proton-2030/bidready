@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { get, post } from "../apiMethod";
+import { get, post, patch } from "../apiMethod";
 
 const initialRoute = "blueprints";
 
@@ -62,3 +62,25 @@ export const getBlueprintDetails = async (
     throw new Error(error.response?.data?.message || "Blueprint fetch failed");
   }
 };
+
+export const updateBlueprint = async (
+  blueprintId: string,
+  payload: object,
+  token?: string
+): Promise<any> => {
+  try {
+    if (!token) {
+      throw new Error("Token not found");
+    }
+    const response = await patch(
+      `/${initialRoute}/update-blueprint/${blueprintId}`,
+      payload,
+      token
+    );
+    return response;
+  } catch (error: any) {
+    console.log("===>error", error);
+    throw new Error(error.response?.data?.message || "Blueprint update failed");
+  }
+};
+

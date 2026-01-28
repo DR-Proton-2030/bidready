@@ -20,6 +20,8 @@ export { default as LoadingSpinner } from './loadingSpinner/LoadingSpinner';
 export { default as ProjectDetailsSkeleton } from './projectDetailsSkeleton/ProjectDetailsSkeleton';
 export { default as EditProjectModal } from './editProjectModal/EditProjectModal';
 export { default as DeleteProjectModal } from './deleteProjectModal/DeleteProjectModal';
+export { default as EditBlueprintModal } from './editBlueprintModal/EditBlueprintModal';
 export * from './OverlayLayer';
 export * from './OverlayControlPanel';
+
 

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Modal from "../modal/Modal";
-import { AlertTriangle, Trash2 } from "lucide-react";
+import { AlertTriangle, Trash2, X, FolderX } from "lucide-react";
 
 interface DeleteProjectModalProps {
     isOpen: boolean;
@@ -30,25 +30,42 @@ const DeleteProjectModal: React.FC<DeleteProjectModalProps> = ({
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="" size="sm" showCloseButton={false}>
-            <div className="text-center">
-                {/* Warning Icon */}
-                <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                    <AlertTriangle className="w-8 h-8 text-red-600" />
+            <div className="text-center py-2">
+                {/* Animated Warning Icon */}
+                <div className="relative mx-auto w-20 h-20 mb-6">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-400 to-rose-500 rounded-full opacity-20 animate-pulse"></div>
+                    <div className="absolute inset-2 bg-gradient-to-br from-red-50 to-rose-100 rounded-full flex items-center justify-center">
+                        <FolderX className="w-10 h-10 text-red-500" />
+                    </div>
                 </div>
 
                 {/* Title */}
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
                     Delete Project?
                 </h3>
 
-                {/* Description */}
-                <p className="text-gray-500 mb-2">
-                    Are you sure you want to delete{" "}
-                    <span className="font-semibold text-gray-900">&quot;{projectTitle}&quot;</span>?
+                {/* Project Name */}
+                <p className="text-gray-500 mb-4">
+                    You are about to delete
                 </p>
-                <p className="text-sm text-red-500 bg-red-50 py-2 px-4 rounded-lg mb-6">
-                    This action cannot be undone. All blueprints associated with this project will also be deleted.
-                </p>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl mb-4">
+                    <span className="font-semibold text-gray-900 truncate max-w-[200px]">
+                        {projectTitle}
+                    </span>
+                </div>
+
+                {/* Warning Box */}
+                <div className="flex items-start gap-3 text-left p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/60 rounded-xl mb-6">
+                    <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-medium text-red-700 mb-1">
+                            This action is irreversible
+                        </p>
+                        <p className="text-xs text-red-600/80">
+                            All blueprints and associated data will be permanently deleted.
+                        </p>
+                    </div>
+                </div>
 
                 {/* Action Buttons */}
                 <div className="flex gap-3">
@@ -56,7 +73,7 @@ const DeleteProjectModal: React.FC<DeleteProjectModalProps> = ({
                         type="button"
                         onClick={onClose}
                         disabled={isLoading}
-                        className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-all disabled:opacity-50"
+                        className="flex-1 px-6 py-3.5 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all duration-300 disabled:opacity-50"
                     >
                         Cancel
                     </button>
@@ -64,7 +81,7 @@ const DeleteProjectModal: React.FC<DeleteProjectModalProps> = ({
                         type="button"
                         onClick={handleDelete}
                         disabled={isLoading}
-                        className="flex-1 px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-all shadow-lg shadow-red-600/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-xl font-semibold hover:from-red-600 hover:to-rose-600 hover:shadow-xl hover:shadow-red-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isLoading ? (
                             <>
@@ -104,3 +121,4 @@ const DeleteProjectModal: React.FC<DeleteProjectModalProps> = ({
 };
 
 export default DeleteProjectModal;
+
