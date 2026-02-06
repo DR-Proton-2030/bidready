@@ -281,7 +281,7 @@ const Help: React.FC = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm opacity-75">Email</p>
-                                    <p className="font-medium">support@bidready.com</p>
+                                    <p className="font-medium">support@bidready.net</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">

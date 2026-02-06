@@ -4,6 +4,7 @@ export { default as PageHeader } from './pageHeader/PageHeader';
 export { default as StatCard } from './statCard/StatCard';
 export { default as ActivityItem } from './activityItem/ActivityItem';
 export { default as ProjectCard } from './projectCard/ProjectCard';
+export { default as BoardCard } from './boardCard/BoardCard';
 export { default as UserTableRow } from './userTableRow/UserTableRow';
 export { default as PermissionCard } from './permissionCard/PermissionCard';
 export { default as AccessRequestCard } from './accessRequestCard/AccessRequestCard';
