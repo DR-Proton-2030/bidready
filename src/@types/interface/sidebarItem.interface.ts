@@ -6,4 +6,5 @@ export interface ISidebarItem {
   id: string;
   route: string;
   onClick?: () => void;
+  adminOnly?: boolean;
 }

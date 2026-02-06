@@ -43,6 +43,7 @@ export const sidebarItems: ISidebarItem[] = [
     label: "Access Management",
     route: "/access-management",
     icon: React.createElement(Shield, { className: "w-6 h-6" }),
+    adminOnly: true,
   },
   // {
   //   id: "settings",
@@ -50,11 +51,11 @@ export const sidebarItems: ISidebarItem[] = [
   //   route: "/settings",
   //   icon: React.createElement(Settings, { className: "w-6 h-6" }),
   // },
-  {
-    id: "help",
-    label: "Help & Support",
-    route: "/help",
-    icon: React.createElement(HelpCircle, { className: "w-6 h-6" }),
-  },
+  // {
+  //   id: "help",
+  //   label: "Help & Support",
+  //   route: "/help",
+  //   icon: React.createElement(HelpCircle, { className: "w-6 h-6" }),
+  // },
 ];
 
