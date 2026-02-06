@@ -1,5 +1,5 @@
 "use client";
-import React, { useContext } from "react";
+import React, { useContext, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -12,6 +12,23 @@ const Sidebar = () => {
   const pathname = usePathname();
   const { isSidebarCollapsed, toggleSidebar } = useLayout();
   const { user } = useContext(AuthContext);
+
+  // Check if user is admin (COMPANY_ADMIN role)
+  const isAdmin = useMemo(() => {
+    const role = user?.role?.toUpperCase() || "";
+    return role === "COMPANY_ADMIN" || role === "ADMIN" || role === "SUPER_ADMIN";
+  }, [user?.role]);
+
+  // Filter sidebar items based on admin status
+  const filteredSidebarItems = useMemo(() => {
+    return sidebarItems.filter((item) => {
+      // If item is admin-only, only show to admins
+      if (item.adminOnly) {
+        return isAdmin;
+      }
+      return true;
+    });
+  }, [isAdmin]);
 
   return (
     <>
@@ -47,7 +64,7 @@ const Sidebar = () => {
 
         {/* NAVIGATION */}
         <nav className="flex-1 px-3 py-4 space-y-2">
-          {sidebarItems.map((item) => {
+          {filteredSidebarItems.map((item) => {
             const isActive = pathname === item.route;
 
             return (
