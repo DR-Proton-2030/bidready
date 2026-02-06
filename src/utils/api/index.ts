@@ -18,11 +18,15 @@ import {
   getDashboardStats,
   getProjectDetails,
   getProjects,
+  updateProject,
+  deleteProject,
 } from "./project/project.api";
 import {
   createBlueprint,
   getBlueprints,
   getBlueprintDetails,
+  updateBlueprint,
+  deleteBlueprint,
 } from "./blueprint/blueprint.api";
 import { globalSearch } from "./search/search.api";
 
@@ -47,13 +51,20 @@ export const api = {
     getProjects,
     getProjectDetails,
     getDashboardStats,
+    updateProject,
+    deleteProject,
   },
   blueprint: {
     createBlueprint,
     getBlueprints,
     getBlueprintDetails,
+    updateBlueprint,
+    deleteBlueprint,
   },
   search: {
     globalSearch,
   },
 };
+
+
+

@@ -5,7 +5,7 @@ export interface IProject{
     title: string;
     description: string;
     scope: string;
-    status: "active" | "completed" | "on-hold" | "in-progress";
+    status: "active" | "completed" | "on-hold" | "in-progress" | "planning";
     createdBy: string;
     created_by_details?: IUser;
     createdAt: Date;
