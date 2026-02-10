@@ -23,7 +23,7 @@
     "aos": "^3.0.0-beta.6",
     "apexcharts": "^5.3.6",
     "axios": "^1.11.0",
-    "canvas": "^2.11.2",
+    "canvas": "^3.2.1",
     "fabric": "^6.7.1",
     "firebase": "^10.3.0",
     "framer-motion": "^12.23.12",
@@ -51,19 +51,19 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/aos": "^3.0.7",
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
-    "babel-jest": "^29.7.0",
+    "babel-jest": "^30.0.5",
     "eslint": "^9",
     "eslint-config-next": "15.4.10",
     "husky": "^9.1.7",
     "identity-obj-proxy": "^3.0.0",
-    "jest": "^29.7.0",
+    "jest": "^30.0.5",
     "jest-date-mock": "^1.0.10",
-    "jest-environment-jsdom": "^29.7.0",
+    "jest-environment-jsdom": "^30.0.5",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.12",
     "ts-jest": "^29.4.1",
@@ -72,5 +72,8 @@
   },
   "optionalDependencies": {
     "lightningcss-darwin-arm64": "^1.30.2"
+  },
+  "overrides": {
+    "canvas": "$canvas"
   }
 }
