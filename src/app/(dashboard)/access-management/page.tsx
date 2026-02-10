@@ -11,7 +11,10 @@ const AccessManagementPage = () => {
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
 
-  // Check if user is admin
+  // Check if user is admin hhh
+
+  // mnnn
+
   const isAdmin = React.useMemo(() => {
     const role = user?.role?.toUpperCase() || "";
     return role === "COMPANY_ADMIN" || role === "ADMIN" || role === "SUPER_ADMIN";
