@@ -31,7 +31,7 @@ const Projects: React.FC<IGetProjectResponse> = ({
       />
 
       {/* Control Bar */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm bg-gray-100 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm bg-gray-100 p-2 rounded-2xl border border-gray-200">
         {/* Search Bar */}
         <div className="relative w-full md:max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />

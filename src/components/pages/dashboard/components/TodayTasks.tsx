@@ -105,7 +105,7 @@ const TodayTasks: React.FC = () => {
     ];
 
     return (
-        <section className="min-h-screen relative overflow-y-auto  border border-white/70 bg-gradient-to-br from-white/90 via-slate-50/80 to-blue-50/90 text-slate-900 shadow-[0_35px_120px_rgba(15,23,42,0.15)] backdrop-blur-2xl">
+        <section className="relative border border-white/70 bg-gradient-to-br from-white/90 via-slate-50/80 to-blue-50/90 text-slate-900 shadow-[0_35px_120px_rgba(15,23,42,0.15)] backdrop-blur-2xl">
             <div className="absolute inset-0 opacity-90" style={{ backgroundImage: "radial-gradient(circle at 20% 20%, rgba(14,165,233,0.12), transparent 55%), radial-gradient(circle at 80% 0%, rgba(248,113,113,0.15), transparent 45%), radial-gradient(circle at 50% 100%, rgba(59,130,246,0.08), transparent 60%)" }} />
 
             <div className="relative z-10 space-y-10 p-8 lg:p-12 max-w-7xl mx-auto">
