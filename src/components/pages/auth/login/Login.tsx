@@ -1,21 +1,20 @@
 "use client";
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import Form from "@/components/shared/form/Form";
 import CompanyLogo from "@/components/shared/companyLogo/CompanyLogo";
 import PrimaryButton from "@/components/shared/buttons/primaryButton/PrimaryButton";
 import { LoginInputList } from "./LoginInputList";
 import useAuthCredential from "@/hooks/authCredential/useAuthCredential";
 import GoogleLogin from "@/components/shared/googleLogin/GoogleLogin";
+import { Modal } from "@/components/shared";
 import ForgetPassword from "../forgetPassword/ForgetPassword";
 import HaveNoAccount from "./haveNoAccount/HaveNoAccount";
-import { useGoogleLogin } from "@react-oauth/google";
-import axios from "axios";
+import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider } from "@/utils/firebase";
 import { api } from "@/utils/api";
-import { MESSAGE } from "@/constants/api/message";
 import AuthContext from "@/contexts/authContext/authContext";
 import CompanyContext from "@/contexts/companyContext/companyContext";
 import { useRouter } from "next/navigation";
-import { c } from "node_modules/framer-motion/dist/types.d-Cjd591yU";
 
 const Login = () => {
   const router = useRouter();
@@ -23,55 +22,53 @@ const Login = () => {
   const { setCompany } = useContext(CompanyContext);
   const { loginCredential, handleChange, handleSubmit, isLoading } =
     useAuthCredential();
+  const [isUserNotFoundOpen, setIsUserNotFoundOpen] = useState(false);
+  const [userNotFoundMessage, setUserNotFoundMessage] = useState(
+    "This Google account is not registered. Please contact your admin or sign up."
+  );
 
-  const handleGoogleLogin = useGoogleLogin({
-    onSuccess: async (response) => {
-      console.log("Google Token Response:", response);
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const firebaseUser = result.user;
+      // Get Firebase ID token for server-side verification
+      const idToken = await firebaseUser.getIdToken();
 
-      const accessToken = response.access_token;
-      console.log("Access Token:", accessToken);
+      // send ID token to backend for verification and login/signup
+      const payload = {
+        id_token: idToken,
+      };
 
-      try {
-        const res = await axios.get(
-          "https://www.googleapis.com/oauth2/v3/userinfo",
-          {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          }
-        );
-        console.log(res);
-        const payload = {
-          user_details: {
-            email: res.data.email,
-            password: res.data.sub,
-          },
+      const response = await api.auth.googleLogin(payload);
+
+      if (response?.token) {
+        const { user, company, token, isNew } = response;
+
+        localStorage.setItem("@token", token);
+        document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
+
+        const userWithCompany = {
+          ...user,
+          company_details: company,
         };
-        const response = await api.auth.googleLogin(payload);
 
-        if (response?.token) {
-          const { user, company, token, isNew } = response;
+        setUser(userWithCompany);
+        setCompany(company);
 
-          localStorage.setItem("@token", token);
-          // Set cookie for server-side access (Next.js cookies() helper)
-          document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
-
-
-          const userWithCompany = {
-            ...user,
-            company_details: company,
-          };
-
-          setUser(userWithCompany);
-          setCompany(company);
-
-          router.push(isNew === false ? "/dashboard" : "/signup");
-        }
-      } catch (err) {
-        console.log(err);
+        router.push(isNew === false ? "/dashboard" : "/signup");
       }
-    },
-  });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Login failed";
+      if (message.toLowerCase().includes("user not found")) {
+        setUserNotFoundMessage(
+          "This Google account is not registered. Please contact your admin or sign up."
+        );
+        setIsUserNotFoundOpen(true);
+        return;
+      }
+      console.error("Firebase Google sign-in failed:", err);
+    }
+  };
 
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-t from-orange-100 via-orange-50 to-white sm:px-38 py-5 ">
@@ -129,6 +126,25 @@ const Login = () => {
             <HaveNoAccount />
           </div>
         </div>
+
+        <Modal
+          isOpen={isUserNotFoundOpen}
+          onClose={() => setIsUserNotFoundOpen(false)}
+          title="Account Not Found"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">{userNotFoundMessage}</p>
+            <div className="flex justify-end">
+              <button
+                className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold px-4 py-2 rounded-md"
+                onClick={() => setIsUserNotFoundOpen(false)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </Modal>
 
         {/* RIGHT SECTION – IMAGE PANEL */}
         <div className="relative   md:block rounded-tr-[50px] rounded-br-[50px] rounded-bl-[50px]  overflow-hidden mt-10">
