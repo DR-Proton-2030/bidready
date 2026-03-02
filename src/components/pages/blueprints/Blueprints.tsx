@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { PageHeader, BlueprintCard, BlueprintListItem } from "@/components/shared";
 import { Search, LayoutGrid, List } from "lucide-react";
 import { BluePrint } from "@/@types/interface/blueprint.interface";
@@ -9,8 +9,50 @@ import { BLUEPRINTS_TEXT } from "@/constants/blueprints/blueprints.constant";
 const Blueprints: React.FC<{ data?: BluePrint[] }> = ({ data }) => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
+  const [clientData, setClientData] = useState<BluePrint[] | null>(null);
 
-  const filteredData = data?.filter((blueprint) =>
+  useEffect(() => {
+    const shouldLoadFallback = !data || data.length === 0;
+    if (!shouldLoadFallback) return;
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("@token") : null;
+    if (!token) return;
+
+    const base =
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL ||
+      "http://localhost:8989/api/v1";
+
+    const loadBlueprints = async () => {
+      try {
+        const res = await fetch(`${base}/blueprints/get-all-blueprints?page=1`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        });
+
+        if (!res.ok) return;
+
+        const json = await res.json().catch(() => null);
+        if (json && Array.isArray(json.data)) {
+          setClientData(json.data);
+        }
+      } catch (error) {
+        console.error("Fallback blueprint fetch failed:", error);
+      }
+    };
+
+    loadBlueprints();
+  }, [data]);
+
+  const resolvedData = useMemo(() => {
+    if (clientData && clientData.length > 0) return clientData;
+    return data || [];
+  }, [clientData, data]);
+
+  const filteredData = resolvedData.filter((blueprint) =>
     blueprint.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 

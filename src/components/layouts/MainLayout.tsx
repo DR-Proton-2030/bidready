@@ -14,14 +14,13 @@ const MainLayoutContent = ({ children }: { children: React.ReactNode }) => {
     <div className="min-h-screen bg-gray-50">
       <Sidebar />
       <div
-        className={`layout-transition ${
-          isSidebarCollapsed ? "lg:ml-16 ml-0" : "lg:ml-64 ml-0"
-        }`}
+        className={`layout-transition ${isSidebarCollapsed ? "lg:ml-16 ml-0" : "lg:ml-64 ml-0"
+          }`}
       >
         <Navbar />
-        <main className=" h-[92vh]">
-          <div className="">
-            <div className="animate-fade-in">{children}</div>
+        <main className="h-[calc(100vh-72px)] overflow-y-auto no-scrollbar shadow-inner bg-slate-50/50">
+          <div className="p-0">
+            {children}
           </div>
         </main>
       </div>

@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 
 const statusOptions = ["active", "completed", "on-hold", "in-progress"];
 
+
+
 export default function CreateProjectPage() {
   const [form, setForm] = useState({
     title: "",
@@ -14,6 +16,7 @@ export default function CreateProjectPage() {
     status: "active",
   });
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { handleNewProject } = useProjects();
   const router = useRouter();
 
@@ -27,24 +30,27 @@ export default function CreateProjectPage() {
     setForm({ ...form, status });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title || !form.description || !form.scope) {
       setError("All fields are required.");
       return;
     }
     setError("");
-    (async () => {
-      try {
-        await handleNewProject(form);
-        // success - navigate to projects list
-        router.push("/projects");
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error ? err.message : "Failed to create project";
-        setError(message);
-      }
-    })();
+    setIsLoading(true);
+    try {
+      // Add a small delay so the user can see the "Creating Project..." state
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await handleNewProject(form);
+      // success - navigate to projects list
+      router.push("/projects");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to create project";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -54,8 +60,9 @@ export default function CreateProjectPage() {
           Create Project
         </h2>
         <p className="px-6 pb-6 text-sm text-gray-500 border-b border-gray-200">
-          Enter the name of your project. This will be your primary identifier.
-          Lorem ipsum dolor sit amet consectetur adipisicing elit. Distinctio.
+          Enter the name of your project. This will be your primary
+          identifier. Lorem ipsum dolor sit amet consectetur adipisicing elit.
+          Distinctio.
         </p>
         <form onSubmit={handleSubmit} className="divide-y divide-gray-100  ">
           {/* Title */}
@@ -140,10 +147,9 @@ export default function CreateProjectPage() {
                       type="button"
                       onClick={() => handleStatusChange(status)}
                       className={`px-5 py-2 rounded-full font-medium text-sm transition 
-                        ${
-                          isActive
-                            ? "bg-primary text-white shadow-md"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        ${isActive
+                          ? "bg-primary text-white shadow-md"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                         }`}
                     >
                       {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -163,10 +169,11 @@ export default function CreateProjectPage() {
           <div className="px-6 py-6">
             <button
               type="submit"
+              disabled={isLoading}
               className="px-6 py-3 bg-primary text-white rounded-lg
-               font-semibold hover:bg-black transition shadow-md"
+               font-semibold hover:bg-black transition shadow-md disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Create Project
+              {isLoading ? "Creating Project..." : "Create Project"}
             </button>
           </div>
         </form>

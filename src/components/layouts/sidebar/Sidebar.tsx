@@ -34,8 +34,8 @@ const Sidebar = () => {
     <>
       <aside
         className={`
-          fixed top-0 left-0 z-40 h-screen bg-white/90 backdrop-blur-2xl 
-          border-r border-gray-100/60 shadow-[4px_0_20px_-8px_rgba(0,0,0,0.1)]
+          fixed top-0 left-0 z-40 h-screen bg-white shadow-lg
+          border-r border-gray-100
           transition-all duration-300 ease-in-out
           flex flex-col
           ${isSidebarCollapsed ? "w-[72px]" : "w-64"}
