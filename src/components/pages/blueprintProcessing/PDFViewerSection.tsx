@@ -200,7 +200,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
 
     setSaving(true);
     try {
-      const payload: { pageId: string; image: string }[] = [];
+      const payload: { pageId: string; image: string; blueprintId?: string; pageNumber?: number }[] = [];
 
       // Process sequentially to simulate streaming and to limit memory spikes
       for (const e of effectiveEdits) {
@@ -220,7 +220,13 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
             // ignore lookup errors and fall back to e.pageId
           }
 
-          const item = { pageId: payloadPageId, image: dataUrl };
+          const pageNumber = Number(e.pageId);
+          const item = {
+            pageId: payloadPageId,
+            image: dataUrl,
+            blueprintId: blueprintId || undefined,
+            pageNumber: Number.isFinite(pageNumber) ? pageNumber : undefined,
+          };
           // Simulate streaming by logging each chunk as it's ready
           console.log("Streaming chunk:", item);
           payload.push(item);

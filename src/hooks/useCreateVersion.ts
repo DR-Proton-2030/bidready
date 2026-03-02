@@ -26,6 +26,19 @@ export default function useCreateVersion() {
     }
   }, []);
 
+  const getRuntimeBackendUrl = useCallback(() => {
+    if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
+    if (process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL) return process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL;
+
+    if (typeof window !== "undefined") {
+      const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+      const host = window.location.hostname || "localhost";
+      return `${protocol}//${host}:8989/api/v1`;
+    }
+
+    return "http://localhost:8989/api/v1";
+  }, []);
+
   const getWsUrl = useCallback((backendUrl: string) => {
     const explicitWsUrl = process.env.NEXT_PUBLIC_PDF_CONVERTER_WS_URL;
     if (explicitWsUrl) {
@@ -46,6 +59,11 @@ export default function useCreateVersion() {
       const wsPort = currentPort + 1;
       return `${wsProtocol}//${parsed.hostname}:${wsPort}`;
     } catch {
+      if (typeof window !== "undefined") {
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const host = window.location.hostname || "localhost";
+        return `${wsProtocol}//${host}:8990`;
+      }
       return "ws://localhost:8990";
     }
   }, []);
@@ -133,10 +151,7 @@ export default function useCreateVersion() {
       setIsStreaming(true);
       setStreamingProgress(0);
 
-      const BACKEND_URL =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL ||
-        "http://localhost:8989/api/v1";
+      const BACKEND_URL = getRuntimeBackendUrl();
 
       const token = typeof window !== "undefined" ? localStorage.getItem("@token") : null;
       const headers: Record<string, string> = {};
@@ -246,7 +261,7 @@ export default function useCreateVersion() {
         throw err;
       }
     },
-    [closeSocket, connectProgressSocket]
+    [closeSocket, connectProgressSocket, getRuntimeBackendUrl]
   );
 
   useEffect(() => {
