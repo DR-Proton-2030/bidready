@@ -27,6 +27,39 @@ export default function useCreateBlueprint() {
     }
   }, []);
 
+  const getRuntimeBackendUrl = useCallback(() => {
+    if (process.env.NEXT_PUBLIC_BASE_URL) return process.env.NEXT_PUBLIC_BASE_URL;
+    if (process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL) return process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL;
+
+    if (typeof window !== "undefined") {
+      const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+      const host = window.location.hostname || "localhost";
+      return `${protocol}//${host}:8989/api/v1`;
+    }
+
+    return "http://localhost:8989/api/v1";
+  }, []);
+
+  const normalizeFileUrl = useCallback((rawUrl: string | undefined, backendUrl: string) => {
+    if (!rawUrl) return undefined;
+
+    try {
+      const backend = new URL(backendUrl);
+      const raw = new URL(rawUrl, backend.origin);
+
+      if (
+        ["localhost", "127.0.0.1", "0.0.0.0"].includes(raw.hostname) &&
+        !["localhost", "127.0.0.1", "0.0.0.0"].includes(backend.hostname)
+      ) {
+        raw.hostname = backend.hostname;
+      }
+
+      return raw.toString();
+    } catch {
+      return rawUrl;
+    }
+  }, []);
+
   const getWsUrl = useCallback((backendUrl: string) => {
     const explicitWsUrl = process.env.NEXT_PUBLIC_PDF_CONVERTER_WS_URL;
     if (explicitWsUrl) {
@@ -48,6 +81,11 @@ export default function useCreateBlueprint() {
 
       return `${wsProtocol}//${parsed.hostname}:${wsPort}`;
     } catch (e) {
+      if (typeof window !== "undefined") {
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const host = window.location.hostname || "localhost";
+        return `${wsProtocol}//${host}:8990`;
+      }
       return "ws://localhost:8990";
     }
   }, []);
@@ -138,10 +176,7 @@ export default function useCreateBlueprint() {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const BACKEND_URL =
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL ||
-        "http://localhost:8989/api/v1";
+      const BACKEND_URL = getRuntimeBackendUrl();
 
       try {
         const res = await fetch(`${BACKEND_URL}/blueprints/create-blueprint`, {
@@ -168,11 +203,12 @@ export default function useCreateBlueprint() {
           data.data?.blueprint?._id ||
           data.data?.blueprint?.id ||
           data.data?._id;
-        const pdfFileUrl =
+        const rawPdfFileUrl =
           data.file_url ||
           data.data?.file_url ||
           data.data?.blueprint?.file_url ||
           data.blueprint?.file_url;
+        const pdfFileUrl = normalizeFileUrl(rawPdfFileUrl, BACKEND_URL);
 
         if (!newBlueprintId) {
           throw new Error("Blueprint created but blueprint_id was not returned");
@@ -200,7 +236,7 @@ export default function useCreateBlueprint() {
         throw err;
       }
     },
-    [closeSocket, connectProgressSocket]
+    [closeSocket, connectProgressSocket, getRuntimeBackendUrl, normalizeFileUrl]
   );
 
   useEffect(() => {

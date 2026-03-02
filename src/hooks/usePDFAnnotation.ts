@@ -103,7 +103,19 @@ export const usePDFAnnotation = (
       const newPages = [...prev.pages];
       
       if (existingPageIndex >= 0) {
-        newPages[existingPageIndex] = pageData;
+        const existingPage = newPages[existingPageIndex];
+        const hasLocalDataUrl = typeof existingPage.dataUrl === "string" && existingPage.dataUrl.startsWith("data:");
+        const incomingIsRemoteUrl = typeof imageUrl === "string" && /^https?:\/\//i.test(imageUrl);
+
+        if (hasLocalDataUrl && incomingIsRemoteUrl) {
+          newPages[existingPageIndex] = {
+            ...existingPage,
+            imageId: imageId ? String(imageId) : existingPage.imageId,
+            thumbnailUrl: existingPage.thumbnailUrl || imageUrl,
+          };
+        } else {
+          newPages[existingPageIndex] = pageData;
+        }
       } else {
         newPages.push(pageData);
         newPages.sort((a, b) => a.pageNumber - b.pageNumber);

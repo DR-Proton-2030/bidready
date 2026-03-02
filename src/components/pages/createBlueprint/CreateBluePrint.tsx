@@ -216,12 +216,16 @@ export default function CreateBlueprint({
               setShowPdfHandler(true);
 
               const tryLoadUrl = pdfFileUrl || data?.file_url || data?.data?.file_url || data?.blueprint?.file_url;
-              if (tryLoadUrl) {
-                loadPDFFromUrl(tryLoadUrl).catch(err => {
-                  console.error("❌ Error loading PDF from URL:", err);
-                  setError("Failed to load PDF");
-                });
+
+              if (!tryLoadUrl) {
+                setError("Failed to load PDF: backend file URL not found");
+                return;
               }
+
+              loadPDFFromUrl(tryLoadUrl).catch(urlErr => {
+                console.error("❌ Error loading PDF from backend URL:", urlErr);
+                setError("Failed to load PDF from backend URL");
+              });
             } catch (e) {
               console.error("onFirstResponse handler error:", e);
             }
