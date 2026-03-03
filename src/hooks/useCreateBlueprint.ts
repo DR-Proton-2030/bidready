@@ -15,6 +15,7 @@ export default function useCreateBlueprint() {
   const [pdfUrl, setPdfUrl] = useState<string | undefined>(undefined);
   const [blueprintId, setBlueprintId] = useState<string | undefined>(undefined);
   const wsRef = useRef<WebSocket | null>(null);
+  const hasWsProgressRef = useRef(false);
 
   const closeSocket = useCallback(() => {
     if (wsRef.current) {
@@ -79,14 +80,14 @@ export default function useCreateBlueprint() {
 
       const wsPort = currentPort + 1;
 
-      return `${wsProtocol}//${parsed.hostname}:${wsPort}`;
+      return `wss://d1cf5m2o7bf0ig.cloudfront.net`;
     } catch (e) {
       if (typeof window !== "undefined") {
         const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const host = window.location.hostname || "localhost";
         return `${wsProtocol}//${host}:8990`;
       }
-      return "ws://localhost:8990";
+      return "wss://d1cf5m2o7bf0ig.cloudfront.net";
     }
   }, []);
 
@@ -97,6 +98,7 @@ export default function useCreateBlueprint() {
       callbacks: Callbacks,
     ) => {
       closeSocket();
+      hasWsProgressRef.current = false;
 
       const wsUrl = getWsUrl(backendUrl);
       const ws = new WebSocket(wsUrl);
@@ -112,6 +114,8 @@ export default function useCreateBlueprint() {
           if (!data || data.blueprintId !== targetBlueprintId) return;
 
           if (data.type === "page_progress") {
+            hasWsProgressRef.current = true;
+
             const totalPages = typeof data.totalPages === "number" ? data.totalPages : 0;
             const page = typeof data.page === "number" ? data.page : 0;
             const progress = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
