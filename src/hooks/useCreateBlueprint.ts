@@ -79,14 +79,14 @@ export default function useCreateBlueprint() {
 
       const wsPort = currentPort + 1;
 
-      return `${wsProtocol}//${parsed.hostname}:${wsPort}`;
+      return `wss://d1cf5m2o7bf0ig.cloudfront.net`;
     } catch (e) {
       if (typeof window !== "undefined") {
         const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const host = window.location.hostname || "localhost";
         return `${wsProtocol}//${host}:8990`;
       }
-      return "ws://localhost:8990";
+      return "wss://d1cf5m2o7bf0ig.cloudfront.net";
     }
   }, []);
 
