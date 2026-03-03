@@ -101,7 +101,7 @@ export const usePDFAnnotation = (
     setState((prev) => {
       const existingPageIndex = prev.pages.findIndex(p => p.pageNumber === pageNumber);
       const newPages = [...prev.pages];
-      
+
       if (existingPageIndex >= 0) {
         const existingPage = newPages[existingPageIndex];
         const hasLocalDataUrl = typeof existingPage.dataUrl === "string" && existingPage.dataUrl.startsWith("data:");
@@ -130,44 +130,10 @@ export const usePDFAnnotation = (
 
     loadedPagesRef.current.add(pageNumber);
     initializePageHistory(pageNumber);
-    
+
     const newLoadedCount = loadedPagesRef.current.size;
     setLoadedPagesCount(newLoadedCount);
   }, [initializePageHistory]);
-
-  // Method to load PDF from URL
-  const loadPDFFromUrl = useCallback(async (pdfUrl: string) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const loadingTask = pdfjsLib.getDocument(pdfUrl);
-      const pdf = await loadingTask.promise;
-
-      pdfDocRef.current = pdf;
-      loadedPagesRef.current.clear();
-      setLoadedPagesCount(0);
-      setAllPagesLoaded(false);
-
-      const totalPages = pdf.numPages;
-
-      setState((prev) => ({
-        ...prev,
-        pages: [],
-        totalPages,
-        currentPage: 1,
-      }));
-
-      setIsLoading(false);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to load PDF from URL";
-      setError(errorMessage);
-      setIsLoading(false);
-      console.error("PDF loading error:", err);
-    }
-  }, []);
-
   // Load a single page
   const loadSinglePage = useCallback(async (pageNum: number) => {
     if (!pdfDocRef.current || loadedPagesRef.current.has(pageNum)) {
@@ -236,7 +202,7 @@ export const usePDFAnnotation = (
       setState((prev) => {
         const existingPageIndex = prev.pages.findIndex(p => p.pageNumber === pageNum);
         const newPages = [...prev.pages];
-        
+
         if (existingPageIndex >= 0) {
           newPages[existingPageIndex] = pageData;
         } else {
@@ -252,16 +218,16 @@ export const usePDFAnnotation = (
 
       loadedPagesRef.current.add(pageNum);
       initializePageHistory(pageNum);
-      
+
       // Update loaded pages count
       const newLoadedCount = loadedPagesRef.current.size;
       setLoadedPagesCount(newLoadedCount);
-      
+
       // Check if all pages are loaded
       if (pdfDocRef.current && newLoadedCount === pdfDocRef.current.numPages) {
         setAllPagesLoaded(true);
       }
-      
+
       setIsLoadingPage(false);
     } catch (err) {
       console.error(`Error loading page ${pageNum}:`, err);
@@ -269,11 +235,66 @@ export const usePDFAnnotation = (
     }
   }, [initializePageHistory]);
 
+  // Method to load PDF from URL
+  const loadPDFFromUrl = useCallback(async (pdfUrl: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const loadingTask = pdfjsLib.getDocument(pdfUrl);
+      const pdf = await loadingTask.promise;
+
+      pdfDocRef.current = pdf;
+      // Do NOT clear loadedPagesRef — streamed images may already be in state
+      setAllPagesLoaded(false);
+
+      const totalPages = pdf.numPages;
+
+      // Preserve any pages that were already added via streaming (addStreamedImage)
+      // Only update totalPages and currentPage; do NOT reset pages to []
+      setState((prev) => {
+        // Keep all existing streamed pages that have a valid pageNumber
+        const existingPages = prev.pages.filter(
+          (p) => p.pageNumber >= 1 && p.pageNumber <= totalPages
+        );
+
+        return {
+          ...prev,
+          pages: existingPages,
+          totalPages,
+          currentPage: prev.currentPage >= 1 && prev.currentPage <= totalPages
+            ? prev.currentPage
+            : 1,
+        };
+      });
+
+      // Update loaded count to reflect already-streamed pages
+      setLoadedPagesCount(loadedPagesRef.current.size);
+
+      setIsLoading(false);
+
+      // Load any pages from PDF that weren't already provided by streaming
+      // (fills in gaps where streamed images may not have arrived yet)
+      for (let i = 1; i <= totalPages; i++) {
+        if (!loadedPagesRef.current.has(i)) {
+          await loadSinglePage(i);
+        }
+      }
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load PDF from URL";
+      setError(errorMessage);
+      setIsLoading(false);
+      console.error("PDF loading error:", err);
+    }
+  }, [loadSinglePage]);
+
+
   // Compress PDF by reducing image quality
   const compressPDF = useCallback(async (file: File): Promise<ArrayBuffer> => {
     try {
       const arrayBuffer = await file.arrayBuffer();
-      
+
       // For now, just return the original buffer
       // In production, you might want to use a library like pdf-lib to compress images
       // or reduce resolution when rendering pages
@@ -313,8 +334,8 @@ export const usePDFAnnotation = (
 
         setIsLoading(false);
 
-        for(let i = 1; i <= totalPages; i++) {
-            await loadSinglePage(i);
+        for (let i = 1; i <= totalPages; i++) {
+          await loadSinglePage(i);
         }
       } catch (err) {
         const errorMessage =
@@ -331,23 +352,23 @@ export const usePDFAnnotation = (
   const setCurrentPage = useCallback((page: number) => {
     setState((prev) => {
       const newPage = Math.max(1, Math.min(page, prev.totalPages));
-      
+
       // Load current page if not loaded
       if (!loadedPagesRef.current.has(newPage)) {
         loadSinglePage(newPage);
       }
-      
+
       // Preload adjacent pages
       const nextPage = newPage + 1;
       const prevPage = newPage - 1;
-      
+
       if (nextPage <= prev.totalPages && !loadedPagesRef.current.has(nextPage)) {
         setTimeout(() => loadSinglePage(nextPage), 50);
       }
       if (prevPage >= 1 && !loadedPagesRef.current.has(prevPage)) {
         setTimeout(() => loadSinglePage(prevPage), 100);
       }
-      
+
       return {
         ...prev,
         currentPage: newPage,
@@ -449,46 +470,46 @@ export const usePDFAnnotation = (
             minY: Math.min(...drawing.points.map(p => p.y)),
             maxY: Math.max(...drawing.points.map(p => p.y)),
           };
-          
+
           const eraserRadius = drawing.width * 2;
-          
+
           // Filter out drawings that intersect
           const newDrawings = annotations.drawings.filter(existingDrawing => {
-            return !existingDrawing.points.some(point => 
+            return !existingDrawing.points.some(point =>
               drawing.points.some(eraserPoint => {
                 const distance = Math.sqrt(
-                  Math.pow(point.x - eraserPoint.x, 2) + 
+                  Math.pow(point.x - eraserPoint.x, 2) +
                   Math.pow(point.y - eraserPoint.y, 2)
                 );
                 return distance < eraserRadius;
               })
             );
           });
-          
+
           // Filter out shapes that intersect
           const newShapes = annotations.shapes.filter(shape => {
             const shapeX = (shape.startPoint.x + shape.endPoint.x) / 2;
             const shapeY = (shape.startPoint.y + shape.endPoint.y) / 2;
             return !drawing.points.some(eraserPoint => {
               const distance = Math.sqrt(
-                Math.pow(shapeX - eraserPoint.x, 2) + 
+                Math.pow(shapeX - eraserPoint.x, 2) +
                 Math.pow(shapeY - eraserPoint.y, 2)
               );
               return distance < eraserRadius * 3;
             });
           });
-          
+
           // Filter out texts that intersect
           const newTexts = annotations.texts.filter(text => {
             return !drawing.points.some(eraserPoint => {
               const distance = Math.sqrt(
-                Math.pow(text.position.x - eraserPoint.x, 2) + 
+                Math.pow(text.position.x - eraserPoint.x, 2) +
                 Math.pow(text.position.y - eraserPoint.y, 2)
               );
               return distance < eraserRadius * 2;
             });
           });
-          
+
           return {
             ...annotations,
             drawings: newDrawings,
