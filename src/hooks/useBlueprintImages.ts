@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface BlueprintImage {
   id: string;
@@ -18,26 +18,42 @@ export default function useBlueprintImages(propId?: string | null, versionId?: s
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Track whether images were expected but not yet available (triggers polling)
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelledRef = useRef(false);
+
   const fetchImages = useCallback(
-    async (overrideId?: string | null) => {
+    async (overrideId?: string | null, options?: { silent?: boolean }): Promise<BlueprintImage[]> => {
+      const silent = options?.silent ?? false;
       const id = overrideId ?? resolveIdFromWindow(propId);
       if (!id) {
         setError("No blueprint id found in route or props");
         setImages([]);
-        return;
+        return [];
       }
 
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
 
       try {
         const base = process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL || "http://localhost:8989";
         let url = `${base}/blueprints/get-blueprint-images/${encodeURIComponent(id)}`;
         if (versionId) {
-            url += `?versionId=${encodeURIComponent(versionId)}`;
+          url += `?versionId=${encodeURIComponent(versionId)}`;
         }
-        
-        const res = await fetch(url);
+
+        // Cache-bust: avoid stale empty responses during the eventual-consistency window
+        const sep = url.includes("?") ? "&" : "?";
+        url += `${sep}_t=${Date.now()}`;
+
+        const token = typeof window !== "undefined" ? localStorage.getItem("@token") : null;
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(url, {
+          cache: "no-store",
+          headers,
+        });
         if (!res.ok) throw new Error(`API error ${res.status}`);
         const data = await res.json();
 
@@ -52,19 +68,56 @@ export default function useBlueprintImages(propId?: string | null, versionId?: s
         }));
 
         setImages(mapped);
+        return mapped;
       } catch (err: any) {
         setError(err?.message ?? String(err));
         setImages([]);
+        return [];
       } finally {
-        setLoading(false);
+        if (!silent) setLoading(false);
       }
     },
     [propId, versionId]
   );
-  
+
+  // Initial fetch + automatic retry-polling when result is empty
   useEffect(() => {
-    fetchImages();
+    cancelledRef.current = false;
+    let attempts = 0;
+    const maxAttempts = 24;        // ~2 min total
+    const intervalMs = 5_000;      // poll every 5 s
+
+    const clearPoll = () => {
+      if (pollTimerRef.current) {
+        clearTimeout(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+
+    const poll = async () => {
+      if (cancelledRef.current) return;
+
+      const list = await fetchImages(undefined, { silent: attempts > 0 });
+
+      // If we got images or hit the cap, stop polling
+      if (cancelledRef.current || list.length > 0 || attempts >= maxAttempts) return;
+
+      attempts += 1;
+      pollTimerRef.current = setTimeout(poll, intervalMs);
+    };
+
+    poll();
+
+    return () => {
+      cancelledRef.current = true;
+      clearPoll();
+    };
   }, [fetchImages]);
 
-  return { images, loading, error, refetch: fetchImages } as const;
+  return {
+    images,
+    loading,
+    error,
+    refetch: (overrideId?: string | null) => fetchImages(overrideId),
+  } as const;
 }

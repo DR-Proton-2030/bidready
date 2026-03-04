@@ -346,6 +346,7 @@ export default function CreateBlueprint({
             }}
             externalPDFHook={pdfAnnotationHook}
             blueprintId={blueprintId}
+            isProcessing={isStreaming}
           />
         </div>
       </div>

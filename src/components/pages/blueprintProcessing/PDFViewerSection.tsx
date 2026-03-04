@@ -14,6 +14,7 @@ interface PDFViewerSectionProps {
   externalPDFHook?: any; // External PDF annotation hook
   blueprintId?: string; // Newly created blueprint id for navigation
   versionId?: string; // Optional version id for navigation
+  isProcessing?: boolean; // True while images are still uploading to DB via socket
 }
 
 const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
@@ -25,6 +26,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
   externalPDFHook,
   blueprintId,
   versionId,
+  isProcessing = false,
 }) => {
   const router = useRouter();
   const [hasAnnotations, setHasAnnotations] = useState(false);
@@ -351,14 +353,15 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
             <ArrowLeft className="w-4 h-4" />
           </button>
           {blueprintId && (
-            // <button
-            //   onClick={handleNextClick}
-            //   title="Go to detection"
-            //   className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            // >
-            //   Next
-            // </button>
-
+            isProcessing ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 border border-amber-400/40 rounded-full">
+                <svg className="animate-spin h-4 w-4 text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-sm font-medium text-amber-300">Uploading images to Server...</span>
+              </div>
+            ) : (
             <button
               onClick={handleNextClick}
               className="cursor-pointer relative bg-white/10 py-2 rounded-full min-w-[8.5rem] min-h-[2.92rem] group max-w-full flex items-center justify-start hover:bg-orange-400 transition-all duration-[0.8s] ease-[cubic-bezier(0.510,0.026,0.368,1.016)] shadow-[inset_1px_2px_5px_#00000080]"
@@ -394,7 +397,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                 Go Next
               </div>
             </button>
-
+            )
           )}
 
         </div>
