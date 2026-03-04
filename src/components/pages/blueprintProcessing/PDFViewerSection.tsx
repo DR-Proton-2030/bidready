@@ -366,7 +366,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
           <button
             onClick={onBack}
             title="Back to Upload"
-            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 hover:text-gray-900 transition-all border border-gray-300 active:scale-95"
+            className="flex items-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 hover:text-gray-900 transition-all border border-gray-300 active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="text-xs font-bold uppercase tracking-wider">Cancel</span>
@@ -379,12 +379,12 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Finalizing...</span>
+                <span className="text-md font-bold text-amber-800 ">Uploading Imgaes to server...</span>
               </div>
             ) : (
               <button
                 onClick={handleNextClick}
-                className="group relative flex items-center justify-center pl-6 pr-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 shadow-lg shadow-orange-500/20 active:scale-95"
+                className="group relative flex items-center justify-center pl-6 pr-5 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 shadow-lg shadow-orange-500/20 active:scale-95"
               >
                 Go Next
                 <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -442,9 +442,9 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                       if (!isNaN(from)) externalPDFHook?.reorderPages?.(from - 1, p.pageNumber - 1);
                     }}
                     className={`
-                      group relative rounded-2xl transition-all duration-300 border overflow-hidden
+                      group relative rounded-2xl transition-all duration-300  overflow-hidden
                       ${isActive
-                        ? "bg-blue-50 border-blue-300 shadow-lg shadow-blue-200"
+                        ? "bg-blue-50 border-blue-300 shadow-lg shadow-gray-300"
                         : "bg-gray-50 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
                       }
                     `}
@@ -454,10 +454,10 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                       className="flex flex-col w-full text-left"
                     >
                       {/* Thumbnail Container */}
-                      <div className="relative aspect-[3/4] w-full bg-gray-100 p-3">
+                      <div className="relative  w-full bg-gray-100 p-3">
                         <div className={`
-                          w-full h-full rounded-lg overflow-hidden border transition-all duration-300
-                          ${isActive ? "border-blue-400 shadow-lg" : "border-gray-300 group-hover:border-blue-300"}
+                          w-full h-full rounded-lg overflow-hidden  transition-all duration-300
+                          ${isActive ? "border-orange-400 shadow-lg" : "border-gray-300 group-hover:border-blue-300"}
                         `}>
                           <img
                             src={p.thumbnailUrl || p.dataUrl}
@@ -469,7 +469,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                         {/* Page Number Badge */}
                         <div className={`
                           absolute top-5 left-5 px-2.5 py-1 rounded-lg text-[10px] font-black backdrop-blur-md border
-                          ${isActive ? "bg-blue-600 text-white border-blue-700" : "bg-gray-200 text-gray-800 border-gray-300"}
+                          ${isActive ? "bg-orange-600 text-white" : "bg-black/80 text-gray-300 "}
                         `}>
                           #{p.pageNumber}
                         </div>
@@ -482,14 +482,12 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                         )}
                       </div>
 
-                      <div className="px-4 py-3 flex items-center justify-between bg-gray-50">
+                      <div className="px-4 py-1 flex items-center justify-between bg-gray-50">
                         <div className="flex flex-col">
                           <span className={`text-[11px] font-bold tracking-tight transition-colors ${isActive ? "text-blue-600" : "text-gray-900 group-hover:text-gray-700"}`}>
                             SHEET {p.pageNumber}
                           </span>
-                          <span className="text-[9px] font-medium text-gray-600 group-hover:text-gray-700 transition-colors uppercase tracking-wider">
-                            3024 x 2160 px
-                          </span>
+                         
                         </div>
 
                         <button

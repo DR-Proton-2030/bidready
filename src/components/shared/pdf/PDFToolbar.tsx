@@ -116,6 +116,8 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
           ))}
         </div>
 
+     
+
         {/* Right Side Controls */}
         <div className="flex items-center gap-3">
        
@@ -194,14 +196,15 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             </button>
           </div>
 
+         
 
         </div>
       </div>
 
       {/* Secondary Toolbar - Tool Settings */}
-      <div className="flex items-center justify-between gap-6 px-8 py-3 bg-gray-200 border-t border-gray-100 flex-wrap">
+      <div className="flex items-center justify-between gap-6 px-8 py-2 bg-gray-200  flex-wrap overflow-visible">
         {/* Color Picker */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 relative z-40">
           <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Color:</span>
           <div className="flex gap-2 items-center">
             {presetColors.map((color) => (
@@ -233,7 +236,10 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               </button>
 
               {showColorPicker && (
-                <div className="absolute top-full mt-2 left-0 z-50 bg-black/90 rounded-xl shadow-xl border border-gray-600 p-3">
+                <div className="fixed z-[9999] bg-black/90 rounded-xl shadow-2xl border border-gray-600 p-3" style={{
+                  top: '220px',
+                  left: '620px'
+                }}>
                   <HexColorPicker color={toolColor} onChange={onColorChange} />
                   <div className="mt-3 text-center">
                     <input
@@ -249,10 +255,10 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             </div>
           </div>
         </div>
-<div className="flex items-center gap-6">
 
-
-        {/* Width/Size Controls */}
+       
+ <div className="flex align-items-center gap-3">
+   {/* Width/Size Controls */}
         {(selectedTool === "pen" ||
           selectedTool === "highlighter" ||
           selectedTool === "eraser" ||
@@ -275,7 +281,37 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               </div>
             </div>
           )}
-
+    {/* History Controls */}
+        <div className="flex items-center gap-2 p-1 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
+          <button
+            onClick={onUndo}
+            disabled={!canUndo}
+            className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
+            title="Undo"
+          >
+            <Undo size={18} />
+          </button>
+          <button
+            onClick={onRedo}
+            disabled={!canRedo}
+            className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
+            title="Redo"
+          >
+            <Redo size={18} />
+          </button>
+        </div>
+         {/* Export Button */}
+          {showExportButton && (
+            <button
+              onClick={onExport}
+              className="px-4 py-1 bg-green-600 hover:bg-green-700 text-white rounded-xl font-medium
+               text-sm transition-colors border border-green-500 hover:border-green-400 flex items-center gap-2"
+              title={exportButtonText}
+            >
+              <Download size={18} />
+              <span>{exportButtonText}</span>
+            </button>
+          )}
         {/* Font Size Control */}
         {selectedTool === "text" && (
           <div className="flex items-center gap-3">
@@ -291,41 +327,10 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               />
               <span className="text-xs font-mono font-bold text-blue-400 min-w-[40px]">{fontSize}px</span>
             </div>
+            
           </div>
         )}
-           {/* History Controls */}
-          <div className="flex items-center gap-2 p-2 bg-black/80 rounded-2xl ">
-            <button
-              onClick={onUndo}
-              disabled={!canUndo}
-              className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
-              title="Undo"
-            >
-              <Undo size={18} />
-            </button>
-            <div className="w-px h-6 bg-gray-500"></div>
-            <button
-              onClick={onRedo}
-              disabled={!canRedo}
-              className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
-              title="Redo"
-            >
-              <Redo size={18} />
-            </button>
-          </div>
-                    {/* Export */}
-          {showExportButton && (
-            <div
-              onClick={onExport}
-                 className="px-6 py-4 rounded-2xl gap-3 bg-black/80 flex text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
-            
-              title="Export PDF"
-            >
-              <Download size={18} />
-              <span className="text-sm font-semibold hidden sm:inline">{exportButtonText}</span>
-            </div>
-          )}
-          </div>
+ </div>
       </div>
     </div>
   );
