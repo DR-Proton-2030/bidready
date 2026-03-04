@@ -113,13 +113,13 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
     };
 
     const blob = await exportPDF(options);
-    
+
     if (blob) {
       // If custom export handler provided, use it
       if (customOnExport) {
         await customOnExport(blob, state.pages);
       }
-      
+
       // Also call onPagesChange if provided (backward compatibility)
       if (onPagesChange) {
         const fileName = file?.name.replace(".pdf", "_annotated.pdf") || "annotated.pdf";
@@ -146,14 +146,16 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 bg-gray-50 rounded-lg">
-        <Loader2 size={64} className="text-blue-500 animate-spin mb-4" />
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">
-          Loading PDF...
-        </h3>
-        <p className="text-sm text-gray-500">
-          Please wait while we process your file
-        </p>
+      <div className="flex flex-col items-center justify-center h-[80vh] rounded-lg">
+        <div className="spinner">
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        <div className="mt-6">Processing your PDF. Please wait...</div>
       </div>
     );
   }
@@ -242,13 +244,13 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
             onAddShape={(shape) => addShape(state.currentPage, shape)}
             onAddText={(text) => addText(state.currentPage, text)}
             onUpdateText={(textId, updates) => updateText(state.currentPage, textId, updates)}
-            onAnnotationSelect={() => {}}
+            onAnnotationSelect={() => { }}
             onSaveEdits={(payload) => {
-              try { console.log("PDFHandler: onSaveEdits", payload); } catch {}
+              try { console.log("PDFHandler: onSaveEdits", payload); } catch { }
               try { onSaveEdits?.(payload); } catch (err) { console.warn("onSaveEdits parent handler failed", err); }
             }}
             onCanvasEdit={(pageId, image) => {
-              try { console.log("PDFHandler: onCanvasEdit", { pageId, type: image instanceof Blob ? "Blob" : "DataURL", size: image instanceof Blob ? image.size : String(image).length }); } catch {}
+              try { console.log("PDFHandler: onCanvasEdit", { pageId, type: image instanceof Blob ? "Blob" : "DataURL", size: image instanceof Blob ? image.size : String(image).length }); } catch { }
               // Bubble up to parent if provided
               try {
                 onCanvasEdit?.(pageId, image);
