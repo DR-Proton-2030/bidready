@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { PageHeader, BlueprintCard, BlueprintListItem } from "@/components/shared";
-import { Search, LayoutGrid, List } from "lucide-react";
+import { Search, LayoutGrid, List, Plus } from "lucide-react";
+import Link from "next/link";
 import { BluePrint } from "@/@types/interface/blueprint.interface";
 import { BLUEPRINTS_TEXT } from "@/constants/blueprints/blueprints.constant";
 
@@ -60,7 +61,6 @@ const Blueprints: React.FC<{ data?: BluePrint[] }> = ({ data }) => {
     <div className="space-y-6 px-16 pt-10 bg-gradient-to-br from-slate-100 to-slate-200 min-h-[calc(100vh-64px)]">
       <PageHeader
         title={BLUEPRINTS_TEXT.pageTitle}
-        buttonText={BLUEPRINTS_TEXT.newBlueprintButton}
         link="/create-blueprint"
       />
 
@@ -78,28 +78,37 @@ const Blueprints: React.FC<{ data?: BluePrint[] }> = ({ data }) => {
           />
         </div>
 
-        {/* View Toggle */}
-        <div className="flex items-center gap-1 bg-white/60 p-1 rounded-xl border border-white/60">
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === 'grid'
-              ? 'bg-white shadow-sm text-primary ring-1 ring-black/5'
-              : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
-              }`}
-            title="Grid View"
+        {/* View Toggle + New Blueprint */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-white/60 p-1 rounded-xl border border-white/60">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === 'grid'
+                ? 'bg-white shadow-sm text-primary ring-1 ring-black/5'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+                }`}
+              title="Grid View"
+            >
+              <LayoutGrid className="w-5 h-5" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === 'list'
+                ? 'bg-white shadow-sm text-primary ring-1 ring-black/5'
+                : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+                }`}
+              title="List View"
+            >
+              <List className="w-5 h-5" />
+            </button>
+          </div>
+          <Link
+            href="/create-blueprint"
+            className="bg-primary cursor-pointer flex gap-2 items-center text-white pl-3 pr-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition-all"
           >
-            <LayoutGrid className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === 'list'
-              ? 'bg-white shadow-sm text-primary ring-1 ring-black/5'
-              : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
-              }`}
-            title="List View"
-          >
-            <List className="w-5 h-5" />
-          </button>
+            <Plus className="w-5 h-5" />
+            {BLUEPRINTS_TEXT.newBlueprintButton}
+          </Link>
         </div>
       </div>
 

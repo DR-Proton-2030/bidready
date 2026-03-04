@@ -39,6 +39,7 @@
     "puppeteer": "^24.26.1",
     "react": "19.1.0",
     "react-apexcharts": "^1.8.0",
+    "react-colorful": "^5.6.1",
     "react-dom": "19.1.0",
     "react-pdf": "^10.2.0",
     "react-toastify": "^11.0.5",

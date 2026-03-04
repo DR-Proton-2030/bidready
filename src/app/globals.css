@@ -426,3 +426,56 @@
 .orangeimg {
   filter: invert(52%) sepia(67%) saturate(2038%) hue-rotate(350deg) brightness(105%) contrast(102%);
 }
+
+/* React Colorful Customization */
+.react-colorful {
+  width: 200px;
+  height: auto;
+}
+
+.react-colorful__saturation {
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 8px;
+}
+
+.react-colorful__hue {
+  border-radius: 6px;
+  height: 24px;
+  margin-bottom: 8px;
+}
+
+.react-colorful__interactive {
+  border-radius: 6px;
+}
+
+.react-colorful__pointer {
+  border: 3px solid white;
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+}
+
+.react-colorful__alpha {
+  border-radius: 6px;
+}
+
+.react-colorful__hue-pointer,
+.react-colorful__alpha-pointer {
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+}
+
+/* Color picker input styling */
+.react-colorful__input {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.react-colorful__input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}

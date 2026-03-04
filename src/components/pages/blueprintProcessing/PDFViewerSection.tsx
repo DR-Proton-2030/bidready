@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PDFHandler from "@/components/shared/pdf/PDFHandler";
-import { FileText, ArrowLeft, Download, Delete, Trash } from "lucide-react";
+import { FileText, ArrowLeft, Download, Delete, Trash, ArrowRight, Loader2, Save } from "lucide-react";
 import useBulkImageUpload from "@/hooks/useBulkImageUpload";
 
 interface PDFViewerSectionProps {
@@ -320,106 +320,109 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-gray-900">
+    <div className="fixed inset-0 z-[9999] bg-gradient-to-br from-gray-50 to-white flex flex-col font-sans overflow-hidden">
       {/* Top toolbar/header */}
-      <div className="flex items-center justify-between h-16 px-4 bg-white/5 backdrop-blur border-b border-white/6">
-        <div className="flex items-center gap-3">
-          <FileText className="w-6 h-6 text-white" />
-          <div className="text-white">
-            <div className="font-semibold">{blueprintName}</div>
-            <div className="text-xs opacity-80">PDF Annotation Mode</div>
+      <div className="flex items-center justify-between h-16 px-6 bg-white border-b border-gray-200 shadow-sm z-20">
+        <div className="flex items-center gap-4">
+          <div className="p-2.5 bg-blue-100 rounded-xl border border-blue-200">
+            <FileText className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <div className="text-sm font-bold text-gray-900 tracking-tight">{blueprintName}</div>
+            <div className="text-[10px] font-medium text-gray-600 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></span>
+              PDF Annotation Mode
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {loadingProgress && loadingProgress.loaded < loadingProgress.total && (
-            <div className="text-sm text-white mr-4">
-              {loadingProgress.loaded} / {loadingProgress.total} • {Math.round((loadingProgress.loaded / loadingProgress.total) * 100)}%
+            <div className="hidden md:flex flex-col items-end mr-2">
+              <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Loading Pages</div>
+              <div className="flex items-center gap-2">
+                <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-600 transition-all duration-300" 
+                    style={{ width: `${Math.round((loadingProgress.loaded / loadingProgress.total) * 100)}%` }}
+                  ></div>
+                </div>
+                <span className="text-xs font-mono text-gray-900">
+                  {Math.round((loadingProgress.loaded / loadingProgress.total) * 100)}%
+                </span>
+              </div>
             </div>
           )}
 
           {hasAnnotations && (
-            <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-600 text-white mr-2">
-              <Download className="w-4 h-4 mr-1" />
-              Annotations Saved
+            <div className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <Download className="w-3.5 h-3.5 mr-2" />
+              ANNOTATIONS SAVED
             </div>
           )}
 
+          <div className="h-8 w-px bg-gray-200 mx-1"></div>
+
           <button
             onClick={onBack}
-            title="Back"
-            className="px-3 py-3 bg-white/6 text-white rounded-full hover:bg-white/10"
+            title="Back to Upload"
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 hover:text-gray-900 transition-all border border-gray-300 active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
+            <span className="text-xs font-bold uppercase tracking-wider">Cancel</span>
           </button>
+
           {blueprintId && (
             isProcessing ? (
-              <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/20 border border-amber-400/40 rounded-full">
-                <svg className="animate-spin h-4 w-4 text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <div className="flex items-center gap-3 px-5 py-2.5 bg-amber-100 border border-amber-300 rounded-xl shadow-lg shadow-amber-200">
+                <svg className="animate-spin h-4 w-4 text-amber-700" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                <span className="text-sm font-medium text-amber-300">Uploading images to Server...</span>
+                <span className="text-xs font-bold text-amber-800 uppercase tracking-wider">Finalizing...</span>
               </div>
             ) : (
-            <button
-              onClick={handleNextClick}
-              className="cursor-pointer relative bg-white/10 py-2 rounded-full min-w-[8.5rem] min-h-[2.92rem] group max-w-full flex items-center justify-start hover:bg-orange-400 transition-all duration-[0.8s] ease-[cubic-bezier(0.510,0.026,0.368,1.016)] shadow-[inset_1px_2px_5px_#00000080]"
-            >
-              <div className="absolute flex px-1 py-0.5 justify-start items-center inset-0">
-                <div
-                  className="w-[0%] group-hover:w-full transition-all duration-[1s] ease-[cubic-bezier(0.510,0.026,0.368,1.016)]"
-                ></div>
-                <div
-                  className="rounded-full shrink-0 flex justify-center items-center shadow-[inset_1px_-1px_3px_0_black] h-full aspect-square bg-orange-400 transition-all duration-[1s] ease-[cubic-bezier(0.510,0.026,0.368,1.016)] group-hover:bg-black"
-                >
-                  <div
-                    className="size-[0.8rem] text-black group-hover:text-white group-hover:-rotate-45 transition-all duration-[1s] ease-[cubic-bezier(0.510,0.026,0.368,1.016)]"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 16 16"
-                      height="100%"
-                      width="100%"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M12.175 9H0V7H12.175L6.575 1.4L8 0L16 8L8 16L6.575 14.6L12.175 9Z"
-                      ></path>
-                    </svg>
-                  </div>
-                </div>
-              </div>
-              <div
-                className="pl-[3.4rem] pr-[1.1rem] group-hover:pl-[1.1rem] group-hover:pr-[3.4rem] transition-all duration-[1s] ease-[cubic-bezier(0.510,0.026,0.368,1.016)] group-hover:text-black text-white"
+              <button
+                onClick={handleNextClick}
+                className="group relative flex items-center justify-center pl-6 pr-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all duration-300 shadow-lg shadow-orange-500/20 active:scale-95"
               >
                 Go Next
-              </div>
-            </button>
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </button>
             )
           )}
-
         </div>
       </div>
 
       {/* Main area: thumbnails + canvas */}
-      <div className="flex h-[calc(100vh-4rem)]">
-        {/* Left thumbnails */}
-        <div className="w-72 bg-white/5 border-r border-white/6 overflow-auto flex flex-col">
-          {/* Keep small header spacing */}
-          <div className="px-3 pb-2">
-            <div className="text-xs text-white/70">Pages ({loadingProgress?.loaded || 0}/{loadingProgress?.total || '–'})</div>
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Left thumbnails Sidebar */}
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col z-10">
+          <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+            <div>
+              <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Navigation</div>
+              <div className="text-xs font-bold text-gray-900">
+                {loadingProgress?.loaded || 0} / {loadingProgress?.total || '–'} Pages
+              </div>
+            </div>
+            
+            <button
+              onClick={handleSaveClick}
+              disabled={saving || editCanvasArray.length === 0}
+              className={`
+                px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2
+                ${saving || editCanvasArray.length === 0
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300"
+                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 border border-blue-700 active:scale-95"
+                }
+              `}
+            >
+              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
+              {saving ? "Saving" : "Apply Edits"}
+            </button>
           </div>
-          <button
-            onClick={handleSaveClick}
-            title="Save annotations"
-            className="px-3 py-2 bg-white/6 text-white rounded hover:bg-white/10 inline-flex items-center gap-2"
-          >
-            {saving ? "Saving..." : "SAVE"}
-          </button>
-          <div className="flex-1 overflow-auto px-3 pb-4 space-y-3">
-            {/* Render thumbnails from external hook if available */}
+
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar bg-white">
             {externalPDFHook && externalPDFHook.state?.pages?.length ? (
               externalPDFHook.state.pages.map((p: any, idx: number) => {
                 const isActive = externalPDFHook.state.currentPage === p.pageNumber;
@@ -439,91 +442,97 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                       if (!isNaN(from)) externalPDFHook?.reorderPages?.(from - 1, p.pageNumber - 1);
                     }}
                     className={`
-    group flex items-center justify-between gap-3 w-full
-    p-2 rounded-xl mt-3 backdrop-blur 
-    transition-all border cursor-grab
-    ${isActive
-                        ? "bg-white/15 border-blue-500 ring-2 ring-blue-400 shadow-lg shadow-blue-500/20"
-                        : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/30 hover:shadow-md hover:shadow-white/10"
+                      group relative rounded-2xl transition-all duration-300 border overflow-hidden
+                      ${isActive
+                        ? "bg-blue-50 border-blue-300 shadow-lg shadow-blue-200"
+                        : "bg-gray-50 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
                       }
-    active:cursor-grabbing
-  `}
+                    `}
                   >
                     <button
                       onClick={() => externalPDFHook.setCurrentPage(p.pageNumber)}
-                      className="flex items-center gap-3 w-full text-left"
+                      className="flex flex-col w-full text-left"
                     >
-                      {/* Thumbnail */}
-                      <div className="
-      w-16 h-22 rounded-lg overflow-hidden border transition-all 
-      bg-black/30 border-white/10 shadow-sm
-      group-hover:border-blue-400 group-hover:shadow-blue-400/20 group-hover:shadow
-    ">
-                        <img
-                          src={p.thumbnailUrl || p.dataUrl}
-                          alt={`Page ${p.pageNumber}`}
-                          className="object-cover w-full h-full"
-                        />
-                      </div>
-
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-white">
-                          Page {p.pageNumber}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-white/50 group-hover:text-white/80 transition">
-                            Drag to reorder
-                          </span>
-                          {p.imageId && (
-                            <span title={p.imageId} className="text-[11px] text-white/40 italic">
-                              ID: {String(p.imageId).slice(0, 8)}
-                            </span>
-                          )}
+                      {/* Thumbnail Container */}
+                      <div className="relative aspect-[3/4] w-full bg-gray-100 p-3">
+                        <div className={`
+                          w-full h-full rounded-lg overflow-hidden border transition-all duration-300
+                          ${isActive ? "border-blue-400 shadow-lg" : "border-gray-300 group-hover:border-blue-300"}
+                        `}>
+                          <img
+                            src={p.thumbnailUrl || p.dataUrl}
+                            alt={`Page ${p.pageNumber}`}
+                            className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
+                          />
                         </div>
-                      </div>
-                    </button>
+                        
+                        {/* Page Number Badge */}
+                        <div className={`
+                          absolute top-5 left-5 px-2.5 py-1 rounded-lg text-[10px] font-black backdrop-blur-md border
+                          ${isActive ? "bg-blue-600 text-white border-blue-700" : "bg-gray-200 text-gray-800 border-gray-300"}
+                        `}>
+                          #{p.pageNumber}
+                        </div>
 
-                    {/* Delete button */}
-                    <button
-                      title="Delete Page"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!confirm(`Delete page ${p.pageNumber}?`)) return;
-                        externalPDFHook?.deletePage?.(p.pageNumber);
-                      }}
-                      className="
-      p-2 rounded-lg transition
-      text-red-400 hover:text-white
-      hover:bg-red-500/20 active:bg-red-500/40
-    "
-                    >
-                      <Trash size={18} />
+                        {/* ID Badge (Optional) */}
+                        {p.imageId && (
+                          <div className="absolute bottom-5 right-5 px-2 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[8px] font-mono text-gray-700 border border-gray-300">
+                            {String(p.imageId).slice(-6)}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="px-4 py-3 flex items-center justify-between bg-gray-50">
+                        <div className="flex flex-col">
+                          <span className={`text-[11px] font-bold tracking-tight transition-colors ${isActive ? "text-blue-600" : "text-gray-900 group-hover:text-gray-700"}`}>
+                            SHEET {p.pageNumber}
+                          </span>
+                          <span className="text-[9px] font-medium text-gray-600 group-hover:text-gray-700 transition-colors uppercase tracking-wider">
+                            3024 x 2160 px
+                          </span>
+                        </div>
+
+                        <button
+                          title="Delete Page"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!confirm(`Delete page ${p.pageNumber}?`)) return;
+                            externalPDFHook?.deletePage?.(p.pageNumber);
+                          }}
+                          className="p-2 mr-[-4px] rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-100 transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
                     </button>
                   </div>
-
-
                 );
               })
             ) : (
-              <div className="text-sm text-white/60">No pages yet</div>
+              <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-gray-100 rounded-3xl border border-gray-300 border-dashed">
+                <div className="w-12 h-12 bg-gray-200 rounded-2xl flex items-center justify-center mb-4 border border-gray-300">
+                  <FileText className="w-6 h-6 text-gray-500" />
+                </div>
+                <div className="text-xs font-bold text-gray-600 uppercase tracking-widest">No pages available</div>
+              </div>
             )}
           </div>
         </div>
 
         {/* Center editing area */}
-        <div className="flex-1 bg-gray-800 overflow-hidden flex flex-col">
+        <div className="flex-1 bg-gray-50 flex flex-col relative">
+          {/* Subtle noise/gradient overlay for high-end look */}
+          <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-gray-100/50"></div>
 
-
-          <div className="flex-1 overflow-auto">
-            <div className="h-full ">
-              <div className="h-full bg-white rounded shadow-lg overflow-hidden">
+          <div className="flex-1 overflow-hidden relative">
+            <div className="absolute inset-4 bg-white rounded-3xl border border-gray-300 overflow-hidden shadow-lg">
+              <div className="h-full bg-gray-50 backdrop-blur-none">
                 <PDFHandler
                   file={pdfFile}
                   onPagesChange={handlePDFExport}
                   onError={handleError}
                   externalPDFHook={externalPDFHook}
                   onCanvasEdit={(pageId, image) => {
-                    // PDFHandler/PDFCanvasViewer provide pageId as number; coerce to string
                     addCanvasEdit(String(pageId), image);
                   }}
                   onSaveEdits={handleSaveEdits}
@@ -532,8 +541,27 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
               </div>
             </div>
           </div>
+          
+          {/* Bottom status indicator (Optional) */}
+          
         </div>
       </div>
+
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(0, 0, 0, 0.05);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.3);
+        }
+      `}</style>
     </div>
   );
 };

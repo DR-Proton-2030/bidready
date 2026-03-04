@@ -187,7 +187,7 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg overflow-hidden relative">
+      <div className="flex flex-col h-full bg-white rounded-lg shadow-lg overflow-hidden relative">
       {/* Toolbar */}
       <PDFToolbar
         selectedTool={state.selectedTool}
