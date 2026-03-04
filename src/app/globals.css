@@ -17,76 +17,157 @@
   --color-orange-700: #c2410c;
 }
 
+/* From Uiverse.io by AqFox */
+.spinner {
+  width: 44px;
+  height: 44px;
+  animation: spinner-y0fdc1 2s infinite ease;
+  transform-style: preserve-3d;
+}
+
+.spinner>div {
+  background-color: rgba(255, 115, 0, 0.2);
+  height: 100%;
+  position: absolute;
+  width: 100%;
+  border: 2px solid #ff8800;
+}
+
+.spinner div:nth-of-type(1) {
+  transform: translateZ(-22px) rotateY(180deg);
+}
+
+.spinner div:nth-of-type(2) {
+  transform: rotateY(-270deg) translateX(50%);
+  transform-origin: top right;
+}
+
+.spinner div:nth-of-type(3) {
+  transform: rotateY(270deg) translateX(-50%);
+  transform-origin: center left;
+}
+
+.spinner div:nth-of-type(4) {
+  transform: rotateX(90deg) translateY(-50%);
+  transform-origin: top center;
+}
+
+.spinner div:nth-of-type(5) {
+  transform: rotateX(-90deg) translateY(50%);
+  transform-origin: bottom center;
+}
+
+.spinner div:nth-of-type(6) {
+  transform: translateZ(22px);
+}
+
+@keyframes spinner-y0fdc1 {
+  0% {
+    transform: rotate(45deg) rotateX(-25deg) rotateY(25deg);
+  }
+
+  50% {
+    transform: rotate(45deg) rotateX(-385deg) rotateY(25deg);
+  }
+
+  100% {
+    transform: rotate(45deg) rotateX(-385deg) rotateY(385deg);
+  }
+}
+
 @layer base {
   .bg-primary {
     background-color: var(--color-primary);
   }
+
   .bg-primary-hover {
     background-color: var(--color-primary-hover);
   }
+
   .text-primary {
     color: var(--color-primary);
   }
+
   .text-primary-hover {
     color: var(--color-primary-hover);
   }
+
   .text-secondary {
     color: var(--color-secondary);
   }
+
   .text-link {
     color: var(--color-link);
   }
+
   .bg-background {
     background-color: var(--color-background);
   }
+
   .bg-light-background {
     background-color: var(--color-light-background);
   }
+
   .bg-secondary {
     background-color: var(--color-secondary);
   }
+
   .bg-light-secondary {
     background-color: var(--color-light-secondary);
   }
+
   .bg-light-primary {
     background-color: var(--color-light-primary);
   }
+
   .bg-accent {
     background-color: var(--color-accent);
   }
+
   .text-primary {
     color: var(--color-primary);
   }
+
   .text-secondary {
     color: var(--color-secondary);
   }
+
   .text-accent {
     color: var(--color-accent);
   }
+
   .border-primary {
     border-color: var(--color-primary);
   }
+
   .border-secondary {
     border-color: var(--color-secondary);
   }
+
   .border-accent {
     border-color: var(--color-accent);
   }
+
   .border-light-primary {
     border-color: var(--color-light-primary);
   }
+
   .text-orange-50 {
     color: var(--color-orange-50);
   }
+
   .text-orange-100 {
     color: var(--color-orange-100);
   }
+
   .text-orange-700 {
     color: var(--color-orange-700);
   }
+
   .bg-orange-50 {
     background-color: var(--color-orange-50);
   }
+
   .bg-orange-100 {
     background-color: var(--color-orange-100);
   }
@@ -97,30 +178,37 @@
     @apply w-full text-white font-semibold py-2 rounded-md transition flex justify-center gap-2;
     background-color: var(--color-primary);
   }
+
   .btn-secondary {
     @apply w-full text-white font-semibold py-2 rounded-md transition flex items-center gap-2;
     background-color: var(--color-secondary);
   }
+
   .btn-primary:hover {
     background-color: var(--color-primary-hover);
   }
+
   .icon-button {
     @apply p-2 rounded-full transition;
     background-color: var(--color-light-background);
     color: var(--color-primary);
   }
+
   .icon-button:hover {
     background-color: var(--color-light-primary);
   }
+
   .align-middle-items {
     @apply flex items-center justify-center;
   }
+
   .btn-cell {
     @apply py-0 px-4 rounded-md border h-8 flex items-center justify-center transition mt-1;
     background-color: var(--color-light-primary);
     color: var(--color-accent);
     border-color: var(--color-accent);
   }
+
   .btn-cell:hover {
     background-color: var(--color-light-primary);
   }
@@ -129,62 +217,62 @@
   .premium-card {
     @apply bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200;
   }
-  
+
   .sidebar-item {
     @apply flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative;
   }
-  
+
   .sidebar-item.active {
     background-color: var(--color-orange-50);
     color: var(--color-orange-700);
     border-right: 2px solid var(--color-primary);
   }
-  
+
   .sidebar-item:not(.active) {
     @apply text-gray-600 hover:text-gray-900 hover:bg-gray-50;
   }
-  
+
   .glassmorphism {
     background: rgba(255, 255, 255, 0.1);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.2);
   }
-  
+
   .chart-gradient {
     background: linear-gradient(135deg, #f47c20 0%, #ff8c42 100%);
   }
-  
+
   .orange-gradient {
     background: linear-gradient(135deg, #f47c20 0%, #ff8c42 100%);
   }
-  
+
   .orange-gradient-light {
     background: linear-gradient(135deg, #fff7f2 0%, #ffefe0 100%);
   }
-  
+
   .sidebar-gradient {
     background: linear-gradient(135deg, var(--color-primary) 0%, #ff8c42 100%);
   }
-  
+
   .balance-card {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   }
-  
+
   /* Custom scrollbar */
   .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }
@@ -196,51 +284,57 @@
 
   /* Hide scrollbar for IE, Edge and Firefox */
   .no-scrollbar {
-    -ms-overflow-style: none; /* IE and Edge */
-    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
   }
-  
+
   /* Smooth transitions */
   .layout-transition {
     transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   /* Premium Signup Styles */
   .signup-card {
     @apply bg-white rounded-2xl shadow-xl border border-gray-100;
     background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
   }
-  
+
   .step-transition {
     animation: stepFadeIn 0.4s ease-out;
   }
-  
+
   @keyframes stepFadeIn {
     from {
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
-  
+
   .premium-gradient {
     background: linear-gradient(135deg, #f47c20 0%, #ff8c42 25%, #ffb84d 50%, #ff8c42 75%, #f47c20 100%);
     background-size: 300% 300%;
     animation: gradientShift 6s ease infinite;
   }
-  
+
   @keyframes gradientShift {
-    0%, 100% {
+
+    0%,
+    100% {
       background-position: 0% 50%;
     }
+
     50% {
       background-position: 100% 50%;
     }
   }
-  
+
   .floating-elements::before {
     content: '';
     position: absolute;
@@ -252,7 +346,7 @@
     border-radius: 50%;
     animation: float 6s ease-in-out infinite;
   }
-  
+
   .floating-elements::after {
     content: '';
     position: absolute;
@@ -264,30 +358,34 @@
     border-radius: 50%;
     animation: float 4s ease-in-out infinite reverse;
   }
-  
+
   @keyframes float {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0px) rotate(0deg);
     }
+
     50% {
       transform: translateY(-20px) rotate(180deg);
     }
   }
+
   @media (max-width: 1024px) {
     .sidebar-collapsed {
       transform: translateX(-100%);
     }
-    
+
     .sidebar-expanded {
       transform: translateX(0);
     }
   }
-  
+
   /* Tooltip styles */
   .tooltip {
     @apply absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded-md opacity-0 pointer-events-none whitespace-nowrap z-50 transition-opacity duration-200;
   }
-  
+
   .tooltip.show {
     @apply opacity-100;
   }
@@ -298,6 +396,7 @@
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(0);
   }
@@ -308,6 +407,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -323,6 +423,6 @@
 }
 
 
-.orangeimg{
+.orangeimg {
   filter: invert(52%) sepia(67%) saturate(2038%) hue-rotate(350deg) brightness(105%) contrast(102%);
 }

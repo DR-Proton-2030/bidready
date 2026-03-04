@@ -110,11 +110,10 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             <button
               key={tool}
               onClick={() => onToolSelect(tool)}
-              className={`p-2 rounded hover:bg-gray-100 transition-colors ${
-                selectedTool === tool
+              className={`p-2 rounded hover:bg-gray-100 transition-colors ${selectedTool === tool
                   ? "bg-blue-100 text-blue-600 border border-blue-300"
                   : "text-gray-600"
-              }`}
+                }`}
               title={label}
             >
               {icon}
@@ -223,7 +222,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               title="Export PDF"
             >
               <Download size={20} />
-              <span className="text-sm font-medium">{exportButtonText}</span>
+              {/* <span className="text-sm font-medium">{exportButtonText}</span> */}
             </button>
           </div>
         )}
@@ -239,11 +238,10 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               <button
                 key={color}
                 onClick={() => onColorChange(color)}
-                className={`w-8 h-8 rounded border-2 transition-all ${
-                  toolColor === color
+                className={`w-8 h-8 rounded border-2 transition-all ${toolColor === color
                     ? "border-blue-500 scale-110"
                     : "border-gray-300 hover:border-gray-400"
-                }`}
+                  }`}
                 style={{ backgroundColor: color }}
                 title={color}
               />
@@ -266,19 +264,19 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
           selectedTool === "arrow" ||
           selectedTool === "rectangle" ||
           selectedTool === "circle") && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">Width:</span>
-            <input
-              type="range"
-              min="1"
-              max="20"
-              value={toolWidth}
-              onChange={(e) => onWidthChange(Number(e.target.value))}
-              className="w-32"
-            />
-            <span className="text-sm text-gray-600 min-w-[30px]">{toolWidth}px</span>
-          </div>
-        )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Width:</span>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={toolWidth}
+                onChange={(e) => onWidthChange(Number(e.target.value))}
+                className="w-32"
+              />
+              <span className="text-sm text-gray-600 min-w-[30px]">{toolWidth}px</span>
+            </div>
+          )}
 
         {/* Font Size Control */}
         {selectedTool === "text" && (
