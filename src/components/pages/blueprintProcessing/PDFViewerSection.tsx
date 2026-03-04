@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PDFHandler from "@/components/shared/pdf/PDFHandler";
-import { FileText, ArrowLeft, Download, Delete, Trash, ArrowRight, Loader2, Save } from "lucide-react";
+import { FileText, ArrowLeft, Download, ArrowRight, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import useBulkImageUpload from "@/hooks/useBulkImageUpload";
 
 interface PDFViewerSectionProps {
@@ -39,6 +39,7 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
     { pageId: string; image: Blob | string }[]
   >([]);
   const [saving, setSaving] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { uploadBulk, isUploading: isUploadingBulk } = useBulkImageUpload();
 
   // Lock body scroll while the viewer is open (fullscreen experience)
@@ -298,6 +299,10 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
     router.push(url);
   };
 
+  const totalSidebarPages =
+    externalPDFHook?.state?.pages?.length || loadingProgress?.total || 0;
+  const currentSidebarPage = externalPDFHook?.state?.currentPage || 1;
+
   if (!pdfFile) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
@@ -394,37 +399,39 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
         </div>
       </div>
 
-      {/* Main area: thumbnails + canvas */}
+      {/* Main area: sidebar + canvas */}
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Left thumbnails Sidebar */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col z-10">
-          <div className="p-5 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-            <div>
-              <div className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-1">Navigation</div>
-              <div className="text-xs font-bold text-gray-900">
-                {loadingProgress?.loaded || 0} / {loadingProgress?.total || '–'} Pages
-              </div>
-            </div>
-            
-            <button
-              onClick={handleSaveClick}
-              disabled={saving || editCanvasArray.length === 0}
-              className={`
-                px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2
-                ${saving || editCanvasArray.length === 0
-                  ? "bg-gray-200 text-gray-500 cursor-not-allowed border border-gray-300"
-                  : "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 border border-blue-700 active:scale-95"
-                }
-              `}
-            >
-              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
-              {saving ? "Saving" : "Apply Edits"}
-            </button>
-          </div>
+        {/* Left bookmarks Sidebar */}
+        <div
+          className={`
+            ${isSidebarCollapsed ? "w-14" : "w-56"}
+            bg-[#f7f8fb] border-r border-gray-300 flex flex-col z-10 relative transition-all duration-300 ease-in-out
+          `}
+        >
+          
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar bg-white">
+          {!isSidebarCollapsed && (
+            <div className="px-3 py-2 border-b border-gray-200 bg-white">
+              <button
+                onClick={handleSaveClick}
+                disabled={saving}
+                className={`
+                  w-full h-8 rounded-md border text-xs font-semibold transition-colors flex items-center justify-center gap-1.5
+                  ${saving
+                    ? "bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed"
+                    : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+                  }
+                `}
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                {saving ? "Saving..." : "Apply Edits"}
+              </button>
+            </div>
+          )}
+
+          <div className={`flex-1 overflow-y-auto custom-scrollbar ${isSidebarCollapsed ? "py-2 px-1" : "py-3 px-3"}`}>
             {externalPDFHook && externalPDFHook.state?.pages?.length ? (
-              externalPDFHook.state.pages.map((p: any, idx: number) => {
+              externalPDFHook.state.pages.map((p: any) => {
                 const isActive = externalPDFHook.state.currentPage === p.pageNumber;
 
                 return (
@@ -441,77 +448,45 @@ const PDFViewerSection: React.FC<PDFViewerSectionProps> = ({
                       const from = Number(e.dataTransfer?.getData("text/plain"));
                       if (!isNaN(from)) externalPDFHook?.reorderPages?.(from - 1, p.pageNumber - 1);
                     }}
-                    className={`
-                      group relative rounded-2xl transition-all duration-300  overflow-hidden
-                      ${isActive
-                        ? "bg-blue-50 border-blue-300 shadow-lg shadow-gray-300"
-                        : "bg-gray-50 border-gray-200 hover:border-gray-300 hover:bg-gray-100"
-                      }
-                    `}
+                    className={isSidebarCollapsed ? "mb-2" : "mb-4"}
                   >
-                    <button
-                      onClick={() => externalPDFHook.setCurrentPage(p.pageNumber)}
-                      className="flex flex-col w-full text-left"
-                    >
-                      {/* Thumbnail Container */}
-                      <div className="relative  w-full bg-gray-100 p-3">
-                        <div className={`
-                          w-full h-full rounded-lg overflow-hidden  transition-all duration-300
-                          ${isActive ? "border-orange-400 shadow-lg" : "border-gray-300 group-hover:border-blue-300"}
-                        `}>
+                    {isSidebarCollapsed ? (
+                      <button
+                        onClick={() => externalPDFHook.setCurrentPage(p.pageNumber)}
+                        className={`w-10 h-10 mx-auto rounded-lg border text-xs font-bold transition-colors ${isActive ? "bg-blue-600 border-blue-700 text-white" : "bg-white border-gray-300 text-gray-600 hover:border-blue-400"}`}
+                        title={`Page ${p.pageNumber}`}
+                      >
+                        {p.pageNumber}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => externalPDFHook.setCurrentPage(p.pageNumber)}
+                        className="w-full text-left"
+                      >
+                        <div className={`relative rounded-md overflow-hidden border bg-white ${isActive ? "border-blue-500 shadow-sm" : "border-gray-300 hover:border-blue-400"}`}>
                           <img
                             src={p.thumbnailUrl || p.dataUrl}
                             alt={`Page ${p.pageNumber}`}
-                            className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-110"
+                            className="w-full h-24 object-cover"
                           />
-                        </div>
-                        
-                        {/* Page Number Badge */}
-                        <div className={`
-                          absolute top-5 left-5 px-2.5 py-1 rounded-lg text-[10px] font-black backdrop-blur-md border
-                          ${isActive ? "bg-orange-600 text-white" : "bg-black/80 text-gray-300 "}
-                        `}>
-                          #{p.pageNumber}
-                        </div>
-
-                        {/* ID Badge (Optional) */}
-                        {p.imageId && (
-                          <div className="absolute bottom-5 right-5 px-2 py-0.5 rounded bg-white/80 backdrop-blur-sm text-[8px] font-mono text-gray-700 border border-gray-300">
-                            {String(p.imageId).slice(-6)}
+                          <div className={`absolute top-1.5 right-1.5 w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${isActive ? "bg-blue-600 text-white" : "bg-gray-300 text-gray-700"}`}>
+                            {p.pageNumber}
                           </div>
-                        )}
-                      </div>
-
-                      <div className="px-4 py-1 flex items-center justify-between bg-gray-50">
-                        <div className="flex flex-col">
-                          <span className={`text-[11px] font-bold tracking-tight transition-colors ${isActive ? "text-blue-600" : "text-gray-900 group-hover:text-gray-700"}`}>
-                            SHEET {p.pageNumber}
-                          </span>
-                         
                         </div>
-
-                        <button
-                          title="Delete Page"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!confirm(`Delete page ${p.pageNumber}?`)) return;
-                            externalPDFHook?.deletePage?.(p.pageNumber);
-                          }}
-                          className="p-2 mr-[-4px] rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-100 transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash size={14} />
-                        </button>
-                      </div>
-                    </button>
+                        <div className="mt-1 text-xs text-gray-600 text-center">Page {p.pageNumber} of {totalSidebarPages || 0}</div>
+                      </button>
+                    )}
                   </div>
                 );
               })
             ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-center p-8 bg-gray-100 rounded-3xl border border-gray-300 border-dashed">
+              <div className={`flex flex-col items-center justify-center ${isSidebarCollapsed ? "h-40 px-2" : "h-64 p-8 mx-3 my-3"} text-center bg-gray-100 rounded-3xl border border-gray-300 border-dashed`}>
                 <div className="w-12 h-12 bg-gray-200 rounded-2xl flex items-center justify-center mb-4 border border-gray-300">
                   <FileText className="w-6 h-6 text-gray-500" />
                 </div>
-                <div className="text-xs font-bold text-gray-600 uppercase tracking-widest">No pages available</div>
+                {!isSidebarCollapsed && (
+                  <div className="text-xs font-bold text-gray-600 uppercase tracking-widest">No pages available</div>
+                )}
               </div>
             )}
           </div>

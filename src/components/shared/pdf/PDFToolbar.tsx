@@ -97,14 +97,14 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
   return (
     <div className="bg-white border-b border-gray-200 shadow-md overflow-x-auto">
       {/* Main Toolbar */}
-      <div className="flex items-center justify-between px-6 py-4 gap-4">
+      <div className="flex items-center justify-between px-6 py-2 gap-4">
         {/* Drawing Tools */}
         <div className="flex items-center gap-2 p-2 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
           {tools.map(({ tool, icon, label }) => (
             <button
               key={tool}
               onClick={() => onToolSelect(tool)}
-              className={`p-2.5 rounded-lg transition-all duration-200 flex items-center justify-center font-medium text-sm ${
+              className={`p-1 rounded-lg transition-all duration-200 flex items-center justify-center font-medium text-sm ${
                 selectedTool === tool
                   ? "bg-orange-600 text-white shadow-lg "
                   : "text-gray-300 hover:text-white hover:bg-white/10 border-2 border-transparent"
@@ -123,14 +123,14 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
        
 
           {/* Zoom Controls */}
-          <div className="flex items-center gap-2 p-2 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-2 p-1 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
             <button
               onClick={() => onZoomChange(zoom - 0.25)}
               disabled={zoom <= 0.5}
               className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
               title="Zoom Out"
             >
-              <ZoomOut size={18} />
+              <ZoomOut size={16} />
             </button>
             <div className="px-3 text-xs font-bold text-white min-w-[50px] text-center">
               {Math.round(zoom * 100)}%
@@ -141,19 +141,19 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
               title="Zoom In"
             >
-              <ZoomIn size={18} />
+              <ZoomIn size={16} />
             </button>
           </div>
 
           {/* Page Navigation */}
-          <div className="flex items-center gap-2 p-2 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-2 p-1 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
             <button
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage <= 1}
               className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
               title="Previous Page"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
             <div className="px-2">
               <span className="text-xs font-bold text-white">{currentPage}</span>
@@ -166,18 +166,18 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
               title="Next Page"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </button>
           </div>
 
           {/* Page Actions */}
-          <div className="flex items-center gap-2 p-2 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
+          <div className="flex items-center gap-2 p-1 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
             <button
               onClick={onRotatePage}
               className="p-2 rounded-lg text-gray-300 hover:text-blue-400 hover:bg-blue-500/10 transition-colors border-2 border-transparent hover:border-blue-400"
               title="Rotate Page"
             >
-              <RotateCw size={18} />
+              <RotateCw size={16} />
             </button>
             <button
               onClick={onDeletePage}
@@ -185,14 +185,14 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               className="p-2 rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-red-400"
               title="Delete Page"
             >
-              <Trash2 size={18} />
+              <Trash2 size={16} />
             </button>
             <button
               onClick={onClearPage}
               className="p-2 rounded-lg text-gray-300 hover:text-orange-400 hover:bg-orange-500/10 transition-colors border-2 border-transparent hover:border-orange-400"
               title="Clear Page Annotations"
             >
-              <Eraser size={18} />
+              <Eraser size={16} />
             </button>
           </div>
 
@@ -289,7 +289,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
             title="Undo"
           >
-            <Undo size={18} />
+            <Undo size={16} />
           </button>
           <button
             onClick={onRedo}
@@ -297,7 +297,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
             title="Redo"
           >
-            <Redo size={18} />
+            <Redo size={16} />
           </button>
         </div>
          {/* Export Button */}
@@ -308,7 +308,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
                text-sm transition-colors border border-green-500 hover:border-green-400 flex items-center gap-2"
               title={exportButtonText}
             >
-              <Download size={18} />
+              <Download size={16} />
               <span>{exportButtonText}</span>
             </button>
           )}
