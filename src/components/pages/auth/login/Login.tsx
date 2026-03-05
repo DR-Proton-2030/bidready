@@ -104,9 +104,8 @@ const Login = () => {
 
             <div className="pt-4">
               {isLoading ? (
-                <div className="flex justify-center items-center gap-3">
-                  <span className="text-gray-500 text-sm">Logging in...</span>
-                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-orange-500"></div>
+                <div className="w-full flex justify-center bg-orange-500 hover:bg-orange-600 cursor-pointer text-lg text-white/80 py-3 rounded-full transition">
+                  <span className="text-white text-md">Logging in...</span>
                 </div>
               ) : (
                 <PrimaryButton

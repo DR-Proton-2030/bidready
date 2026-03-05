@@ -63,7 +63,7 @@ const ProfileProgress: React.FC = () => {
               />
             ) : (
               <img
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.full_name || "Jason"}`}
+                src={`https://api.dicebear.com/9.x/dylan/svg?seed=${`Bid` + (user?.full_name || "Jason")}`}
                 alt="User Avatar"
                 className="w-full h-full object-contain"
               />

@@ -120,7 +120,11 @@ const Navbar = () => {
                     className="h-full w-full object-cover"
                   />
                 ) : (
-                  <div className="h-full w-full bg-gradient-to-br from-amber-400 via-orange-500 to-orange-600" />
+                  <img
+                     src={`https://api.dicebear.com/9.x/dylan/svg?seed=${`Bid` + (user?.full_name || "Jason")}`}
+                    alt="User Avatar"
+                    className="h-full w-full object-contain"
+                  />
                 )}
               </div>
               <span className="hidden max-w-[130px] truncate text-sm font-semibold text-slate-700 sm:block">
