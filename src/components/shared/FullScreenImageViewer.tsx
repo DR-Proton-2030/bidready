@@ -1085,7 +1085,7 @@ export default function FullScreenImageViewer({
     e.stopPropagation();
 
     if (activeTool === "linear" || activeTool === "measure") {
-      const imageRect = e.currentTarget.getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
 
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
@@ -1176,7 +1176,7 @@ export default function FullScreenImageViewer({
       });
     } else if (activeTool === "polygon") {
       // Add or start-dragging a polygon point (convert to image pixel coordinates)
-      const imageRect = (e.currentTarget as Element).getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
         const scaleY = imageDimensions.height / imageRect.height;
@@ -1199,7 +1199,7 @@ export default function FullScreenImageViewer({
       }
     } else {
       // Check if clicking on a saved polygon annotation's corner point to edit it
-      const imageRect = (e.currentTarget as Element).getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
         const scaleY = imageDimensions.height / imageRect.height;
@@ -1263,7 +1263,7 @@ export default function FullScreenImageViewer({
         });
       }
     } else if ((activeTool === "linear" || activeTool === "measure") && isMeasuring && measurementDraft) {
-      const imageRect = e.currentTarget.getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
         const scaleY = imageDimensions.height / imageRect.height;
@@ -1281,7 +1281,7 @@ export default function FullScreenImageViewer({
       }
     } else if (draggingPointIndex !== null) {
       // move the dragged polygon point
-      const imageRect = e.currentTarget.getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
         const scaleY = imageDimensions.height / imageRect.height;
