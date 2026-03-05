@@ -1,10 +1,11 @@
 import BluePrintDetection from '@/components/pages/bluePrintDetection/BluePrintDetection'
-import React from 'react'
+import React, { use } from 'react'
 
-const page = () => {
+const page = ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = use(params)
   return (
     <div>
-      <BluePrintDetection/>
+      <BluePrintDetection id={id} />
     </div>
   )
 }

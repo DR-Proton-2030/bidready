@@ -1085,7 +1085,7 @@ export default function FullScreenImageViewer({
     e.stopPropagation();
 
     if (activeTool === "linear" || activeTool === "measure") {
-      const imageRect = e.currentTarget.getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
 
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
@@ -1176,7 +1176,7 @@ export default function FullScreenImageViewer({
       });
     } else if (activeTool === "polygon") {
       // Add or start-dragging a polygon point (convert to image pixel coordinates)
-      const imageRect = (e.currentTarget as Element).getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
         const scaleY = imageDimensions.height / imageRect.height;
@@ -1199,7 +1199,7 @@ export default function FullScreenImageViewer({
       }
     } else {
       // Check if clicking on a saved polygon annotation's corner point to edit it
-      const imageRect = (e.currentTarget as Element).getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
         const scaleY = imageDimensions.height / imageRect.height;
@@ -1263,7 +1263,7 @@ export default function FullScreenImageViewer({
         });
       }
     } else if ((activeTool === "linear" || activeTool === "measure") && isMeasuring && measurementDraft) {
-      const imageRect = e.currentTarget.getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
         const scaleY = imageDimensions.height / imageRect.height;
@@ -1281,7 +1281,7 @@ export default function FullScreenImageViewer({
       }
     } else if (draggingPointIndex !== null) {
       // move the dragged polygon point
-      const imageRect = e.currentTarget.getBoundingClientRect();
+      const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
         const scaleY = imageDimensions.height / imageRect.height;
@@ -1948,7 +1948,7 @@ export default function FullScreenImageViewer({
   if (!isOpen || !currentImage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] bg-white flex items-center justify-center">
       {/* Header */}
       <FullScreenImageHeader
         currentImageName={currentImage.name}
@@ -2616,16 +2616,27 @@ export default function FullScreenImageViewer({
           )}
 
           {/* Drawing Box (Detection Creation) */}
-          {activeTool === "annotate" && isDrawing && currentBox && (
-            <div
-              className="absolute border-2 border-blue-500"
+          {activeTool === "annotate" && isDrawing && currentBox && imageDimensions.width > 0 && (
+            <svg
+              className="absolute top-0 left-0 pointer-events-none"
               style={{
-                left: currentBox.x,
-                top: currentBox.y,
-                width: currentBox.width,
-                height: currentBox.height,
+                width: "100%",
+                height: "100%",
+                transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
               }}
-            />
+              viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <rect
+                x={currentBox.x}
+                y={currentBox.y}
+                width={currentBox.width}
+                height={currentBox.height}
+                fill="rgba(59, 130, 246, 0.1)"
+                stroke="#3b82f6"
+                strokeWidth={2 / zoom}
+              />
+            </svg>
           )}
         </div>
       </div>

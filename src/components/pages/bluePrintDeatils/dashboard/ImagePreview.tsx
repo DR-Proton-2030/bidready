@@ -18,9 +18,10 @@ type Props = {
   onRemove: (index: number) => void
   onViewDetection: (p: FilePreview) => void
   loading?: boolean
+  disabled?: boolean
 }
 
-const ImagePreview: React.FC<Props> = ({ p, idx, onRemove, onViewDetection, loading }) => {
+const ImagePreview: React.FC<Props> = ({ p, idx, onRemove, onViewDetection, loading, disabled }) => {
   const animationDelay = `${idx * 100}ms`
 
   return (
@@ -75,8 +76,8 @@ const ImagePreview: React.FC<Props> = ({ p, idx, onRemove, onViewDetection, load
       <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${loading ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} pointer-events-none`}>
         <button
           onClick={() => onViewDetection(p)}
-          disabled={loading}
-          className="pointer-events-auto flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-80 disabled:hover:scale-100"
+          disabled={loading || (disabled && !p.overlay)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-80 disabled:hover:scale-100 ${disabled && !p.overlay && !loading ? 'hidden' : ''}`}
         >
           {loading ? (
             <>

@@ -1,9 +1,13 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Upload, ArrowUpRight, Image, Check, Map } from "lucide-react";
 import ImagePreview, { FilePreview as PreviewType } from "./ImagePreview";
 import useImageDetect from "@/hooks/useImageDetect";
+import useBulkDetectionsUpload from "@/hooks/useBulkDetectionsUpload";
+import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
+import axios from "axios";
 
 type ImageCardProps = {
   maxFiles?: number;
@@ -152,95 +156,114 @@ const ImageCard: React.FC<ImageCardProps> = ({
   }, []);
 
   const { detectImage, loading: detectingError } = useImageDetect();
-  const [detectingId, setDetectingId] = useState<string | null>(null);
+  const [detectingIds, setDetectingIds] = useState<Set<string>>(new Set());
+  const { uploadDetections, isUploading: isSaving } = useBulkDetectionsUpload();
+
+  // Inline viewer state (no new page)
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerImages, setViewerImages] = useState<Array<{ id: string; name: string; path: string }>>([]);
+  const [viewerDetectionResults, setViewerDetectionResults] = useState<any>(null);
+  const [viewerImageId, setViewerImageId] = useState<string | null>(null);
+  const [viewerImageUrl, setViewerImageUrl] = useState<string | null>(null);
+  const detectionCacheRef = useRef<Record<string, any>>({});
 
   const viewDetection = async (p: FilePreview) => {
-    // If we already have a plan/overlay, view it
+    const imageId = p.id || p.src;
+
+    // If we already have a plan/overlay, view it inline
     if (p.overlay) {
-      if (typeof window === "undefined") return;
-      try {
-        const payload = { file_url: p.src, svg_overlay_url: p.overlayData };
-        const key = `blueprint_detection_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-        const setTempCookie = (name: string, value: string, maxAgeSec = 60 * 5) => {
-          try {
-            const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-            document.cookie = `${encodeURIComponent(name)}=${value}; Max-Age=${maxAgeSec}; Path=/; SameSite=Lax${secure}`;
-          } catch (e) { }
-        };
-        const deleteCookie = (name: string) => {
-          try {
-            const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-            document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
-          } catch (e) { }
-        };
-
-        try {
-          localStorage.setItem(key, JSON.stringify(payload));
-          const compact = encodeURIComponent(JSON.stringify(payload));
-          setTempCookie(key, compact, 60 * 5);
-          setTimeout(() => deleteCookie(key), 60 * 5 * 1000);
-        } catch (err) {
-          const encoded = encodeURIComponent(JSON.stringify(payload));
-          const url = `/blueprint-detection?data=${encoded}`;
-          window.open(url, "_blank");
-          return;
-        }
-        const url = `/blueprint-detection?key=${encodeURIComponent(key)}`;
-        window.open(url, "_blank");
-      } catch (err) {
-        console.error("Failed to open detection page", err);
-      }
+      setViewerImages([{ id: imageId, name: p.name || "image", path: p.src }]);
+      setViewerDetectionResults(p.overlayData);
+      setViewerImageId(imageId);
+      setViewerImageUrl(p.src);
+      setViewerOpen(true);
     } else {
-      // Trigger detection
+      // Trigger detection, then show inline
       try {
-        if (detectingId) return; // prevent multiple
-        const id = p.id || p.src;
-        setDetectingId(id);
+        if (detectingIds.has(imageId)) return;
+        setDetectingIds(prev => new Set(prev).add(imageId));
         console.log("Starting detection for", p.src);
         const result = await detectImage(p.src);
         console.log("Detection Result:", result);
 
-        // Open viewer with result
-        if (typeof window !== "undefined") {
-          try {
-            const payload = { file_url: p.src, svg_overlay_url: result };
-            const key = `blueprint_detection_new_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-            // reuse helper logic would be cleaner but for now duplicate to ensure scope access
-            const setTempCookie = (name: string, value: string, maxAgeSec = 60 * 5) => {
-              try {
-                const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-                document.cookie = `${encodeURIComponent(name)}=${value}; Max-Age=${maxAgeSec}; Path=/; SameSite=Lax${secure}`;
-              } catch (e) { }
-            };
-            const deleteCookie = (name: string) => {
-              try {
-                const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-                document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=Lax${secure}`;
-              } catch (e) { }
-            };
-
-            localStorage.setItem(key, JSON.stringify(payload));
-            const compact = encodeURIComponent(JSON.stringify(payload));
-            setTempCookie(key, compact, 60 * 5);
-            setTimeout(() => deleteCookie(key), 60 * 5 * 1000);
-
-            const url = `/blueprint-detection?key=${encodeURIComponent(key)}`;
-            window.open(url, "_blank");
-
-          } catch (navErr) {
-            console.error("Failed to open viewer after detection", navErr);
-          }
+        // Also call the Roboflow electrical model
+        let electricalPreds: any[] = [];
+        try {
+          const rfResp = await axios({
+            method: "POST",
+            url: "https://serverless.roboflow.com/electrical-42wl4/2",
+            params: {
+              api_key: "ShBtUdx8mVaP10M9vPB9",
+              image: p.src,
+              confidence: 5,
+              overlap: 30,
+            },
+          });
+          const raw = rfResp.data?.predictions ?? [];
+          electricalPreds = raw.map((pred: any) => ({
+            id: pred.detection_id ?? undefined,
+            class: pred.class ?? pred.label ?? "Unknown",
+            confidence: typeof pred.confidence === "number" ? pred.confidence : undefined,
+            x: typeof pred.x === "number" ? pred.x : 0,
+            y: typeof pred.y === "number" ? pred.y : 0,
+            width: typeof pred.width === "number" ? pred.width : 0,
+            height: typeof pred.height === "number" ? pred.height : 0,
+            source: "Electrical",
+          }));
+        } catch (rfErr: any) {
+          console.error("Electrical model error:", rfErr?.message ?? rfErr);
         }
 
+        const combined = { ...result, electricalPredictions: electricalPreds };
+        detectionCacheRef.current[imageId] = combined;
+
+        // Open inline viewer
+        setViewerImages([{ id: imageId, name: p.name || "image", path: p.src }]);
+        setViewerDetectionResults(combined);
+        setViewerImageId(imageId);
+        setViewerImageUrl(p.src);
+        setViewerOpen(true);
       } catch (err) {
         console.error("Detection failed:", err);
-        // alert("Detection failed.");
       } finally {
-        setDetectingId(null);
+        setDetectingIds(prev => { const next = new Set(prev); next.delete(imageId); return next; });
       }
     }
+  };
+
+  const handleViewerClose = async () => {
+    // Auto-save detections to DB when closing the viewer
+    if (viewerImageId && viewerImageUrl) {
+      const cached = detectionCacheRef.current[viewerImageId];
+      if (cached) {
+        try {
+          const payload = [{
+            _id: viewerImageId,
+            imgurl: viewerImageUrl,
+            detection: cached,
+          }];
+          console.log("Saving detection to DB:", payload);
+          await uploadDetections(payload);
+          console.log("Detection saved successfully");
+
+          // Update the preview to show as "Ready" (overlay)
+          setPreviews((prev) =>
+            prev.map((pr) => {
+              if ((pr.id || pr.src) === viewerImageId) {
+                return { ...pr, overlay: true, overlayData: cached };
+              }
+              return pr;
+            })
+          );
+        } catch (err) {
+          console.error("Failed to save detection:", err);
+        }
+      }
+    }
+    setViewerOpen(false);
+    setViewerDetectionResults(null);
+    setViewerImageId(null);
+    setViewerImageUrl(null);
   };
 
   return (
@@ -346,7 +369,8 @@ const ImageCard: React.FC<ImageCardProps> = ({
                             idx={idx}
                             onRemove={(i) => removeAt(i)}
                             onViewDetection={(preview) => viewDetection(preview)}
-                            loading={detectingId === (p.id || p.src)}
+                            loading={detectingIds.has(p.id || p.src)}
+                            disabled={detectingIds.size > 0}
                           />
                         ))}
                       </div>
@@ -390,6 +414,42 @@ const ImageCard: React.FC<ImageCardProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Inline FullScreenImageViewer via portal – renders at body level above sidebar/navbar */}
+      {viewerOpen && createPortal(
+        <FullScreenImageViewer
+          images={viewerImages}
+          initialIndex={0}
+          isOpen={viewerOpen}
+          onClose={handleViewerClose}
+          onImageChange={() => { }}
+          detectionResults={viewerDetectionResults}
+          onDetectionsChange={(imageId: string, combinedDetections: Array<any>) => {
+            try {
+              const existing = detectionCacheRef.current[imageId] ?? {};
+              const normalized = combinedDetections.map((d: any) => ({
+                id: d.id ?? undefined,
+                class: d.className ?? d.class ?? "Unknown",
+                confidence: typeof d.confidence === "number" ? d.confidence : undefined,
+                x: typeof d.x === "number" ? d.x : 0,
+                y: typeof d.y === "number" ? d.y : 0,
+                width: typeof d.width === "number" ? d.width : 0,
+                height: typeof d.height === "number" ? d.height : 0,
+                source: d.source ?? "User",
+                points: d.points ?? undefined,
+              }));
+              detectionCacheRef.current[imageId] = {
+                ...existing,
+                predictions: normalized,
+                combined_export: combinedDetections,
+              };
+            } catch (e) {
+              console.error("Failed to store combined detections:", e);
+            }
+          }}
+        />,
+        document.body
       )}
     </div>
   );
