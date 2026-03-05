@@ -2616,16 +2616,27 @@ export default function FullScreenImageViewer({
           )}
 
           {/* Drawing Box (Detection Creation) */}
-          {activeTool === "annotate" && isDrawing && currentBox && (
-            <div
-              className="absolute border-2 border-blue-500"
+          {activeTool === "annotate" && isDrawing && currentBox && imageDimensions.width > 0 && (
+            <svg
+              className="absolute top-0 left-0 pointer-events-none"
               style={{
-                left: currentBox.x,
-                top: currentBox.y,
-                width: currentBox.width,
-                height: currentBox.height,
+                width: "100%",
+                height: "100%",
+                transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
               }}
-            />
+              viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <rect
+                x={currentBox.x}
+                y={currentBox.y}
+                width={currentBox.width}
+                height={currentBox.height}
+                fill="rgba(59, 130, 246, 0.1)"
+                stroke="#3b82f6"
+                strokeWidth={2 / zoom}
+              />
+            </svg>
           )}
         </div>
       </div>
