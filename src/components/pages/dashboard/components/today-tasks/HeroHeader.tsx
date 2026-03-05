@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 interface HeroHeaderProps {
@@ -31,19 +32,24 @@ const HeroHeader: React.FC<HeroHeaderProps> = ({ readableDate }) => (
 
         <div className="relative z-10 flex flex-col gap-6">
             <div className="max-w-xl space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">Online Course</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">
+                    Bidready Dashboard • {readableDate}
+                </p>
                 <h2 className="text-3xl font-bold leading-tight md:text-4xl tracking-tight">
-                    Sharpen Your Skills with Professional Online Courses
+                    Turn blueprints into bid-ready scopes, faster.
                 </h2>
             </div>
             
             <div className="flex items-center">
-                <button className="group flex items-center gap-2.5 rounded-full bg-black py-2.5 pl-5 pr-2.5 text-xs font-bold text-white transition-all hover:bg-black/80 hover:scale-105 active:scale-95 shadow-md">
-                    Join Now
+                <Link
+                    href="/create-project"
+                    className="group flex items-center gap-2.5 rounded-full bg-black py-2.5 pl-5 pr-2.5 text-xs font-bold text-white transition-all hover:bg-black/80 hover:scale-105 active:scale-95 shadow-md"
+                >
+                    Start a Project
                     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-black">
                         <ArrowRight size={14} strokeWidth={3} />
                     </div>
-                </button>
+                </Link>
             </div>
         </div>
     </header>
