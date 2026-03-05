@@ -1948,7 +1948,7 @@ export default function FullScreenImageViewer({
   if (!isOpen || !currentImage) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white bg-opacity-95 flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] bg-white flex items-center justify-center">
       {/* Header */}
       <FullScreenImageHeader
         currentImageName={currentImage.name}
