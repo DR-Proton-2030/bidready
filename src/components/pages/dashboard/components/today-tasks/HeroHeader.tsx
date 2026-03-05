@@ -12,6 +12,21 @@ const HeroHeader: React.FC<HeroHeaderProps> = ({ readableDate }) => (
             <svg className="absolute right-0 top-1/2 -translate-y-1/2 w-48 h-48 text-white" viewBox="0 0 100 100">
                 <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="currentColor" />
             </svg>
+            <svg className="absolute right-6 top-6 w-16 h-16 text-white/80" viewBox="0 0 100 100">
+                <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="currentColor" />
+            </svg>
+            <svg className="absolute left-8 top-10 w-10 h-10 text-white/50" viewBox="0 0 100 100">
+                <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="currentColor" />
+            </svg>
+            <svg className="absolute left-1/4 bottom-6 w-20 h-20 text-white/40" viewBox="0 0 100 100">
+                <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="currentColor" />
+            </svg>
+            <svg className="absolute right-1/3 bottom-10 w-12 h-12 text-white/60" viewBox="0 0 100 100">
+                <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="currentColor" />
+            </svg>
+            <svg className="absolute left-12 bottom-2 w-8 h-8 text-white/70" viewBox="0 0 100 100">
+                <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="currentColor" />
+            </svg>
         </div>
 
         <div className="relative z-10 flex flex-col gap-6">

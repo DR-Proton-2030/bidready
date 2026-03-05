@@ -131,7 +131,7 @@ const TodayTasks: React.FC = () => {
                 </div>
 
                 {/* Integration of RightSidebar */}
-                <RightSidebar />
+                <RightSidebar monthlyActivity={stats?.blueprintMonthlyActivity || []} />
             </div>
         </section>
     );
