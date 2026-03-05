@@ -1,55 +1,63 @@
 "use client";
-import React from "react";
-import { Search, Filter, Plus, MoreVertical, Download } from "lucide-react";
+import React, { useState } from "react";
+import { Search, Filter, Download, ChevronLeft, ChevronRight, BarChart3 } from "lucide-react";
 
+const ITEMS_PER_PAGE = 5;
 
-
-import { useState } from "react";
-
-const ITEMS_PER_PAGE = 4;
+// Color palette for item avatars
+const AVATAR_COLORS = [
+  "from-orange-400 to-orange-600",
+  "from-indigo-400 to-indigo-600",
+  "from-emerald-400 to-emerald-600",
+  "from-rose-400 to-rose-600",
+  "from-violet-400 to-violet-600",
+  "from-cyan-400 to-cyan-600",
+  "from-amber-400 to-amber-600",
+  "from-fuchsia-400 to-fuchsia-600",
+];
 
 const DataGrid = ({ data }: any) => {
-
   const [page, setPage] = useState(1);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
 
-  // filtered across whole data set
   const filteredData = data.filter((item: any) => {
     if (!query) return true;
     const q = query.toString().toLowerCase();
     return (
-      String(item.class || '').toLowerCase().includes(q) ||
-      String(item.website || '').toLowerCase().includes(q) ||
-      String(item.description || '').toLowerCase().includes(q) ||
-      String(item.subdesc || '').toLowerCase().includes(q)
+      String(item.class || "").toLowerCase().includes(q) ||
+      String(item.website || "").toLowerCase().includes(q) ||
+      String(item.description || "").toLowerCase().includes(q) ||
+      String(item.subdesc || "").toLowerCase().includes(q)
     );
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
-  // ensure current page is valid
   if (page > totalPages) setPage(1);
-  const paginatedData = filteredData.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const paginatedData = filteredData.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE
+  );
 
-  // CSV download handler
   const handleDownloadCSV = () => {
-    // CSV header
-    const header = ['Item Name', 'Quantity', 'Remarks'];
-    // CSV rows (all data)
+    const header = ["Item Name", "Quantity", "Percentage"];
     const rows = data.map((item: any) => [
       item.class,
-      Math.round(item.percentage),
-      'AI Content Creation App: Makes magic with the power of AI/ML',
+      Math.round(item.count),
+      `${Math.round(item.percentage)}%`,
     ]);
-    // Build CSV string
     const csvContent = [header, ...rows]
-      .map(row => row.map(String).map((cell: string) => `"${cell.replace(/"/g, '""')}"`).join(','))
-      .join('\n');
-    // Download
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+      .map((row) =>
+        row
+          .map(String)
+          .map((cell: string) => `"${cell.replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'data.csv';
+    a.download = "detection-data.csv";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -57,103 +65,158 @@ const DataGrid = ({ data }: any) => {
   };
 
   return (
-    <div className="rounded-[28px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_45px_rgba(15,23,42,0.12)] backdrop-blur w-2/3">
+    <div className="flex-1 min-w-0 rounded-2xl border border-slate-200/60 bg-white shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h2 className="text-xl font-semibold">Floor Detection Activity </h2>
-        </div>
-      </div>
-
-      {/* Search + Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="flex items-center bg-white border border-gray-200 rounded-full px-4 shadow py-3 flex-grow">
-          <Search size={18} className="text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search Order"
-            value={query}
-            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
-            className="bg-transparent outline-none text-md ml-2 w-full"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 bg-[#e16349] text-white border px-5 py-3 rounded-full text-sm">
-            <Filter size={16} /> Filter
-          </button>
+      <div className="border-b border-slate-100 px-6 pt-6 pb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-orange-400 shadow-sm">
+              <BarChart3 className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Detection Activity
+              </h2>
+              <p className="text-xs text-slate-400">
+                {filteredData.length} item{filteredData.length !== 1 ? "s" : ""} found
+              </p>
+            </div>
+          </div>
           <button
-            className="flex items-center gap-2 px-5 py-3 bg-black/70 text-white -800 rounded-full text-sm font-medium hover:bg-gray-900 transition"
+            className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 active:scale-[0.98]"
             onClick={handleDownloadCSV}
           >
-            <Download className="w-4 h-4" /> Download csv
+            <Download className="w-3.5 h-3.5" />
+            Export CSV
           </button>
+        </div>
+
+        {/* Search bar */}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/80 px-3.5 py-2.5 transition-colors focus-within:border-orange-300 focus-within:bg-white focus-within:ring-2 focus-within:ring-orange-100">
+            <Search size={16} className="text-slate-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Search items..."
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(1);
+              }}
+              className="bg-transparent text-sm outline-none w-full text-slate-700 placeholder:text-slate-400"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <div className="grid grid-cols-3 text-gray-500 text-sm font-medium bg-gray-100 p-3 rounded-xl">
-          <div>Item Name</div>
-          <div>Quantity</div>
-          <div>Remarks</div>
-        </div>
-        <div className="flex flex-col mt-2">
-          {paginatedData.map((classItem: any, idx: number) => (
-            <div
-              key={idx + (page - 1) * ITEMS_PER_PAGE}
-              className="grid grid-cols-3 bg-white my-2 rounded-lg items-center py-4 hover:bg-gray-50 transition"
-            >
-              {/* Company Name */}
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold bg-gray-600 ml-4`}>
-                  {classItem.class[0]}
-                </div>
-                <div>
-                  <p className="font-medium">{classItem.class}</p>
-                  <p className="text-gray-400 text-xs">{classItem?.class}</p>
-                </div>
-              </div>
+      {/* Table header */}
+      <div className="grid grid-cols-[1fr_1fr_auto] gap-4 px-6 py-3 bg-slate-50/80 border-b border-slate-100">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          Class Name
+        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+          Distribution
+        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 w-20 text-right">
+          Count
+        </span>
+      </div>
 
-              {/* Performance */}
-              <div className="flex items-center gap-2">
-                <div className="w-24 bg-[#e16349]/20 rounded-full h-2.5">
+      {/* Table body */}
+      <div className="divide-y divide-slate-50">
+        {paginatedData.length > 0 ? (
+          paginatedData.map((classItem: any, idx: number) => {
+            const colorIdx = (idx + (page - 1) * ITEMS_PER_PAGE) % AVATAR_COLORS.length;
+            return (
+              <div
+                key={idx + (page - 1) * ITEMS_PER_PAGE}
+                className="grid grid-cols-[1fr_1fr_auto] gap-4 items-center px-6 py-3.5 transition-colors hover:bg-slate-50/80"
+              >
+                {/* Class name */}
+                <div className="flex items-center gap-3 min-w-0">
                   <div
-                    className="bg-orange-400 h-2.5 rounded-full"
-                    style={{ width: `${Math.round(classItem.percentage)}%` }}
-                  ></div>
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${AVATAR_COLORS[colorIdx]} text-xs font-bold text-white shadow-sm`}
+                  >
+                    {classItem.class?.[0]?.toUpperCase() ?? "?"}
+                  </div>
+                  <span className="text-sm font-medium text-slate-800 truncate">
+                    {classItem.class}
+                  </span>
                 </div>
-                <span className="text-sm font-medium">
-                  {Math.round(classItem.count)} Item
-                </span>
-              </div>
 
-              {/* Description */}
-              <div>
-                <p className="font-medium">AI Content Creation App</p>
-                <p className="text-gray-400 text-xs">Makes magic with the power of AI/ML</p>
+                {/* Progress bar */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${AVATAR_COLORS[colorIdx]} transition-all duration-500`}
+                      style={{
+                        width: `${Math.min(100, Math.round(classItem.percentage))}%`,
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-slate-500 w-10 text-right tabular-nums">
+                    {Math.round(classItem.percentage)}%
+                  </span>
+                </div>
+
+                {/* Count */}
+                <div className="w-20 text-right">
+                  <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 tabular-nums">
+                    {Math.round(classItem.count)}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        {/* Pagination Controls */}
-        <div className="flex justify-center items-center gap-2 mt-4">
-          <button
-            className="px-3 py-1 rounded-full bg-gray-200 text-gray-600 disabled:opacity-50"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            Prev
-          </button>
-          <span className="px-2 text-sm font-medium">Page {page} of {totalPages}</span>
-          <button
-            className="px-3 py-1 rounded-full bg-gray-200 text-gray-600 disabled:opacity-50"
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-          >
-            Next
-          </button>
-        </div>
+            );
+          })
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+            <Search className="w-8 h-8 text-slate-300 mb-3" />
+            <p className="text-sm font-medium text-slate-500">No results found</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Try adjusting your search query
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-slate-100 px-6 py-3">
+          <p className="text-xs text-slate-400">
+            Showing {(page - 1) * ITEMS_PER_PAGE + 1}–
+            {Math.min(page * ITEMS_PER_PAGE, filteredData.length)} of{" "}
+            {filteredData.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPage(p)}
+                className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-medium transition ${p === page
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "text-slate-600 hover:bg-slate-100"
+                  }`}
+              >
+                {p}
+              </button>
+            ))}
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

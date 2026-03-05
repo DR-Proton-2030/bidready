@@ -15,7 +15,7 @@ const
     const readableDate = useMemo(() => new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), []);
     // quickStats removed implicit use; keep it here if you want to add QuickStatsGrid later
     return (
-      <section className="lg:col-span-2  border border-white/70 relative
+      <section className="lg:col-span-2  border border-white/70 relative h-screen
       bg-gradient-to-br from-white/90 via-slate-50/80 to-blue-50/90 text-slate-900
        shadow-[0_35px_120px_rgba(15,23,42,0.15)] backdrop-blur-2xl">
         <div className="absolute inset-0 opacity-90" style={{ backgroundImage: "radial-gradient(circle at 20% 20%, rgba(14,165,233,0.06), transparent 55%), radial-gradient(circle at 80% 0%, rgba(248,113,113,0.06), transparent 45%), radial-gradient(circle at 50% 100%, rgba(59,130,246,0.03), transparent 60%)" }} />
@@ -23,7 +23,7 @@ const
         <div className="pointer-events-none absolute -right-10 top-20 h-52 w-52 rounded-[40%] bg-sky-200/40 blur-3xl" />
         <div className="relative z-10 space-y-10 p-8 lg:p-10">
           <TopBar onToggleRightPanel={() => { }} blueprintDetails={blueprintDetails} />
-          
+
 
           {/* Top Cards / Quick stats */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
