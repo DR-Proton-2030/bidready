@@ -66,50 +66,71 @@ const Sidebar = () => {
         <nav className="flex-1 px-3 py-4 space-y-2">
           {filteredSidebarItems.map((item) => {
             const isActive = pathname === item.route;
+            const Icon = item.icon;
+            const itemClassName = [
+              "group relative flex items-center gap-3 overflow-hidden rounded-2xl border transition-all duration-300",
+              isSidebarCollapsed ? "justify-center px-0 py-3" : "px-4 py-3",
+              isActive
+                ? "bg-gradient-to-r from-orange-500 via-orange-500 to-orange-400 text-white border-orange-300/80 shadow-l"
+                : "text-slate-600 border-transparent hover:bg-orange-50/70 hover:border-orange-100",
+            ]
+              .join(" ")
+              .trim();
+
+            const iconWrapperClassName = [
+              "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border backdrop-blur-md transition-all duration-300",
+              isActive
+                ? "bg-white/20 border-white/40 shadow-[inset_0_1px_2px_rgba(255,255,255,0.6),0_10px_18px_-12px_rgba(255,255,255,0.95)]"
+                : "bg-white/80 border-slate-200/70 shadow-[0_10px_18px_-14px_rgba(15,23,42,0.45)] group-hover:bg-white group-hover:border-orange-200",
+            ]
+              .join(" ")
+              .trim();
+
+            const iconShineClassName = [
+              "pointer-events-none absolute inset-[2px] rounded-full",
+              isActive
+                ? "bg-gradient-to-b from-white/55 via-white/20 to-transparent"
+                : "bg-gradient-to-b from-white/90 via-white/45 to-transparent",
+            ]
+              .join(" ")
+              .trim();
+
+            const iconClassName = [
+              "relative z-10 h-[18px] w-[18px] transition-all duration-300",
+              isActive ? "text-white" : "text-slate-500 group-hover:text-orange-500",
+              item.iconProps?.className ?? "",
+            ]
+              .join(" ")
+              .trim();
+
+            const labelClassName = [
+              "font-semibold text-sm tracking-wide transition-all duration-300",
+              isActive ? "text-white" : "text-slate-600 group-hover:text-orange-700",
+            ]
+              .join(" ")
+              .trim();
 
             return (
               <Link
                 key={item.id}
                 href={item.route}
-                className={`
-                  group flex items-center gap-3 rounded-2xl px-4 py-3 
-                  transition-all duration-200
-                  relative
-                  ${isSidebarCollapsed ? "justify-center px-0" : ""}
-                  ${isActive
-                    ? "bg-orange-500/10 text-orange-600 shadow-sm"
-                    : "text-gray-600 hover:bg-gray-50"
-                  }
-                `}
+                className={itemClassName}
                 title={isSidebarCollapsed ? item.label : ""}
               >
                 {/* ICON */}
-                <div
-                  className={`
-                    text-[20px] transition-all 
-                    ${isActive ? "text-orange-600" : ""}
-                  `}
-                >
-                  {item.icon}
+                <div className={iconWrapperClassName}>
+                  {/* <span className={iconShineClassName}></span> */}
+                  <Icon {...item.iconProps} className={iconClassName} />
                 </div>
 
                 {/* LABEL */}
                 {!isSidebarCollapsed && (
-                  <span
-                    className={`
-                      font-medium text-sm tracking-wide
-                      ${isActive ? "text-orange-700" : "text-gray-600"}
-                      group-hover:translate-x-1 transition
-                    `}
-                  >
+                  <span className={labelClassName}>
                     {item.label}
                   </span>
                 )}
 
-                {/* Active Glow */}
-                {isActive && (
-                  <span className="absolute left-1 top-1/2 -translate-y-1/2 w-[6px] h-[24px] bg-orange-500 rounded-full shadow-[0_0_12px_3px_rgba(255,125,0,0.5)]"></span>
-                )}
+               
               </Link>
             );
           })}

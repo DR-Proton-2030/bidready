@@ -1,24 +1,22 @@
 "use client";
 import React, { useContext, useState } from "react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  Menu,
-  ChevronDown,
+  HamburgerMenu,
+  Letter,
+  BellBing,
   User,
-  LogOut,
-  HelpCircle,
-  Bell,
-  Settings,
-} from "lucide-react";
+  Logout2,
+  QuestionCircle,
+} from "@solar-icons/react";
 import { useLayout } from "@/contexts/layoutContext/LayoutContext";
 import AuthContext from "@/contexts/authContext/authContext";
 import useAuthCredential from "@/hooks/authCredential/useAuthCredential";
 import { AnimatedSearch } from "@/components/shared/animatedSearch/AnimatedSearch";
+import { Bell } from "@solar-icons/react/ssr";
 
 const Navbar = () => {
-  const pathname = usePathname();
   const { toggleSidebar } = useLayout();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -34,13 +32,13 @@ const Navbar = () => {
     },
     {
       id: 2,
-      message: "Blueprint 'floor_plan_level1.pdf' uploaded to 'Downtown Office Tower'",
+      message: "Blueprint 'floor_plan_level1.pdf' uploaded",
       time: "3 hours ago",
       unread: true,
     },
     {
       id: 3,
-      message: "User 'Sarah Lee' added to project 'Sunrise Apartments'",
+      message: "User 'Sarah Lee' added to project",
       time: "5 hours ago",
       unread: true,
     },
@@ -49,131 +47,118 @@ const Navbar = () => {
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
-    <nav className="bg-white border-b border-gray-200 sticky top-0 h-18 z-[50]">
-      <div className="px-6 h-full">
-        <div className="flex items-center justify-between h-full">
-          {/* Left side */}
-          <div className="flex items-center space-x-4">
+    <nav className="sticky top-0 z-[50] bg-white">
+      <div className="mx-auto flex h-20 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6">
+        {/* Left: hamburger (mobile) + search */}
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <button
+            onClick={toggleSidebar}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-white/60 text-slate-600 backdrop-blur transition hover:bg-white lg:hidden"
+            aria-label="Toggle sidebar"
+          >
+            <HamburgerMenu size={18} weight="Linear" />
+          </button>
+
+          <AnimatedSearch />
+        </div>
+
+        {/* Right side actions */}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Mail */}
+         
+
+          {/* Notifications */}
+          <div className="relative">
             <button
-              onClick={toggleSidebar}
-              className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-50 hover:bg-gray-200 transition-all border border-gray-200"
+              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              className="relative flex h-12 w-12 items-center justify-center rounded-full border border-slate-200/80 bg-gray-100 text-slate-600 backdrop-blur transition hover:bg-white"
+              aria-label="Notifications"
             >
-              <Menu className="w-5 h-5 text-gray-700" />
+              <Bell size={18} weight="Linear" />
+              {unreadCount > 0 && (
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />
+              )}
             </button>
+
+            {isNotificationOpen && (
+              <div className="absolute right-0 z-[110] mt-2 w-80 overflow-hidden rounded-2xl border border-white/60 bg-white/90 shadow-xl backdrop-blur-2xl">
+                <div className="border-b border-slate-100 px-4 py-3">
+                  <h3 className="text-sm font-semibold text-slate-800">Notifications</h3>
+                </div>
+                <div className="max-h-64 overflow-y-auto">
+                  {notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`cursor-pointer px-4 py-3 transition ${
+                        n.unread ? "bg-blue-50/40" : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <p className="text-sm text-slate-800">{n.message}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">{n.time}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Search bar & Global Command Center */}
-          <AnimatedSearch />
+          <div className="mx-1 hidden h-8 w-px bg-slate-200 sm:block" />
 
-          {/* Right side */}
-          <div className="flex items-center space-x-4">
-            {/* Notifications */}
-            <div className="relative">
-              <button
-                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                className="h-10 w-10 rounded-xl bg-gray-50 hover:bg-gray-200 flex items-center justify-center transition-all border border-gray-200 relative"
-              >
-                <Bell className="w-5 h-5 text-gray-700" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {unreadCount}
-                  </span>
+          {/* User menu */}
+          <div className="relative">
+            <button
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+              className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition hover:bg-white/60"
+            >
+              <div className="h-10 w-10 overflow-hidden rounded-full border border-slate-200/80 bg-white shadow-sm">
+                {user?.profile_picture ? (
+                  <Image
+                    src={user.profile_picture}
+                    width={36}
+                    height={36}
+                    alt="avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="h-full w-full bg-gradient-to-br from-amber-400 via-orange-500 to-orange-600" />
                 )}
-              </button>
+              </div>
+              <span className="hidden max-w-[130px] truncate text-sm font-semibold text-slate-700 sm:block">
+               Profile
+              </span>
+            </button>
 
-              {isNotificationOpen && (
-                <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-[110] animate-fade-in">
-                  <div className="p-4 border-b border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto">
-                    {notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className={`px-4 py-3 transition-colors cursor-pointer ${n.unread ? "bg-blue-50/60" : "hover:bg-gray-50"
-                          }`}
-                      >
-                        <p className="text-sm text-gray-900">{n.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">{n.time}</p>
-                      </div>
-                    ))}
-                  </div>
+            {isUserMenuOpen && (
+              <div className="absolute right-0 z-[110] mt-2 w-52 rounded-2xl border border-white/60 bg-white/90 py-1.5 shadow-xl backdrop-blur-2xl">
+                <div className="border-b border-slate-100 px-4 py-2.5">
+                  <p className="text-sm font-semibold text-slate-800">{user?.full_name}</p>
+                  <p className="text-xs text-slate-400">{user?.email}</p>
                 </div>
-              )}
-            </div>
-
-
-
-            {/* User menu */}
-            <div className="relative">
-              <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-3 px-3 py-1.5 rounded-xl bg-gray-50 hover:bg-gray-200 transition-all border border-gray-200"
-              >
-                <div className="w-8 h-8 rounded-full overflow-hidden">
-                  {user?.profile_picture ? (
-                    <Image
-                      src={user.profile_picture}
-                      width={32}
-                      height={32}
-                      alt="avatar"
-                      className="object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600" />
-                  )}
+                <div className="py-1">
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                  >
+                    <User size={16} weight="Linear" />
+                    Profile
+                  </Link>
+                  <a className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 cursor-pointer">
+                    <QuestionCircle size={16} weight="Linear" />
+                    Help
+                  </a>
                 </div>
-                <div className="hidden sm:flex flex-col items-start text-left">
-                  <span className="text-sm font-medium text-gray-900 line-clamp-1">
-                    {user?.full_name}
-                  </span>
-                  {/* <span className="text-xs text-gray-500 -mt-1 line-clamp-1">
-                    {user?.company_details?.company_name}
-                  </span> */}
+                <div className="border-t border-slate-100 py-1">
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-500 hover:bg-red-50"
+                  >
+                    <Logout2 size={16} weight="Linear" />
+                    Sign out
+                  </button>
                 </div>
-                <ChevronDown className="w-4 h-4 text-gray-600" />
-              </button>
-
-              {isUserMenuOpen && (
-                <div className="absolute right-0 mt-3 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl py-2 z-[110] animate-fade-in">
-                  <div className="px-4 py-3 border-b border-gray-100">
-                    <p className="text-sm font-semibold text-gray-900">{user?.full_name}</p>
-                    <p className="text-xs text-gray-500">{user?.email}</p>
-                  </div>
-                  <div className="py-1">
-                    <Link
-                      href="/profile"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <User className="w-4 h-4" />
-                      Profile
-                    </Link>
-                    {/* <Link
-                      href="/settings"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <Settings className="w-4 h-4" />
-                      Settings
-                    </Link> */}
-                    <a className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                      <HelpCircle className="w-4 h-4" />
-                      Help
-                    </a>
-                  </div>
-                  <div className="border-t border-gray-100 py-1">
-                    <button
-                      onClick={handleLogout}
-                      className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Sign out
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
