@@ -2,6 +2,12 @@
 import { headers } from "@/config/config";
 import API from "./api";
 
+const stripContentType = (headerBag: Record<string, any> | undefined) => {
+  if (!headerBag) return;
+  delete headerBag["Content-Type"];
+  delete headerBag["content-type"];
+};
+
 export const get = async (
   endPoint: string,
   filter?: object,
@@ -58,8 +64,11 @@ export const post = async (
 
     // If FormData, let the browser set the Content-Type with the boundary
     if (payload instanceof FormData) {
-      // Delete Content-Type to allow browser to set it with boundary
-      if (config.headers) delete config.headers["Content-Type"];
+      stripContentType(config.headers);
+      config.transformRequest = (data: any, requestHeaders: any) => {
+        stripContentType(requestHeaders);
+        return data;
+      };
     } else {
       config.headers = {
         ...config.headers,
@@ -76,7 +85,7 @@ export const post = async (
 
 export const patch = async (
   endPoint: string,
-  payload: object,
+  payload: object | FormData,
   token?: string
 ): Promise<any> => {
   try {
@@ -84,6 +93,20 @@ export const patch = async (
     if (token) {
       config.headers = { Authorization: `Bearer ${token}` };
     }
+
+    if (payload instanceof FormData) {
+      stripContentType(config.headers);
+      config.transformRequest = (data: any, requestHeaders: any) => {
+        stripContentType(requestHeaders);
+        return data;
+      };
+    } else {
+      config.headers = {
+        ...config.headers,
+        "Content-Type": "application/json",
+      };
+    }
+
     const response = await API.patch<any>(endPoint, payload, config);
     return response.data;
   } catch (error: any) {
