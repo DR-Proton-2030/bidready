@@ -89,7 +89,7 @@ const RightSidebar: React.FC = () => {
     ];
 
     return (
-        <aside className="w-full lg:w-80 bg-white/60 h-full border-l border-slate-100 p-4 rounded-2xl m-5 flex flex-col gap-10">
+        <aside className="w-full lg:w-80 bg-white/60 h-full  p-4 rounded-2xl m-5 flex flex-col gap-10">
             {/* Header Section */}
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-900">Statistic</h2>
@@ -108,7 +108,7 @@ const RightSidebar: React.FC = () => {
                             cy="56"
                             r="52"
                             stroke="#cecdcd8b"
-                            strokeWidth="7"
+                            strokeWidth="8"
                             fill="transparent"
                         />
                         <circle
@@ -116,7 +116,7 @@ const RightSidebar: React.FC = () => {
                             cy="56"
                             r="52"
                             stroke="#f5752b"
-                            strokeWidth="8"
+                            strokeWidth="9"
                             fill="transparent"
                             strokeDasharray={326}
                             strokeDashoffset={326 - (326 * 32) / 100}

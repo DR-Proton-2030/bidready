@@ -1,23 +1,35 @@
 import React from "react";
+import { ArrowRight } from "lucide-react";
 
 interface HeroHeaderProps {
     readableDate: string;
 }
 
 const HeroHeader: React.FC<HeroHeaderProps> = ({ readableDate }) => (
-    <header className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">Today</p>
-            <h2 className="mt-2 text-4xl font-semibold leading-tight text-slate-900 md:text-[2.75rem]">Command Center</h2>
-            <p className="text-base text-slate-500">{readableDate} • Operational view</p>
+    <header className="relative overflow-hidden rounded-[32px] bg-[#6366F1] p-6 md:p-8 text-white hadow-xl">
+        {/* Decorative Stars/Sparkles Background */}
+        <div className="absolute inset-0 opacity-15 pointer-events-none">
+            <svg className="absolute right-0 top-1/2 -translate-y-1/2 w-48 h-48 text-white" viewBox="0 0 100 100">
+                <path d="M50 0 L55 45 L100 50 L55 55 L50 100 L45 55 L0 50 L45 45 Z" fill="currentColor" />
+            </svg>
         </div>
-        <div className="flex flex-wrap gap-3">
-            <button className="rounded-2xl border border-white/70 bg-white/70 px-5 py-2.5 text-sm font-medium text-slate-700 backdrop-blur transition hover:border-white hover:bg-white">
-                Share Snapshot
-            </button>
-            <button className="rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-xl shadow-slate-900/20 transition hover:-translate-y-0.5">
-                Create Task
-            </button>
+
+        <div className="relative z-10 flex flex-col gap-6">
+            <div className="max-w-xl space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">Online Course</p>
+                <h2 className="text-3xl font-bold leading-tight md:text-4xl tracking-tight">
+                    Sharpen Your Skills with Professional Online Courses
+                </h2>
+            </div>
+            
+            <div className="flex items-center">
+                <button className="group flex items-center gap-2.5 rounded-full bg-black py-2.5 pl-5 pr-2.5 text-xs font-bold text-white transition-all hover:bg-black/80 hover:scale-105 active:scale-95 shadow-md">
+                    Join Now
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-black">
+                        <ArrowRight size={14} strokeWidth={3} />
+                    </div>
+                </button>
+            </div>
         </div>
     </header>
 );
