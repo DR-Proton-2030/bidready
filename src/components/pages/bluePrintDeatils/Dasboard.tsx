@@ -23,12 +23,7 @@ const
         <div className="pointer-events-none absolute -right-10 top-20 h-52 w-52 rounded-[40%] bg-sky-200/40 blur-3xl" />
         <div className="relative z-10 space-y-10 p-8 lg:p-10">
           <TopBar onToggleRightPanel={() => { }} blueprintDetails={blueprintDetails} />
-          {/* <HeroHeader readableDate={readableDate} /> */}
-          {/* Header */}
-          {/* <div>
-        <h1 className="text-3xl font-semibold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500">Plan, prioritize, and accomplish your tasks with ease.</p>
-      </div> */}
+          
 
           {/* Top Cards / Quick stats */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
