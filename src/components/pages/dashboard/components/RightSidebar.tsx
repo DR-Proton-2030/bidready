@@ -152,7 +152,7 @@ const RightSidebar: React.FC = () => {
                         Good Morning {user?.full_name?.split(' ')[0] || 'Jason'} 🔥
                     </h3>
                     <p className="text-slate-400 text-[10px] font-medium leading-tight">
-                        Continue your learning to achieve your target!
+                        Continue your work to achieve your target!
                     </p>
                 </div>
             </div>

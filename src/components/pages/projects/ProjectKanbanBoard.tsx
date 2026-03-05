@@ -135,7 +135,7 @@ const KanbanColumn = ({
             ref={setNodeRef}
             className={`
                 flex flex-col
-                min-w-[300px] max-w-[300px]
+               w-full
                 h-full
                 rounded-2xl
                 transition-all duration-300

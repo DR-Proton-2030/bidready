@@ -67,8 +67,19 @@ const TodayTasks: React.FC = () => {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-screen bg-white shadow-xl">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-                <p className="ml-4 text-slate-500 font-medium">Synchronizing organization data...</p>
+               <div className="flex-col items-center justify-center text-center">
+<div className="">
+                    <div className="spinner">
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+</div>
+        <div className="mt-6">Loading..</div>
+               </div>
             </div>
         );
     }

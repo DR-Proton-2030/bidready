@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { PageHeader, BlueprintCard, BlueprintListItem } from "@/components/shared";
-import { Search, LayoutGrid, List, Plus } from "lucide-react";
+import { Magnifer, WidgetAdd, ListCheck, AddSquare, DocumentText } from "@solar-icons/react";
 import Link from "next/link";
 import { BluePrint } from "@/@types/interface/blueprint.interface";
 import { BLUEPRINTS_TEXT } from "@/constants/blueprints/blueprints.constant";
@@ -59,55 +59,53 @@ const Blueprints: React.FC<{ data?: BluePrint[] }> = ({ data }) => {
 
   return (
     <div className="space-y-6 px-16 pt-10 bg-gradient-to-br from-slate-100 to-slate-200 min-h-[calc(100vh-64px)]">
-      <PageHeader
-        title={BLUEPRINTS_TEXT.pageTitle}
-        link="/create-blueprint"
-      />
-
+     
       {/* Control Bar */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between shadow-sm bg-gray-100 p-2 rounded-2xl border border-white/10 backdrop-blur-md">
-        {/* Search Bar */}
-        <div className="relative w-full md:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search blueprints by name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 rounded-xl border border-white/60 bg-white/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all placeholder:text-gray-400 text-gray-700"
-          />
+      <div className="flex flex-col md:flex-row gap-3 items-center justify-between rounded-2xl border border-white/60 bg-white/70 p-2.5 shadow-sm backdrop-blur-xl">
+        {/* Search */}
+        <div className="flex w-full items-center gap-2 md:max-w-lg">
+          <div className="relative flex-1">
+            <Magnifer size={18} weight="Linear" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search blueprints by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl border border-slate-200/60 bg-white/60 py-2.5 pl-11 pr-4 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 focus:border-orange-300/60 focus:ring-2 focus:ring-orange-200/30"
+            />
+          </div>
         </div>
 
         {/* View Toggle + New Blueprint */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-white/60 p-1 rounded-xl border border-white/60">
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200/60 bg-white/60 p-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === 'grid'
-                ? 'bg-white shadow-sm text-primary ring-1 ring-black/5'
-                : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+              className={`rounded-lg p-2 transition-all duration-200 ${viewMode === 'grid'
+                ? 'bg-white text-orange-500 shadow-sm ring-1 ring-black/5'
+                : 'text-slate-400 hover:bg-white/50 hover:text-slate-600'
                 }`}
               title="Grid View"
             >
-              <LayoutGrid className="w-5 h-5" />
+              <WidgetAdd size={18} weight={viewMode === 'grid' ? 'Bold' : 'Linear'} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === 'list'
-                ? 'bg-white shadow-sm text-primary ring-1 ring-black/5'
-                : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+              className={`rounded-lg p-2 transition-all duration-200 ${viewMode === 'list'
+                ? 'bg-white text-orange-500 shadow-sm ring-1 ring-black/5'
+                : 'text-slate-400 hover:bg-white/50 hover:text-slate-600'
                 }`}
               title="List View"
             >
-              <List className="w-5 h-5" />
+              <ListCheck size={18} weight={viewMode === 'list' ? 'Bold' : 'Linear'} />
             </button>
           </div>
           <Link
             href="/create-blueprint"
-            className="bg-primary cursor-pointer flex gap-2 items-center text-white pl-3 pr-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition-all"
+            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:from-orange-600 hover:to-orange-700 hover:shadow-md"
           >
-            <Plus className="w-5 h-5" />
-            {BLUEPRINTS_TEXT.newBlueprintButton}
+            <AddSquare size={18} weight="Bold" />
+            <span className="hidden sm:inline">{BLUEPRINTS_TEXT.newBlueprintButton}</span>
           </Link>
         </div>
       </div>

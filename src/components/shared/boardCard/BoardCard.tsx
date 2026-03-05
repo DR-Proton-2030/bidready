@@ -59,11 +59,12 @@ const BoardCard: React.FC<BoardCardProps> = ({
         <div
             className={`
         group
+        shadow
         relative
         bg-white
         rounded-xl
         border border-slate-200/80
-        p-4
+        p-7
         transition-all duration-200
         hover:border-slate-300
         hover:shadow-lg hover:shadow-slate-200/50
