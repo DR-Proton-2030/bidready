@@ -58,8 +58,8 @@ const Blueprints: React.FC<{ data?: BluePrint[] }> = ({ data }) => {
   );
 
   return (
-    <div className="space-y-6 px-16 pt-10 bg-gradient-to-br from-slate-100 to-slate-200 min-h-[calc(100vh-64px)]">
-     
+    <div className="space-y-6 px-16 pt-10 h-screen bg-gradient-to-br from-slate-100 to-slate-200 min-h-[calc(100vh-64px)]">
+
       {/* Control Bar */}
       <div className="flex flex-col md:flex-row gap-3 items-center justify-between rounded-2xl border border-white/60 bg-white/70 p-2.5 shadow-sm backdrop-blur-xl">
         {/* Search */}
