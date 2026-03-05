@@ -378,8 +378,6 @@ export default function CreateBlueprint({
             }}
             onExportComplete={(exportData) => {
               console.log("PDF export complete:", exportData);
-              // After export, navigate to plans
-              router.push("/create-blueprint/plans");
             }}
             onError={(error) => {
               setError(error);

@@ -769,6 +769,118 @@ export const usePDFAnnotation = (
     });
   }, []);
 
+  // Render a page image + its annotations onto an offscreen canvas and return a PNG Blob
+  const renderPageWithAnnotations = useCallback(
+    async (pageData: PDFPageData): Promise<Blob> => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const w = img.naturalWidth;
+          const h = img.naturalHeight;
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Cannot get canvas context"));
+
+          // Draw the base page image
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // Scale factor: annotations are stored in page coordinate space
+          const scale = w / pageData.width;
+
+          // Draw drawings
+          pageData.annotations.drawings.forEach((drawing) => {
+            ctx.save();
+            ctx.strokeStyle = drawing.color;
+            ctx.lineWidth = drawing.width * scale;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.globalAlpha = drawing.opacity || 1;
+            if (drawing.tool === "highlighter") ctx.globalAlpha = 0.3;
+
+            if (drawing.points.length > 0) {
+              ctx.beginPath();
+              ctx.moveTo(drawing.points[0].x * scale, drawing.points[0].y * scale);
+              for (let i = 1; i < drawing.points.length; i++) {
+                ctx.lineTo(drawing.points[i].x * scale, drawing.points[i].y * scale);
+              }
+              ctx.stroke();
+            }
+            ctx.restore();
+          });
+
+          // Draw shapes
+          pageData.annotations.shapes.forEach((shape) => {
+            ctx.save();
+            ctx.strokeStyle = shape.color;
+            ctx.lineWidth = shape.width * scale;
+            ctx.globalAlpha = 1;
+
+            const startX = shape.startPoint.x * scale;
+            const startY = shape.startPoint.y * scale;
+            const endX = shape.endPoint.x * scale;
+            const endY = shape.endPoint.y * scale;
+
+            ctx.beginPath();
+            switch (shape.type) {
+              case "rectangle":
+                ctx.rect(startX, startY, endX - startX, endY - startY);
+                break;
+              case "circle": {
+                const rx = Math.abs(endX - startX) / 2;
+                const ry = Math.abs(endY - startY) / 2;
+                const cx = (startX + endX) / 2;
+                const cy = (startY + endY) / 2;
+                ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+                break;
+              }
+              case "line":
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                break;
+              case "arrow": {
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(endX, endY);
+                const angle = Math.atan2(endY - startY, endX - startX);
+                const arrowLen = 15 * scale;
+                const arrowAngle = Math.PI / 6;
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(endX - arrowLen * Math.cos(angle - arrowAngle), endY - arrowLen * Math.sin(angle - arrowAngle));
+                ctx.moveTo(endX, endY);
+                ctx.lineTo(endX - arrowLen * Math.cos(angle + arrowAngle), endY - arrowLen * Math.sin(angle + arrowAngle));
+                break;
+              }
+            }
+            ctx.stroke();
+            ctx.restore();
+          });
+
+          // Draw text annotations
+          pageData.annotations.texts.forEach((text) => {
+            ctx.save();
+            ctx.fillStyle = text.color;
+            ctx.font = `${text.fontSize * scale}px ${(text as any).fontFamily || "Arial"}`;
+            ctx.fillText(text.text, text.position.x * scale, text.position.y * scale);
+            ctx.restore();
+          });
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve(blob);
+              else reject(new Error("Canvas toBlob returned null"));
+            },
+            "image/png"
+          );
+        };
+        img.onerror = () => reject(new Error("Failed to load page image"));
+        img.src = pageData.dataUrl;
+      });
+    },
+    []
+  );
+
   // Export functionality
   const exportPDF = useCallback(
     async (options: PDFExportOptions): Promise<Blob | null> => {
@@ -791,7 +903,7 @@ export const usePDFAnnotation = (
           return null;
         }
 
-        // Export as PDF with annotations
+        // Export as PDF with annotations rendered onto each page
         const pdfDoc = await PDFDocument.create();
 
         const pagesToExport = options.pages || state.pages.map((p) => p.pageNumber);
@@ -799,11 +911,32 @@ export const usePDFAnnotation = (
         for (const pageData of state.pages) {
           if (!pagesToExport.includes(pageData.pageNumber)) continue;
 
-          // Convert dataUrl to image
-          const response = await fetch(pageData.dataUrl);
-          const imageBytes = await response.arrayBuffer();
+          const hasAnnotations =
+            pageData.annotations.drawings.length > 0 ||
+            pageData.annotations.shapes.length > 0 ||
+            pageData.annotations.texts.length > 0;
 
-          const image = await pdfDoc.embedPng(imageBytes);
+          let imageBytes: ArrayBuffer;
+          let isPng = false;
+
+          if (hasAnnotations) {
+            // Re-render page image + annotations onto an offscreen canvas
+            const compositeBlob = await renderPageWithAnnotations(pageData);
+            imageBytes = await compositeBlob.arrayBuffer();
+            isPng = true;
+          } else {
+            // No annotations — use original image directly
+            const response = await fetch(pageData.dataUrl);
+            imageBytes = await response.arrayBuffer();
+            const contentType = response.headers.get("content-type") || "";
+            isPng =
+              contentType.includes("png") ||
+              (typeof pageData.dataUrl === "string" && pageData.dataUrl.startsWith("data:image/png"));
+          }
+
+          const image = isPng
+            ? await pdfDoc.embedPng(imageBytes)
+            : await pdfDoc.embedJpg(imageBytes);
           const page = pdfDoc.addPage([pageData.width, pageData.height]);
 
           page.drawImage(image, {
@@ -812,9 +945,6 @@ export const usePDFAnnotation = (
             width: pageData.width,
             height: pageData.height,
           });
-
-          // TODO: Draw annotations on top if includeAnnotations is true
-          // This would require converting canvas annotations to PDF format
         }
 
         const pdfBytes = await pdfDoc.save();
@@ -825,7 +955,7 @@ export const usePDFAnnotation = (
         return null;
       }
     },
-    [state.pages]
+    [state.pages, renderPageWithAnnotations]
   );
 
   return {
