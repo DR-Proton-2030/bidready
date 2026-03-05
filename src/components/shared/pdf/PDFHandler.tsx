@@ -143,8 +143,9 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
     );
   }
 
-  // Loading state
-  if (isLoading) {
+  // Loading state — only block UI if we have NO pages at all yet
+  // For large PDFs, pages load incrementally; show the viewer as soon as page 1 is ready
+  if (isLoading && state.pages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[80vh] rounded-lg">
         <div className="spinner">

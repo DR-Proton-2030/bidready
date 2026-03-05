@@ -271,14 +271,24 @@ export const usePDFAnnotation = (
       // Update loaded count to reflect already-streamed pages
       setLoadedPagesCount(loadedPagesRef.current.size);
 
+      // Load page 1 first so the viewer can display immediately
+      if (!loadedPagesRef.current.has(1)) {
+        await loadSinglePage(1);
+      }
+
       setIsLoading(false);
 
-      // Load any pages from PDF that weren't already provided by streaming
-      // (fills in gaps where streamed images may not have arrived yet)
-      for (let i = 1; i <= totalPages; i++) {
+      // Load remaining pages in parallel batches for faster loading
+      const BATCH_SIZE = 4;
+      const remaining = [];
+      for (let i = 2; i <= totalPages; i++) {
         if (!loadedPagesRef.current.has(i)) {
-          await loadSinglePage(i);
+          remaining.push(i);
         }
+      }
+      for (let b = 0; b < remaining.length; b += BATCH_SIZE) {
+        const batch = remaining.slice(b, b + BATCH_SIZE);
+        await Promise.all(batch.map((p) => loadSinglePage(p)));
       }
     } catch (err) {
       const errorMessage =
@@ -332,10 +342,19 @@ export const usePDFAnnotation = (
           currentPage: 1,
         }));
 
+        // Load page 1 first so the viewer can display immediately
+        await loadSinglePage(1);
+
         setIsLoading(false);
 
-        for (let i = 1; i <= totalPages; i++) {
-          await loadSinglePage(i);
+        // Load remaining pages in parallel batches for faster loading
+        const BATCH_SIZE = 4;
+        for (let b = 2; b <= totalPages; b += BATCH_SIZE) {
+          const batch = [];
+          for (let i = b; i < b + BATCH_SIZE && i <= totalPages; i++) {
+            batch.push(loadSinglePage(i));
+          }
+          await Promise.all(batch);
         }
       } catch (err) {
         const errorMessage =
