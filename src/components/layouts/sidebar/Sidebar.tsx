@@ -2,7 +2,6 @@
 import React, { useContext, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { sidebarItems } from "@/constants/sidebar/sidebarItem.constant";
 import { useLayout } from "@/contexts/layoutContext/LayoutContext";
 import AuthContext from "@/contexts/authContext/authContext";
@@ -50,12 +49,13 @@ const Sidebar = () => {
           `}
         >
           {user?.company_details?.logo ? (
-            <Image
+            <img
               src={user.company_details.logo}
               alt={user.company_details.company_name || "Company Logo"}
-              width={isSidebarCollapsed ? 48 : 160}
-              height={20}
-              className="transition-all duration-300"
+              className={`object-contain transition-all duration-300 ${
+                isSidebarCollapsed ? "h-12 w-12" : "h-8 w-40"
+              }`}
+              loading="lazy"
             />
           ) : (
             <CompanyLogo width={isSidebarCollapsed ? 40 : 150} />
