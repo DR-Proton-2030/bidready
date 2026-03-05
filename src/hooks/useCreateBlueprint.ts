@@ -61,34 +61,15 @@ export default function useCreateBlueprint() {
     }
   }, []);
 
-  const getWsUrl = useCallback((backendUrl: string) => {
-    const explicitWsUrl = process.env.NEXT_PUBLIC_PDF_CONVERTER_WS_URL;
+  const getWsUrl = useCallback((_backendUrl: string) => {
+    const explicitWsUrl =
+      process.env.NEXT_PUBLIC_PDF_CONVERTER_WS_URL ||
+      process.env.NEXT_PUBLIC_WSL_BASE_URL;
     if (explicitWsUrl) {
       return explicitWsUrl;
     }
 
-    try {
-      const parsed = new URL(backendUrl);
-      const isSecure = parsed.protocol === "https:";
-      const wsProtocol = isSecure ? "wss:" : "ws:";
-
-      const currentPort = parsed.port
-        ? Number(parsed.port)
-        : isSecure
-          ? 443
-          : 80;
-
-      const wsPort = currentPort + 1;
-
-      return `wss://d1cf5m2o7bf0ig.cloudfront.net`;
-    } catch (e) {
-      if (typeof window !== "undefined") {
-        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.hostname || "localhost";
-        return `${wsProtocol}//${host}:8990`;
-      }
-      return "wss://d1cf5m2o7bf0ig.cloudfront.net";
-    }
+    return "ws://localhost:8990";
   }, []);
 
   const connectProgressSocket = useCallback(
@@ -127,7 +108,7 @@ export default function useCreateBlueprint() {
               page,
               total_pages: totalPages,
               image_url: data.imageUrl,
-              image_id: undefined,
+              image_id: data.imageId ?? undefined,
               progress,
             });
           }

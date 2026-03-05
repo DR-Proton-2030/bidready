@@ -252,21 +252,46 @@ const ImageCard: React.FC<ImageCardProps> = ({
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") openPanel();
         }}
-        className="h-72 rounded-[28px] border border-white/70 bg-white/75 p-6 shadow-[0_20px_45px_rgba(15,23,42,0.12)] backdrop-blur items-start justify-between flex cursor-pointer transition-transform duration-300 hover:-translate-y-1"
+        className="group relative h-72 rounded-2xl border border-slate-200/60 bg-white overflow-hidden shadow-sm cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:border-slate-300/70"
       >
-        <h2 className="text-xl font-medium text-gray-900 flex items-center gap-2">
-          <Map className="w-5 h-5 text-slate-600" />
-          View Floor Plans
-        </h2>
-        <div className="flex items-center justify-center text-white w-10 h-10 bg-black/70 rounded-full border">
-          <ArrowUpRight className="w-4 h-4" />
+        {/* Decorative background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-orange-50/60 via-white to-indigo-50/50" />
+        <div className="pointer-events-none absolute -right-6 -bottom-6 h-32 w-32 rounded-full bg-gradient-to-br from-orange-400/10 to-orange-500/5 blur-xl" />
+        <div className="pointer-events-none absolute -left-4 -top-4 h-20 w-20 rounded-full bg-gradient-to-br from-indigo-400/10 to-indigo-500/5 blur-xl" />
+
+        <div className="relative z-10 flex h-full flex-col justify-between p-6">
+          {/* Top section */}
+          <div className="flex items-start justify-between">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-md transition-transform duration-300 group-hover:scale-110">
+              <Map className="w-[18px] h-[18px] text-white" />
+            </div>
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white transition-transform duration-300 group-hover:scale-110 group-hover:bg-orange-500">
+              <ArrowUpRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </div>
+          </div>
+
+          {/* Bottom section */}
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">
+              Floor Plans
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              View and manage all blueprint floor images
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <span className="inline-flex items-center rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                {previews.length} image{previews.length !== 1 ? "s" : ""}
+              </span>
+              <span className="text-xs text-slate-400">Click to open</span>
+            </div>
+          </div>
         </div>
       </div>
 
       {sidebarOpen && (
-        <div className="fixed h-screen inset-0 z-[70] flex items-stretch justify-end px-0 sm:px-4">
+        <div className="fixed h-screen inset-0 z-[70] flex items-stretch justify-end px-0 sm:px-0">
           <div
-            className={`absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity
+            className={`absolute inset-0 bg-slate-950/50 backdrop-blur-sm transition-opacity
                duration-500 ${drawerActive ? "opacity-100" : "opacity-0"}`}
             onClick={closePanel}
           />
@@ -274,70 +299,45 @@ const ImageCard: React.FC<ImageCardProps> = ({
           <div className="relative z-10 pointer-events-none w-full">
             <div
               className={`pointer-events-auto fixed right-0 top-0 h-full w-full 
-                sm:w-[520px] md:w-[640px] max-w-[80vw]  border-l border-white/20 
-                bg-gradient-to-br from-white/95 via-white/90 to-slate-50/80 backdrop-blur-3xl 
-                shadow-[0_40px_80px_rgba(15,23,42,0.35)] transform transition-transform duration-500
+                sm:w-[520px] md:w-[640px] max-w-[80vw] border-l border-slate-200/50 
+                bg-white
+                shadow-[-20px_0_60px_rgba(15,23,42,0.15)] transform transition-transform duration-500 ease-out
                  ${drawerActive ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}`}
             >
-
-
-              <div className=" z-10 flex h-full flex-col p-8">
-                <div className="flex items-start justify-between gap-6">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.4em] text-slate-500">Blueprint library</p>
-                    <h2 className="mt-2 text-3xl font-semibold text-slate-900">Manage floor plan media</h2>
-                    <p className="mt-3 text-sm text-slate-500 max-w-xl">
-                      Upload, review, and launch detections for every blueprint. Drag files directly or browse from your device.
-                    </p>
+              <div className="z-10 flex h-full flex-col">
+                {/* Drawer header */}
+                <div className="shrink-0 border-b border-slate-100 px-8 pt-8 pb-6">
+                  <div className="flex items-start justify-between gap-6">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-orange-400">
+                          <Image className="h-3.5 w-3.5 text-white" />
+                        </div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
+                          Blueprint Library
+                        </p>
+                      </div>
+                      <h2 className="text-2xl font-semibold text-slate-900">
+                        Floor Plan Media
+                      </h2>
+                      <p className="mt-2 text-sm text-slate-500 max-w-md">
+                        Upload, review, and launch detections for every blueprint image.
+                      </p>
+                    </div>
+                    <button
+                      onClick={closePanel}
+                      className="rounded-xl border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                      aria-label="Close viewer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
-
-                  <button
-                    onClick={closePanel}
-                    className="rounded-full border border-slate-200 p-2 text-slate-500 transition hover:bg-slate-100"
-                    aria-label="Close viewer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
                 </div>
 
-                {/* <div
-                  className={`mt-6 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-colors ${isDragActive ? "border-slate-400 bg-slate-100" : "border-slate-300 bg-white/60"}`}
-                  onDrop={handleDrop}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDragActive(true);
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    setIsDragActive(false);
-                  }}
-                  onClick={openFileDialog}
-                >
-                  <input
-                    ref={inputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => {
-                      if (e.target.files) addFiles(e.target.files);
-                      e.target.value = "";
-                    }}
-                    className="hidden"
-                  />
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                    <Image className="h-6 w-6" />
-                  </div>
-                  <p className="mt-4 text-base font-medium text-slate-800">Drop high-res plans</p>
-                  <p className="text-sm text-slate-500">Supported: JPG, PNG, SVG, up to {maxFiles} files</p>
-                  <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                    <span className="rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-500">drag n drop</span>
-                    <span className="rounded-full border border-slate-200 px-3 py-1 text-xs uppercase tracking-[0.3em] text-slate-500">browse</span>
-                  </div>
-                </div> */}
-
-                <div className="mt-6 flex-1 overflow-hidden">
+                {/* Image grid area */}
+                <div className="flex-1 overflow-hidden px-8 pt-6">
                   {previews.length ? (
-                    <div className="h-full overflow-y-auto pr-2">
+                    <div className="h-full overflow-y-auto pr-1 -mr-1">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {previews.map((p, idx) => (
                           <ImagePreview
@@ -352,30 +352,36 @@ const ImageCard: React.FC<ImageCardProps> = ({
                       </div>
                     </div>
                   ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-slate-400">
-                      <p className="text-lg font-medium">No blueprint images yet</p>
-                      <p className="text-sm">Add files to visualize them here in a responsive grid.</p>
+                    <div className="flex h-full flex-col items-center justify-center text-center">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 mb-4">
+                        <Image className="w-7 h-7 text-slate-400" />
+                      </div>
+                      <p className="text-base font-medium text-slate-600">No blueprint images yet</p>
+                      <p className="text-sm text-slate-400 mt-1 max-w-xs">
+                        Upload files to visualize them here in a responsive grid.
+                      </p>
                     </div>
                   )}
                 </div>
 
-                <div className="mt- flex items-center justify-between border-t border-slate-100 pt-4">
-                  <p className="text-xs uppercase tracking-[0.4em] text-slate-400">
-                    synced {previews.length} / {maxFiles}
+                {/* Drawer footer */}
+                <div className="shrink-0 flex items-center justify-between border-t border-slate-100 px-8 py-4">
+                  <p className="text-xs font-medium text-slate-400 tabular-nums">
+                    {previews.length} / {maxFiles} synced
                   </p>
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <button
                       onClick={closePanel}
-                      className="rounded-full border border-slate-200 px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
                     >
-                      Cancel
+                      Close
                     </button>
                     <button
                       onClick={handleUpload}
                       disabled={!previews.length || !onUpload}
-                      className="flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-40"
+                      className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-40"
                     >
-                      <Upload className="h-4 w-4" />
+                      <Upload className="h-3.5 w-3.5" />
                       Upload
                     </button>
                   </div>
@@ -383,7 +389,6 @@ const ImageCard: React.FC<ImageCardProps> = ({
               </div>
             </div>
           </div>
-
         </div>
       )}
     </div>

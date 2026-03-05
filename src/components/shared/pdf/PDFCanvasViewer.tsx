@@ -774,13 +774,13 @@ const PDFCanvasViewer: React.FC<PDFCanvasViewerProps> = ({
               <div className="flex gap-2 mt-2">
                 <button
                   onClick={handleTextSubmit}
-                  className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
+                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
                 >
                   Add
                 </button>
                 <button
                   onClick={handleTextCancel}
-                  className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-sm hover:bg-gray-400"
+                  className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300"
                 >
                   Cancel
                 </button>

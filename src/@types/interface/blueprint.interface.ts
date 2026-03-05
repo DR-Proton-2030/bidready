@@ -13,6 +13,7 @@ export interface BluePrint {
   createdAt?: Date;
   updatedAt?: Date;
   file_url: string;
+  image_count?: number;
 }
 
 export interface BlueprintCategory {

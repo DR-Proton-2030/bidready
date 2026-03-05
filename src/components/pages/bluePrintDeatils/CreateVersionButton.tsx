@@ -130,6 +130,7 @@ const CreateVersionModal: React.FC<{ isOpen: boolean; onClose: () => void; bluep
                     versionId={newVersionId} // Pass version ID
                     externalPDFHook={pdfAnnotationHook}
                     onError={(err) => console.error(err)}
+                    isProcessing={isStreaming}
                 />
             </>,
             document.body

@@ -14,17 +14,33 @@ const SidebarList = ({ sidebarItems }: { sidebarItems: ISidebarItem[] }) => {
       <ul className="space-y-2 font-medium opacity-75">
         {sidebarItems.map((item: ISidebarItem) => (
           <li key={item.id} className="mb-2">
+              {(() => {
+                const Icon = item.icon;
+                const isActive = pathname.slice(7).includes(item.id);
+                const iconClassName = [
+                  "h-5 w-5",
+                  isActive ? "text-white" : "text-gray-700",
+                  item.iconProps?.className ?? "",
+                ]
+                  .join(" ")
+                  .trim();
+
+                return (
               <Link
                 href={item.route ?? "#"}
                 className={`flex items-center ${
-                  pathname.slice(7).includes(item.id)
+                  isActive
                     ? "bg-light-primary text-white"
                     : "text-gray-950 bg-gray-50 hover:bg-gray-200 hover:opacity-100"
                 } p-2 rounded-md`}
               >
-                <span className="mr-2">{item.icon}</span>
+                <span className="mr-2 flex items-center">
+                  <Icon {...item.iconProps} className={iconClassName} />
+                </span>
                 {item.label}
               </Link>
+                );
+              })()}
           </li>
         ))}
       </ul>

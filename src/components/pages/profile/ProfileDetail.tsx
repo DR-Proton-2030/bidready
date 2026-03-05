@@ -5,10 +5,11 @@ import { User, Building, Mail, Phone, Camera, Save, ArrowLeft } from "lucide-rea
 import AuthContext from "@/contexts/authContext/authContext";
 import { api } from "@/utils/api";
 import { toast } from "react-toastify";
-import Image from "next/image";
+import { useFileUpload } from "@/hooks/useFileUpload";
 
 const ProfileDetail: React.FC = () => {
     const { user, setUser } = useContext(AuthContext);
+    const { profileFile, companyFile, handleFileSelect, resetFiles } = useFileUpload();
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -26,38 +27,60 @@ const ProfileDetail: React.FC = () => {
             setFormData({
                 full_name: user.full_name || "",
                 email: user.email || "",
-                profile_picture: user.profile_picture || "",
+                profile_picture: typeof user.profile_picture === "string" ? user.profile_picture : "",
                 company_name: user.company_details?.company_name || "",
                 company_email: user.company_details?.email || "",
                 company_phone: user.company_details?.phone || "",
                 company_address: user.company_details?.address || "",
             });
+            resetFiles();
         }
-    }, [user]);
+    }, [user, resetFiles]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
     };
 
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        handleFileSelect(file, "profile");
+    };
+
+    const handleCompanyLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        handleFileSelect(file, "company");
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const payload = {
-                full_name: formData.full_name,
-                profile_picture: formData.profile_picture,
-                company_details: {
-                    company_name: formData.company_name,
-                    email: formData.company_email,
-                    phone: formData.company_phone,
-                    address: formData.company_address,
-                },
+            const payload = new FormData();
+            payload.append("full_name", formData.full_name);
+            const companyDetails = {
+                company_name: formData.company_name,
+                email: formData.company_email,
+                phone: formData.company_phone,
+                address: formData.company_address,
             };
+            payload.append("company_details", JSON.stringify(companyDetails));
+
+            if (profileFile.file instanceof File) {
+                payload.append("user_avatar", profileFile.file);
+            } else if (typeof formData.profile_picture === "string" && formData.profile_picture.trim()) {
+                payload.append("profile_picture", formData.profile_picture.trim());
+            }
+
+            if (companyFile.file instanceof File) {
+                payload.append("company_logo", companyFile.file);
+            }
+
             const response = await api.auth.updateProfile(payload);
             if (response && response.data) {
                 setUser(response.data);
                 toast.success("Profile updated successfully");
+                resetFiles();
                 setIsEditing(false);
             }
         } catch (error: any) {
@@ -70,24 +93,39 @@ const ProfileDetail: React.FC = () => {
     if (!user) {
         return (
             <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
             </div>
         );
     }
 
+    const avatarPreview =
+        profileFile.preview ||
+        (typeof formData.profile_picture === "string" ? formData.profile_picture : "") ||
+        (typeof user.profile_picture === "string" ? user.profile_picture : "") ||
+        `https://api.dicebear.com/9.x/dylan/svg?seed=${user.full_name || "Jason"}`;
+    const companyLogoPreview =
+        companyFile.preview ||
+        (typeof user.company_details?.logo === "string" ? user.company_details.logo : "");
+
     return (
-        <div className="p-6 md:p-10 bg-gradient-to-br from-slate-50 to-slate-100 min-h-[calc(100vh-64px)]">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+        <div className="min-h-[calc(100vh-64px)] bg-gradient-to-br from-orange-50 via-white to-amber-50 px-4 py-8 md:px-10">
+            <div className="mx-auto max-w-6xl space-y-8">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-500/80">
+                            Profile
+                        </p>
                         <h1 className="text-3xl font-bold text-slate-900">Profile Settings</h1>
-                        <p className="text-slate-500 mt-1">Manage your personal and company information</p>
+                        <p className="mt-2 text-sm text-slate-500">
+                            Manage your personal and company information
+                        </p>
                     </div>
                     <button
+                        type="button"
                         onClick={() => setIsEditing(!isEditing)}
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all duration-200 ${isEditing
                             ? "bg-slate-200 text-slate-700 hover:bg-slate-300"
-                            : "bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200"
+                            : "bg-primary text-white shadow-lg shadow-orange-200"
                             }`}
                     >
                         {isEditing ? <ArrowLeft size={18} /> : <Save size={18} />}
@@ -95,38 +133,125 @@ const ProfileDetail: React.FC = () => {
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-8">
-                    {/* User Profile Card */}
-                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                        <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
-                        <div className="px-8 pb-8 -mt-16">
-                            <div className="relative inline-block">
-                                <div className="w-32 h-32 rounded-3xl border-4 border-white overflow-hidden bg-slate-100 shadow-md">
-                                    {formData.profile_picture ? (
-                                        <Image
-                                            src={formData.profile_picture}
-                                            alt="Avatar"
-                                            width={128}
-                                            height={128}
-                                            className="object-cover w-full h-full"
+                <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[320px_1fr]">
+                    <section className="space-y-6">
+                        <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                        Personal Avatar
+                                    </p>
+                                  
+                                </div>
+                                {isEditing && (
+                                    <label
+                                        htmlFor="profile-avatar"
+                                        className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-orange-200/80 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-600"
+                                    >
+                                        <Camera size={14} />
+                                        Change
+                                    </label>
+                                )}
+                            </div>
+                            <div className="mt-6 flex items-center gap-4">
+                                <div className="relative h-24 w-24">
+                                    <div className="h-full w-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow">
+                                        <img
+                                            src={avatarPreview}
+                                            alt="User avatar"
+                                            className="h-full w-full object-cover"
+                                        />
+                                    </div>
+                                    {isEditing && (
+                                        <label
+                                            htmlFor="profile-avatar"
+                                            className="absolute -bottom-2 -right-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-primary text-white shadow-lg shadow-orange-200"
+                                        >
+                                            <Camera size={16} />
+                                        </label>
+                                    )}
+                                    <input
+                                        id="profile-avatar"
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleAvatarChange}
+                                    />
+                                </div>
+                                <div>
+                                   
+                                    <p className="mt-2 text-[11px] text-slate-400">
+                                        PNG or JPG, up to 10MB
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                        Company Logo
+                                    </p>
+                                   
+                                </div>
+                                {isEditing && (
+                                    <label
+                                        htmlFor="company-logo"
+                                        className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-orange-200/80 bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-600"
+                                    >
+                                        <Camera size={14} />
+                                        Upload
+                                    </label>
+                                )}
+                            </div>
+                            <div className="mt-6 flex items-center gap-4">
+                                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow">
+                                    {companyLogoPreview ? (
+                                        <img
+                                            src={companyLogoPreview}
+                                            alt="Company logo"
+                                            className="h-full w-full object-contain"
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-slate-400">
-                                            <User size={48} />
+                                        <div className="flex flex-col items-center text-slate-400">
+                                            <Building size={20} />
+                                            <span className="mt-2 text-[10px] font-semibold">
+                                                No logo
+                                            </span>
                                         </div>
                                     )}
                                 </div>
-                                {isEditing && (
-                                    <button
-                                        type="button"
-                                        className="absolute bottom-1 right-1 bg-white p-2 rounded-xl shadow-lg border border-slate-100 text-blue-600 hover:text-blue-700 transition-colors"
-                                    >
-                                        <Camera size={20} />
-                                    </button>
-                                )}
+                                <div>
+                                  
+                                    <p className="mt-2 text-[11px] text-slate-400">
+                                        Transparent PNG works best
+                                    </p>
+                                </div>
+                            </div>
+                            <input
+                                id="company-logo"
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleCompanyLogoChange}
+                            />
+                        </div>
+                    </section>
+
+                    <section className="space-y-6">
+                        <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
+                                    <User size={18} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">Personal Details</h2>
+                                    <p className="text-sm text-slate-500">Keep your contact info accurate.</p>
+                                </div>
                             </div>
 
-                            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-2">Full Name</label>
                                     <div className="relative">
@@ -139,7 +264,7 @@ const ProfileDetail: React.FC = () => {
                                             disabled={!isEditing}
                                             value={formData.full_name}
                                             onChange={handleChange}
-                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none disabled:bg-slate-50/50 disabled:text-slate-500"
+                                            className="w-full pl-10 pr-4 py-3 bg-white/90 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-orange-100 focus:border-orange-300 transition-all outline-none disabled:bg-slate-50/60 disabled:text-slate-500"
                                             placeholder="Enter your name"
                                         />
                                     </div>
@@ -154,9 +279,9 @@ const ProfileDetail: React.FC = () => {
                                         <input
                                             type="email"
                                             name="email"
-                                            disabled={true} // Email typically not editable
+                                            disabled={true}
                                             value={formData.email}
-                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none disabled:bg-slate-50/50 disabled:text-slate-500 cursor-not-allowed"
+                                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-orange-100 focus:border-orange-300 transition-all outline-none disabled:bg-slate-50/70 disabled:text-slate-500 cursor-not-allowed"
                                             placeholder="Email address"
                                         />
                                     </div>
@@ -164,101 +289,100 @@ const ProfileDetail: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Company Info Card */}
-                    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
-                        <div className="flex items-center gap-3 mb-8">
-                            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
-                                <Building size={24} />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-bold text-slate-900">Company Details</h2>
-                                <p className="text-sm text-slate-500">Information about your organization</p>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Company Name</label>
-                                <input
-                                    type="text"
-                                    name="company_name"
-                                    disabled={!isEditing}
-                                    value={formData.company_name}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none disabled:bg-slate-50/50 disabled:text-slate-500"
-                                    placeholder="Enter company name"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Company Email</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                        <Mail size={18} />
-                                    </div>
-                                    <input
-                                        type="email"
-                                        name="company_email"
-                                        disabled={!isEditing}
-                                        value={formData.company_email}
-                                        onChange={handleChange}
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none disabled:bg-slate-50/50 disabled:text-slate-500"
-                                        placeholder="Company email"
-                                    />
+                        <div className="rounded-3xl border border-white/70 bg-white/85 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-100 text-orange-600">
+                                    <Building size={18} />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">Company Details</h2>
+                                    <p className="text-sm text-slate-500">Information about your organization.</p>
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Company Phone</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                        <Phone size={18} />
-                                    </div>
+                            <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Company Name</label>
                                     <input
                                         type="text"
-                                        name="company_phone"
+                                        name="company_name"
                                         disabled={!isEditing}
-                                        value={formData.company_phone}
+                                        value={formData.company_name}
                                         onChange={handleChange}
-                                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none disabled:bg-slate-50/50 disabled:text-slate-500"
-                                        placeholder="Company contact"
+                                        className="w-full px-4 py-3 bg-white/90 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-orange-100 focus:border-orange-300 transition-all outline-none disabled:bg-slate-50/60 disabled:text-slate-500"
+                                        placeholder="Enter company name"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Company Email</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                            <Mail size={18} />
+                                        </div>
+                                        <input
+                                            type="email"
+                                            name="company_email"
+                                            disabled={!isEditing}
+                                            value={formData.company_email}
+                                            onChange={handleChange}
+                                            className="w-full pl-10 pr-4 py-3 bg-white/90 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-orange-100 focus:border-orange-300 transition-all outline-none disabled:bg-slate-50/60 disabled:text-slate-500"
+                                            placeholder="Company email"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Company Phone</label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                            <Phone size={18} />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            name="company_phone"
+                                            disabled={!isEditing}
+                                            value={formData.company_phone}
+                                            onChange={handleChange}
+                                            className="w-full pl-10 pr-4 py-3 bg-white/90 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-orange-100 focus:border-orange-300 transition-all outline-none disabled:bg-slate-50/60 disabled:text-slate-500"
+                                            placeholder="Company contact"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
+                                    <input
+                                        type="text"
+                                        name="company_address"
+                                        disabled={!isEditing}
+                                        value={formData.company_address}
+                                        onChange={handleChange}
+                                        className="w-full px-4 py-3 bg-white/90 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-orange-100 focus:border-orange-300 transition-all outline-none disabled:bg-slate-50/60 disabled:text-slate-500"
+                                        placeholder="Company address"
                                     />
                                 </div>
                             </div>
+                        </div>
 
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 mb-2">Address</label>
-                                <input
-                                    type="text"
-                                    name="company_address"
-                                    disabled={!isEditing}
-                                    value={formData.company_address}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none disabled:bg-slate-50/50 disabled:text-slate-500"
-                                    placeholder="Company address"
-                                />
+                        {isEditing && (
+                            <div className="flex justify-end pt-2">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="bg-primary text-white px-10 py-3.5 rounded-2xl font-bold hover:bg-primary-hover transition-all shadow-xl shadow-orange-200 disabled:opacity-70 flex items-center gap-3"
+                                >
+                                    {isLoading ? (
+                                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                                    ) : (
+                                        <Save size={20} />
+                                    )}
+                                    {isLoading ? "Saving Changes..." : "Save Profile Information"}
+                                </button>
                             </div>
-                        </div>
-                    </div>
-
-                    {isEditing && (
-                        <div className="flex justify-end pt-4">
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="bg-blue-600 text-white px-10 py-3.5 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:opacity-70 flex items-center gap-3"
-                            >
-                                {isLoading ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-                                ) : (
-                                    <Save size={20} />
-                                )}
-                                {isLoading ? "Saving Changes..." : "Save Profile Information"}
-                            </button>
-                        </div>
-                    )}
+                        )}
+                    </section>
                 </form>
             </div>
         </div>

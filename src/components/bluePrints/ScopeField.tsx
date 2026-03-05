@@ -5,9 +5,11 @@ import { IProject } from "@/@types/interface/project.interface";
 interface Props {
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  hasError?: boolean;
+  onBlur?: () => void;
 }
 
-const ScopeField: React.FC<Props> = ({ value, onChange }) => {
+const ScopeField: React.FC<Props> = ({ value, onChange, hasError, onBlur }) => {
   const [projects, setProjects] = useState<IProject[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<IProject[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -112,30 +114,27 @@ const ScopeField: React.FC<Props> = ({ value, onChange }) => {
   };
 
   return (
-    <div className="flex items-start justify-between px-6 py-6 gap-8">
-      <div className="flex-1">
-        <label className="block font-medium mb-1">Project</label>
-        <p className="text-sm text-gray-500">
-          Select the project for this blueprint.
-        </p>
-      </div>
-      <div className="flex-1 relative" ref={dropdownRef}>
+    <div className="relative" ref={dropdownRef}>
         <input
           name="project_search"
           type="text"
           value={searchTerm}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
-          className="w-full px-4 py-2 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          onBlur={() => { onBlur?.(); }}
+          className={`w-full px-4 py-2.5 rounded-lg border text-sm transition-all focus:outline-none focus:ring-2 ${
+            hasError
+              ? "border-red-300 focus:ring-red-200 bg-red-50/30"
+              : "border-gray-200 focus:ring-blue-100 focus:border-blue-400"
+          }`}
           placeholder={
             loading ? "Loading projects..." : "Search project by name..."
           }
           disabled={loading}
-          required
         />
 
         {showDropdown && filteredProjects.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-y-auto">
+          <div className="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-md shadow-xl max-h-60 overflow-y-auto ring-1 ring-black ring-opacity-5">
             {filteredProjects.map((project) => (
               <div
                 key={project._id}
@@ -163,7 +162,6 @@ const ScopeField: React.FC<Props> = ({ value, onChange }) => {
 
         {/* Hidden input to maintain form compatibility */}
         <input type="hidden" name="project_object_id" value={value} />
-      </div>
     </div>
   );
 };

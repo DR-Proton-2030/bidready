@@ -23,13 +23,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm">
           <Home className="w-5 h-5 text-gray-500" />
-          <Link
-            href={link}
-            className="bg-primary cursor-pointer flex gap-2 items-center text-white pl-3 pr-5 py-2 rounded-lg font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            {buttonText}
-          </Link>
+
         </div>
       </div>
     </div>

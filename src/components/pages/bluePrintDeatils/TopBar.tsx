@@ -115,42 +115,63 @@ const TopBar: React.FC<TopBarProps> = ({
 
   return (
     <>
-      <header className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+      <header className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        {/* Left side: Title area */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-500">Today</p>
-          <h2 className="mt-2 text-4xl font-semibold leading-tight text-slate-900 md:text-[2.75rem]">Quantity Takeoff</h2>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-base text-slate-500">• Operational view</p>
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
+              Quantity Takeoff
+            </p>
           </div>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
+            {blueprintDetails?.blueprint?.name || "Blueprint Details"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Operational overview &middot; {blueprintDetails?.total_images ?? 0} floors loaded
+          </p>
         </div>
-        <div className="flex flex-wrap gap-3 items-center">
+
+        {/* Right side: Actions */}
+        <div className="flex flex-wrap gap-2 items-center">
           {/* Version Dropdown */}
           {blueprintDetails?.versions && blueprintDetails.versions.length > 0 && (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-2 rounded-2xl border border-white/70 bg-white/70 px-4 py-2.5 text-sm font-medium text-slate-700 backdrop-blur transition hover:border-white hover:bg-white"
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:shadow-sm"
               >
-                {currentVersionName ? `Version: ${currentVersionName}` : "Select Version"}
-                <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                <span className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-100 text-[10px] font-bold text-indigo-600">
+                  V
+                </span>
+                {currentVersionName || "Select Version"}
+                <ChevronDown className={`h-3.5 w-3.5 text-slate-400 transition-transform ${isOpen ? "rotate-180" : ""}`} />
               </button>
 
               {isOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 origin-top-right rounded-xl border border-white/50 bg-white/80 p-1 shadow-lg backdrop-blur-xl ring-1 ring-black/5 focus:outline-none z-50">
+                <div className="absolute right-0 top-full mt-1.5 w-52 origin-top-right rounded-xl border border-slate-200 bg-white p-1 shadow-lg ring-1 ring-slate-900/5 focus:outline-none z-50">
                   {blueprintDetails.versions.map((version: any) => (
                     <button
                       key={version._id}
                       onClick={() => {
                         setSelectedVersionId(version._id);
                         setIsOpen(false);
-                        console.log("Selected Version ID:", version._id);
                         const params = new URLSearchParams(searchParams.toString());
                         params.set("versionId", version._id);
                         router.push(`?${params.toString()}`);
                       }}
-                      className={`flex w-full uppercase items-center rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-white/50 ${selectedVersionId === version._id ? 'bg-white/50 font-semibold' : ''}`}
+                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm transition ${selectedVersionId === version._id
+                          ? "bg-slate-900 text-white font-medium"
+                          : "text-slate-700 hover:bg-slate-50"
+                        }`}
                     >
-                      {version.version}
+                      <span className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold ${selectedVersionId === version._id
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-100 text-slate-500"
+                        }`}>
+                        V
+                      </span>
+                      <span className="uppercase">{version.version}</span>
                     </button>
                   ))}
                 </div>
@@ -158,23 +179,23 @@ const TopBar: React.FC<TopBarProps> = ({
             </div>
           )}
 
-          {/* Edit Blueprint Button */}
+          {/* Edit Button */}
           <button
             onClick={() => setIsEditModalOpen(true)}
-            className="flex items-center gap-2 rounded-2xl border border-white/70 bg-white/70 px-4 py-2.5 text-sm font-medium text-slate-700 backdrop-blur transition hover:border-primary/30 hover:bg-white hover:text-primary"
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:shadow-sm"
             title="Edit Blueprint"
           >
-            <Edit3 className="w-4 h-4" />
+            <Edit3 className="w-3.5 h-3.5" />
             Edit
           </button>
 
-          {/* Delete Blueprint Button */}
+          {/* Delete Button */}
           <button
             onClick={() => setIsDeleteModalOpen(true)}
-            className="flex items-center gap-2 rounded-2xl border border-white/70 bg-white/70 px-4 py-2.5 text-sm font-medium text-slate-700 backdrop-blur transition hover:border-red-500/30 hover:bg-white hover:text-red-500"
+            className="flex items-center gap-1.5 rounded-xl border border-red-200/80 bg-white px-3.5 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50 hover:border-red-300"
             title="Delete Blueprint"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
             Delete
           </button>
 

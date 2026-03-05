@@ -19,10 +19,11 @@ import {
   buildPdfBlueprintFormData,
   buildFormParams,
 } from "@/utils/blueprintHelpers";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 import Loader from "@/components/shared/loader/Loader";
 import { usePDFAnnotation } from "@/hooks/usePDFAnnotation";
 import useCreateBlueprint from "@/hooks/useCreateBlueprint";
+import { FieldErrors, TouchedFields } from "@/components/bluePrints/BlueprintFormFields";
 
 export default function CreateBlueprint({
   initialProjectId = "",
@@ -50,6 +51,23 @@ export default function CreateBlueprint({
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
   const { handleNewBlueprint } = useBlueprints();
+
+  // Field-level validation
+  const [touched, setTouched] = useState<TouchedFields>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const validateFields = (f: BlueprintFormData): FieldErrors => {
+    const errs: FieldErrors = {};
+    if (!f.name.trim()) errs.name = "Blueprint title is required";
+    if (!f.description.trim()) errs.description = "Description is required";
+    if (!f.project_object_id) errs.project_object_id = "Please select a project";
+    return errs;
+  };
+
+  const handleBlur = (field: keyof BlueprintFormData) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setFieldErrors(validateFields(form));
+  };
 
   // State for streaming
   const [isStreaming, setIsStreaming] = useState(false);
@@ -82,11 +100,19 @@ export default function CreateBlueprint({
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const updated = { ...form, [e.target.name]: e.target.value };
+    setForm(updated);
+    if (touched[e.target.name as keyof BlueprintFormData]) {
+      setFieldErrors(validateFields(updated));
+    }
   };
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const updated = { ...form, [e.target.name]: e.target.value };
+    setForm(updated);
+    if (touched[e.target.name as keyof BlueprintFormData]) {
+      setFieldErrors(validateFields(updated));
+    }
   };
 
   const handleStatusChange = (status: string) => {
@@ -167,6 +193,20 @@ export default function CreateBlueprint({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Mark all fields as touched and validate
+    const allTouched: TouchedFields = {
+      name: true,
+      description: true,
+      project_object_id: true,
+    };
+    setTouched(allTouched);
+    const errs = validateFields(form);
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setError("Please fill in all required fields.");
+      return;
+    }
 
     const validationError = validateBlueprintForm(form, processedImages);
     if (validationError) {
@@ -346,6 +386,7 @@ export default function CreateBlueprint({
             }}
             externalPDFHook={pdfAnnotationHook}
             blueprintId={blueprintId}
+            isProcessing={isStreaming}
           />
         </div>
       </div>
@@ -353,15 +394,22 @@ export default function CreateBlueprint({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl  px-4 sm:px-6 lg:px-8">
+    <div className="bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50/30 py-8 min-h-full">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Header */}
-          <div className="bg-white border border-gray-200 rounded-lg  p-6">
-            <Header
-              button={false}
-              description="Create a new blueprint by filling out the details and uploading your files."
-            />
+          <div className="flex items-center gap-4 mb-2">
+            <button
+              type="button"
+              onClick={() => router.push("/blueprints")}
+              className="p-2 rounded-lg hover:bg-white/80 text-gray-500 hover:text-gray-700 transition-all"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Create Blueprint</h1>
+              <p className="text-sm text-gray-500 mt-0.5">Fill out the details and upload your blueprint files</p>
+            </div>
           </div>
 
           {/* Form Fields */}
@@ -371,6 +419,9 @@ export default function CreateBlueprint({
             onInputChange={handleChange}
             onTextareaChange={handleTextareaChange}
             onStatusChange={handleStatusChange}
+            fieldErrors={fieldErrors}
+            touched={touched}
+            onBlur={handleBlur}
           />
 
           {/* File Upload / PDF Preview Section */}
@@ -388,36 +439,35 @@ export default function CreateBlueprint({
             />
           ) : pdfFile ? (
             /* PDF Preview Card when a PDF is uploaded but not edited */
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="flex items-start gap-4">
-                <div className="w-32 h-40 border rounded overflow-hidden bg-gray-50">
-                  {/* Small embedded PDF preview using object tag */}
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="flex items-start gap-5">
+                <div className="w-28 h-36 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex-shrink-0">
                   <object
                     data={pdfPreviewUrl ?? undefined}
                     type="application/pdf"
                     className="w-full h-full"
                     aria-label="PDF preview"
                   >
-                    <div className="p-3 text-sm text-gray-500">Preview not available</div>
+                    <div className="flex items-center justify-center h-full text-xs text-gray-400">No preview</div>
                   </object>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{pdfFile.name}</div>
-                      <div className="text-xs text-gray-500">{(pdfFile.size / 1024).toFixed(1)} KB</div>
+                      <div className="text-sm font-semibold text-gray-900 truncate">{pdfFile.name}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">{(pdfFile.size / (1024 * 1024)).toFixed(2)} MB</div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPdfFile(null)}
-                        className="px-3 py-1 border rounded-md text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPdfFile(null)}
+                      className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
+                    >
+                      Remove
+                    </button>
                   </div>
-                  <p className="mt-3 text-sm text-gray-600">You uploaded a PDF. Click Create Blueprint to upload this PDF as-is, or Remove to cancel.</p>
+                  <p className="mt-3 text-xs text-gray-500 leading-relaxed">
+                    PDF uploaded successfully. Click <strong>Create Blueprint</strong> to process and upload.
+                  </p>
                 </div>
               </div>
             </div>
@@ -425,47 +475,49 @@ export default function CreateBlueprint({
 
           {/* Error Display */}
           {error && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <ErrorMessage message={error} />
+            <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-4">
+              <p className="text-sm text-red-700 font-medium">{error}</p>
             </div>
           )}
 
-          {/* Submit Button */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={() => router.push("/blueprints")}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isUploading || (processedImages.length === 0 && !pdfFile)}
-                className={`
-                  px-6 py-2 rounded-md flex items-center space-x-2
-                  ${isUploading || (processedImages.length === 0 && !pdfFile)
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                  }
-                `}
-              >
-                <span>Create Blueprint</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 pt-2 pb-4">
+            <button
+              type="button"
+              onClick={() => router.push("/blueprints")}
+              className="px-6 py-2.5 text-sm font-medium border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isUploading || (processedImages.length === 0 && !pdfFile)}
+              className={`
+                px-6 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold transition-all shadow-sm
+                ${isUploading || (processedImages.length === 0 && !pdfFile)
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-primary text-white hover:opacity-90 shadow-primary/25"
+                }
+              `}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  Create Blueprint
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
           </div>
         </form>
       </div>
 
-      {/* no detection overlay */}
-
       {/* Full Screen Image Viewer */}
-      {
-        isUploading &&
-        <Loader />
-      }
+      {isUploading && <Loader />}
     </div>
   );
 }
