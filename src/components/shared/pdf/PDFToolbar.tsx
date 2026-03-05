@@ -104,11 +104,10 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             <button
               key={tool}
               onClick={() => onToolSelect(tool)}
-              className={`p-1 rounded-lg transition-all duration-200 flex items-center justify-center font-medium text-sm ${
-                selectedTool === tool
+              className={`p-1 rounded-lg transition-all duration-200 flex items-center justify-center font-medium text-sm ${selectedTool === tool
                   ? "bg-orange-600 text-white shadow-lg "
                   : "text-gray-300 hover:text-white hover:bg-white/10 border-2 border-transparent"
-              }`}
+                }`}
               title={label}
             >
               {React.cloneElement(icon as React.ReactElement, { size: 18 } as any)}
@@ -116,11 +115,11 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
           ))}
         </div>
 
-     
+
 
         {/* Right Side Controls */}
         <div className="flex items-center gap-3">
-       
+
 
           {/* Zoom Controls */}
           <div className="flex items-center gap-2 p-1 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
@@ -196,7 +195,7 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
             </button>
           </div>
 
-         
+
 
         </div>
       </div>
@@ -211,11 +210,10 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               <button
                 key={color}
                 onClick={() => onColorChange(color)}
-                className={`w-6 h-6 rounded-lg border-2 transition-all duration-200 hover:scale-125 shadow-sm ${
-                  toolColor === color
+                className={`w-6 h-6 rounded-lg border-2 transition-all duration-200 hover:scale-125 shadow-sm ${toolColor === color
                     ? "border-white shadow-md scale-110"
                     : "border-gray-600 hover:border-gray-400"
-                }`}
+                  }`}
                 style={{ backgroundColor: color }}
                 title={color}
               />
@@ -256,51 +254,51 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
           </div>
         </div>
 
-       
- <div className="flex align-items-center gap-3">
-   {/* Width/Size Controls */}
-        {(selectedTool === "pen" ||
-          selectedTool === "highlighter" ||
-          selectedTool === "eraser" ||
-          selectedTool === "line" ||
-          selectedTool === "arrow" ||
-          selectedTool === "rectangle" ||
-          selectedTool === "circle") && (
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Width:</span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min="1"
-                  max="20"
-                  value={toolWidth}
-                  onChange={(e) => onWidthChange(Number(e.target.value))}
-                  className="w-32 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-                <span className="text-xs font-mono font-bold text-blue-400 min-w-[40px]">{toolWidth}px</span>
+
+        <div className="flex align-items-center gap-3">
+          {/* Width/Size Controls */}
+          {(selectedTool === "pen" ||
+            selectedTool === "highlighter" ||
+            selectedTool === "eraser" ||
+            selectedTool === "line" ||
+            selectedTool === "arrow" ||
+            selectedTool === "rectangle" ||
+            selectedTool === "circle") && (
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Width:</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="1"
+                    max="20"
+                    value={toolWidth}
+                    onChange={(e) => onWidthChange(Number(e.target.value))}
+                    className="w-32 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                  <span className="text-xs font-mono font-bold text-blue-400 min-w-[40px]">{toolWidth}px</span>
+                </div>
               </div>
-            </div>
-          )}
-    {/* History Controls */}
-        <div className="flex items-center gap-2 p-1 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
-          <button
-            onClick={onUndo}
-            disabled={!canUndo}
-            className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
-            title="Undo"
-          >
-            <Undo size={16} />
-          </button>
-          <button
-            onClick={onRedo}
-            disabled={!canRedo}
-            className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
-            title="Redo"
-          >
-            <Redo size={16} />
-          </button>
-        </div>
-         {/* Export Button */}
+            )}
+          {/* History Controls */}
+          <div className="flex items-center gap-2 p-1 bg-black/80 rounded-2xl border border-gray-200 shadow-sm">
+            <button
+              onClick={onUndo}
+              disabled={!canUndo}
+              className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
+              title="Undo"
+            >
+              <Undo size={16} />
+            </button>
+            <button
+              onClick={onRedo}
+              disabled={!canRedo}
+              className="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-2 border-transparent hover:border-gray-400"
+              title="Redo"
+            >
+              <Redo size={16} />
+            </button>
+          </div>
+          {/* Export Button */}
           {showExportButton && (
             <button
               onClick={onExport}
@@ -312,25 +310,25 @@ const PDFToolbar: React.FC<PDFToolbarProps> = ({
               <span>{exportButtonText}</span>
             </button>
           )}
-        {/* Font Size Control */}
-        {selectedTool === "text" && (
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Size:</span>
-            <div className="flex items-center gap-2">
-              <input
-                type="range"
-                min="8"
-                max="72"
-                value={fontSize}
-                onChange={(e) => onFontSizeChange(Number(e.target.value))}
-                className="w-32 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-              <span className="text-xs font-mono font-bold text-blue-400 min-w-[40px]">{fontSize}px</span>
+          {/* Font Size Control */}
+          {selectedTool === "text" && (
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Size:</span>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min="8"
+                  max="72"
+                  value={fontSize}
+                  onChange={(e) => onFontSizeChange(Number(e.target.value))}
+                  className="w-32 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <span className="text-xs font-mono font-bold text-blue-400 min-w-[40px]">{fontSize}px</span>
+              </div>
+
             </div>
-            
-          </div>
-        )}
- </div>
+          )}
+        </div>
       </div>
     </div>
   );

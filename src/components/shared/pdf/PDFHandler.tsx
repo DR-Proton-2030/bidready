@@ -55,6 +55,7 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
     redo,
     clearPageAnnotations,
     exportPDF,
+    setEditedImage,
     isLoading,
     error,
     allPagesLoaded,
@@ -248,6 +249,8 @@ const PDFHandler: React.FC<PDFHandlerProps> = ({
             onAnnotationSelect={() => { }}
             onSaveEdits={(payload) => {
               try { console.log("PDFHandler: onSaveEdits", payload); } catch { }
+              // Store the edited image on the hook state so exportPDF can use it
+              try { setEditedImage(payload.pageId, payload.editedImage); } catch (err) { console.warn("setEditedImage failed", err); }
               try { onSaveEdits?.(payload); } catch (err) { console.warn("onSaveEdits parent handler failed", err); }
             }}
             onCanvasEdit={(pageId, image) => {
