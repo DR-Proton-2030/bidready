@@ -7,7 +7,7 @@ const reducer = (state: Store, action: AuthAction) => {
 		case actions.SET_USER: {
 			return {
 				...state,
-				isLoggedIn: true,
+				isLoggedIn: !!action.payload.user,
 				user: action.payload.user
 			};
 		}

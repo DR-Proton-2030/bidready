@@ -895,10 +895,6 @@ export default function FullScreenImageViewer({
         case "-":
           zoomOut();
           break;
-        case "r":
-        case "R":
-          rotate();
-          break;
       }
     },
     [isOpen, isMeasuring, measurementDraft, onClose]
