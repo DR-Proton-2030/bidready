@@ -2423,7 +2423,7 @@ export default function FullScreenImageViewer({
                         </g>
                       )}
 
-                      {hasConfidence && (
+                      {/* {hasConfidence && (
                         <text
                           x={userPolygonCentroid?.x ?? labelX}
                           y={userPolygonCentroid?.y ?? labelY}
@@ -2436,7 +2436,7 @@ export default function FullScreenImageViewer({
                         >
                           {`${Math.round(detection.confidence * 100)}%`}
                         </text>
-                      )}
+                      )} */}
 
                     </g>
                   );
