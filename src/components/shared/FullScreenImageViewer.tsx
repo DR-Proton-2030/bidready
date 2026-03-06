@@ -125,7 +125,7 @@ export default function FullScreenImageViewer({
   onDetectionsChange,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.50);
   const [rotation, setRotation] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -719,7 +719,7 @@ export default function FullScreenImageViewer({
 
   // Reset zoom and position when image changes
   useEffect(() => {
-    setZoom(1);
+    setZoom(0.5);
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
     setSelectedClasses(new Set()); // Reset class filter on image change
@@ -969,7 +969,7 @@ export default function FullScreenImageViewer({
   };
 
   const resetView = () => {
-    setZoom(1);
+    setZoom(0.67);
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
   };
