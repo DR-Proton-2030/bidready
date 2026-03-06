@@ -25,8 +25,22 @@ const AuthContextProvider = ({ children }: ContextProviderProps) => {
           payload: { ...state, user },
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       dispatch({ type: actions.SET_USER, payload: { ...state, user: null } });
+      
+      // If verification fails on a protected route, force logout and redirect
+      if (isOnProtectedRoute) {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("@token");
+          const domain = window.location.hostname.includes("bidready.net") ? ".bidready.net" : "localhost";
+          document.cookie = `token=; path=/; domain=${domain}; max-age=0; SameSite=Lax`;
+          document.cookie = "token=; path=/; max-age=0; SameSite=Lax";
+          
+          if (window.location.pathname !== "/login") {
+            window.location.href = "/login";
+          }
+        }
+      }
     }
   }, [isOnProtectedRoute]);
 

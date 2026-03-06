@@ -34,7 +34,23 @@ API.interceptors.request.use(
 API.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError<ApiErrorResponse>) => {
+    const status = error.response?.status;
     const message = error.response?.data?.message || "Something went wrong!";
+
+    if (status === 401 || status === 403) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("@token");
+        // Clear cookie with both domain and path to be sure
+        const domain = window.location.hostname.includes("bidready.net") ? ".bidready.net" : "localhost";
+        document.cookie = `token=; path=/; domain=${domain}; max-age=0; SameSite=Lax`;
+        document.cookie = "token=; path=/; max-age=0; SameSite=Lax";
+        
+        // Use window.location.replace to prevent back button issues
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+      }
+    }
 
     if (typeof window !== "undefined") {
       import("react-toastify").then(({ toast }) => {

@@ -125,7 +125,7 @@ export default function FullScreenImageViewer({
   onDetectionsChange,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(0.50);
   const [rotation, setRotation] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -719,7 +719,7 @@ export default function FullScreenImageViewer({
 
   // Reset zoom and position when image changes
   useEffect(() => {
-    setZoom(1);
+    setZoom(0.5);
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
     setSelectedClasses(new Set()); // Reset class filter on image change
@@ -895,10 +895,6 @@ export default function FullScreenImageViewer({
         case "-":
           zoomOut();
           break;
-        case "r":
-        case "R":
-          rotate();
-          break;
       }
     },
     [isOpen, isMeasuring, measurementDraft, onClose]
@@ -973,7 +969,7 @@ export default function FullScreenImageViewer({
   };
 
   const resetView = () => {
-    setZoom(1);
+    setZoom(0.67);
     setRotation(0);
     setImagePosition({ x: 0, y: 0 });
   };
@@ -1168,7 +1164,7 @@ export default function FullScreenImageViewer({
           height: 0,
         });
       }
-    } else if (zoom > 1) {
+    } else if (activeTool === "pan" || zoom > 1) {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - imagePosition.x,
@@ -1311,7 +1307,7 @@ export default function FullScreenImageViewer({
           });
         }
       }
-    } else if (isDragging && zoom > 1) {
+    } else if (isDragging && (activeTool === "pan" || zoom > 1)) {
       setImagePosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y,
@@ -2033,7 +2029,7 @@ export default function FullScreenImageViewer({
               ? "crosshair"
               : activeTool === "erase"
                 ? "pointer"
-                : zoom > 1
+                : activeTool === "pan" || zoom > 1
                   ? isDragging
                     ? "grabbing"
                     : "grab"
@@ -2067,7 +2063,7 @@ export default function FullScreenImageViewer({
                   activeTool === "linear" ||
                   activeTool === "measure"
                   ? "crosshair"
-                  : zoom > 1
+                  : activeTool === "pan" || zoom > 1
                     ? isDragging
                       ? "grabbing"
                       : "grab"
@@ -2427,7 +2423,7 @@ export default function FullScreenImageViewer({
                         </g>
                       )}
 
-                      {hasConfidence && (
+                      {/* {hasConfidence && (
                         <text
                           x={userPolygonCentroid?.x ?? labelX}
                           y={userPolygonCentroid?.y ?? labelY}
@@ -2440,7 +2436,7 @@ export default function FullScreenImageViewer({
                         >
                           {`${Math.round(detection.confidence * 100)}%`}
                         </text>
-                      )}
+                      )} */}
 
                     </g>
                   );
