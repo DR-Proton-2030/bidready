@@ -1164,7 +1164,7 @@ export default function FullScreenImageViewer({
           height: 0,
         });
       }
-    } else if (zoom > 1) {
+    } else if (activeTool === "pan" || zoom > 1) {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - imagePosition.x,
@@ -1307,7 +1307,7 @@ export default function FullScreenImageViewer({
           });
         }
       }
-    } else if (isDragging && zoom > 1) {
+    } else if (isDragging && (activeTool === "pan" || zoom > 1)) {
       setImagePosition({
         x: e.clientX - dragStart.x,
         y: e.clientY - dragStart.y,
@@ -2029,7 +2029,7 @@ export default function FullScreenImageViewer({
               ? "crosshair"
               : activeTool === "erase"
                 ? "pointer"
-                : zoom > 1
+                : activeTool === "pan" || zoom > 1
                   ? isDragging
                     ? "grabbing"
                     : "grab"
@@ -2063,7 +2063,7 @@ export default function FullScreenImageViewer({
                   activeTool === "linear" ||
                   activeTool === "measure"
                   ? "crosshair"
-                  : zoom > 1
+                  : activeTool === "pan" || zoom > 1
                     ? isDragging
                       ? "grabbing"
                       : "grab"
