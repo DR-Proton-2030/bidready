@@ -1,6 +1,18 @@
 "use client";
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import AuthContext from "@/contexts/authContext/authContext";
+
+type Greeting = {
+  text: string;
+  icon: string;
+};
+
+const getGreeting = (hour: number): Greeting => {
+  if (hour >= 5 && hour < 12) return { text: "Good Morning", icon: "🌤️" };
+  if (hour >= 12 && hour < 17) return { text: "Good Afternoon", icon: "☀️" };
+  if (hour >= 17 && hour < 21) return { text: "Good Evening", icon: "🌇" };
+  return { text: "Good Night", icon: "🌙" };
+};
 
 const ProfileProgress: React.FC = () => {
   const { user } = useContext(AuthContext);
@@ -18,13 +30,26 @@ const ProfileProgress: React.FC = () => {
       user.company_details?.phone,
       user.company_details?.address,
     ];
-    const filled = fields.filter((value) => Boolean(value && String(value).trim())).length;
+    const filled = fields.filter((value) =>
+      Boolean(value && String(value).trim()),
+    ).length;
     return Math.min(100, Math.round((filled / fields.length) * 100));
   })();
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   const progressOffset = circumference - (circumference * completion) / 100;
   const displayName = user?.full_name?.split(" ")[0] || "Jason";
+
+  const [greeting, setGreeting] = useState<Greeting>(() =>
+    getGreeting(new Date().getHours()),
+  );
+
+  useEffect(() => {
+    const update = () => setGreeting(getGreeting(new Date().getHours()));
+    update();
+    const id = setInterval(update, 60_000); // refresh every minute
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center -my-8">
@@ -74,7 +99,7 @@ const ProfileProgress: React.FC = () => {
 
       <div className="text-center mt-3">
         <h3 className="text-lg font-bold text-slate-900 flex items-center justify-center gap-1.5 tracking-tight">
-          Good Morning {displayName} 🔥
+          {greeting.text} {displayName} <span aria-hidden>{greeting.icon}</span>
         </h3>
         <p className="text-slate-400 text-[10px] font-medium leading-tight">
           Continue your work to achieve your target!

@@ -32,6 +32,7 @@ const ProjectCard: React.FC<IProject> = ({
     active: "bg-emerald-100 text-emerald-700",
     "in-progress": "bg-orange-100 text-orange-700",
     completed: "bg-blue-100 text-blue-700",
+    "on-hold": "bg-amber-100 text-amber-700",
     default: "bg-gray-100 text-gray-700",
   };
 
