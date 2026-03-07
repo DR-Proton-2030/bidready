@@ -2446,8 +2446,32 @@ export default function FullScreenImageViewer({
               {measurements.map((measurement) => {
                 const midX = (measurement.start.x + measurement.end.x) / 2;
                 const midY = (measurement.start.y + measurement.end.y) / 2;
+                const isErasing = activeTool === "erase";
                 return (
-                  <g key={measurement.id} style={{ pointerEvents: 'none' }}>
+                  <g
+                    key={measurement.id}
+                    style={{
+                      pointerEvents: isErasing ? 'auto' : 'none',
+                      cursor: isErasing ? 'not-allowed' : 'default',
+                    }}
+                    onClick={() => {
+                      if (isErasing) {
+                        setMeasurements((prev) => prev.filter((m) => m.id !== measurement.id));
+                        showUndoSnackbar("Measurement deleted.");
+                      }
+                    }}
+                  >
+                    {/* Invisible wider hit-area for easier clicking with eraser */}
+                    {isErasing && (
+                      <line
+                        x1={measurement.start.x}
+                        y1={measurement.start.y}
+                        x2={measurement.end.x}
+                        y2={measurement.end.y}
+                        stroke="transparent"
+                        strokeWidth={18}
+                      />
+                    )}
                     <line
                       x1={measurement.start.x}
                       y1={measurement.start.y}

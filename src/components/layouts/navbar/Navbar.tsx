@@ -65,7 +65,7 @@ const Navbar = () => {
         {/* Right side actions */}
         <div className="flex shrink-0 items-center gap-2">
           {/* Mail */}
-         
+
 
           {/* Notifications */}
           <div className="relative">
@@ -89,9 +89,8 @@ const Navbar = () => {
                   {notifications.map((n) => (
                     <div
                       key={n.id}
-                      className={`cursor-pointer px-4 py-3 transition ${
-                        n.unread ? "bg-blue-50/40" : "hover:bg-slate-50"
-                      }`}
+                      className={`cursor-pointer px-4 py-3 transition ${n.unread ? "bg-blue-50/40" : "hover:bg-slate-50"
+                        }`}
                     >
                       <p className="text-sm text-slate-800">{n.message}</p>
                       <p className="mt-0.5 text-xs text-slate-400">{n.time}</p>
@@ -121,14 +120,14 @@ const Navbar = () => {
                   />
                 ) : (
                   <img
-                     src={`https://api.dicebear.com/9.x/dylan/svg?seed=${`Bid` + (user?.full_name || "Jason")}`}
+                    src={`https://api.dicebear.com/9.x/dylan/svg?seed=${`Bid` + (user?.full_name || "Jason")}`}
                     alt="User Avatar"
                     className="h-full w-full object-contain"
                   />
                 )}
               </div>
               <span className="hidden max-w-[130px] truncate text-sm font-semibold text-slate-700 sm:block">
-               Profile
+                Profile
               </span>
             </button>
 
@@ -136,7 +135,7 @@ const Navbar = () => {
               <div className="absolute right-0 z-[110] mt-2 w-52 rounded-2xl border border-white/60 bg-white/90 py-1.5 shadow-xl backdrop-blur-2xl">
                 <div className="border-b border-slate-100 px-4 py-2.5">
                   <p className="text-sm font-semibold text-slate-800">{user?.full_name}</p>
-                  <p className="text-xs text-slate-400">{user?.email}</p>
+                  {/* <p className="text-xs text-slate-400">{user?.email}</p> */}
                 </div>
                 <div className="py-1">
                   <Link
@@ -147,10 +146,7 @@ const Navbar = () => {
                     <User size={16} weight="Linear" />
                     Profile
                   </Link>
-                  <a className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 cursor-pointer">
-                    <QuestionCircle size={16} weight="Linear" />
-                    Help
-                  </a>
+
                 </div>
                 <div className="border-t border-slate-100 py-1">
                   <button

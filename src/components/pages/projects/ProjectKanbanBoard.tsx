@@ -143,7 +143,7 @@ const KanbanColumn = ({
             ref={setNodeRef}
             className={`
                 flex flex-col
-               w-full
+                min-w-[280px] w-full
                 h-full
                 rounded-2xl
                 transition-all duration-300
@@ -197,7 +197,9 @@ const KanbanColumn = ({
                 overflow-y-auto
                 space-y-3
                 p-1
+                pb-4
                 min-h-[200px]
+                max-h-[calc(100vh-320px)]
                 transition-colors duration-200
                 rounded-xl
                 ${isOver ? 'bg-orange-50/50' : ''}
@@ -386,10 +388,10 @@ const ProjectKanbanBoard: React.FC<ProjectKanbanBoardProps> = ({
     return (
         <div className="
             flex 
-            h-[calc(100vh-280px)] 
-            overflow-x-auto 
+            min-h-[400px]
+            overflow-y-auto 
             gap-5 
-            pb-4 
+            pb-6 
             items-start
             px-1
         ">
