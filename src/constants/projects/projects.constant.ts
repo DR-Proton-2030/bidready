@@ -44,6 +44,7 @@ export const PROJECT_STATUSES = [
   "Active",
   "In Progress",
   "Planning",
+  "On Hold",
 ] as const;
 
 export const PROJECTS_TEXT = {

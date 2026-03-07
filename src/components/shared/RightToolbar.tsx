@@ -139,13 +139,6 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
           }}
           tooltip="Box Detection"
         />
-        <ToolButton
-          icon={Pencil}
-          label="markup"
-          activeTool={activeTool}
-          onClick={() => setTool("markup")}
-          tooltip="Freehand Markup"
-        />
 
         <ToolbarDivider />
 
@@ -171,13 +164,7 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
         <ToolbarDivider />
 
         {/* Utility Tools */}
-        <ToolButton
-          icon={SlidersHorizontal}
-          label="adjust"
-          activeTool={activeTool}
-          onClick={() => setTool("adjust")}
-          tooltip="Image Adjustments"
-        />
+
         <ToolButton
           icon={Eraser}
           label="erase"

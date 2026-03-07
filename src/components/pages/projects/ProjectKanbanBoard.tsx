@@ -37,7 +37,7 @@ import {
 } from "lucide-react";
 
 // --- Types ---
-type ColumnId = "active" | "in-progress" | "planning" | "completed";
+type ColumnId = "active" | "in-progress" | "planning" | "completed" | "on-hold";
 
 interface ProjectKanbanBoardProps {
     projects: IProject[];
@@ -77,6 +77,14 @@ const COLUMNS: Column[] = [
         gradient: "from-slate-400 to-slate-600",
         accentColor: "text-slate-600",
         bgColor: "bg-white slate-200"
+    },
+    {
+        id: "on-hold",
+        title: "On Hold",
+        icon: <Clock className="w-4 h-4" />,
+        gradient: "from-orange-400 to-orange-500",
+        accentColor: "text-orange-600",
+        bgColor: "bg-white orange-50"
     },
 ];
 
@@ -157,7 +165,7 @@ const KanbanColumn = ({
                         p-2 rounded-lg
                         bg-gradient-to-br ${column.gradient}
                         text-white
-                        shadow-lg shadow-${column.id === 'active' ? 'emerald' : column.id === 'in-progress' ? 'amber' : column.id === 'planning' ? 'blue' : 'slate'}-500/25
+                        shadow-lg shadow-${column.id === 'active' ? 'emerald' : column.id === 'in-progress' ? 'amber' : column.id === 'planning' ? 'blue' : column.id === 'on-hold' ? 'orange' : 'slate'}-500/25
                     `}>
                         {column.icon}
                     </div>
@@ -254,6 +262,7 @@ const ProjectKanbanBoard: React.FC<ProjectKanbanBoardProps> = ({
             "in-progress": [],
             planning: [],
             completed: [],
+            "on-hold": [],
         };
 
         projects.forEach((project) => {

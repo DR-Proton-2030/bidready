@@ -39,6 +39,7 @@ const BoardCard: React.FC<BoardCardProps> = ({
         "in-progress": { dot: "bg-amber-500", bg: "bg-amber-500/10" },
         planning: { dot: "bg-blue-500", bg: "bg-blue-500/10" },
         completed: { dot: "bg-slate-400", bg: "bg-slate-400/10" },
+        "on-hold": { dot: "bg-orange-500", bg: "bg-orange-500/10" },
     };
 
     const priority = priorityColors[status || "planning"] || priorityColors.planning;
