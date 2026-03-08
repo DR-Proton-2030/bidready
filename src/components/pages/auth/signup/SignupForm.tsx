@@ -85,12 +85,12 @@ const SignupForm: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="">
       {/* Main Container */}
-      <div className="w-full max-w-[900px] grid grid-cols-1 lg:grid-cols-[260px_1fr] rounded-2xl overflow-hidden shadow-2xl shadow-orange-200/40 signup-main-card animate-fade-in">
+      <div className="w-full h-screen  lg:mx-auto grid grid-cols-1 lg:grid-cols-[260px_1fr] ">
         
-        {/* LEFT PANEL — Branding & Stepper Navigation */}
-        <div className="signup-left-panel relative flex flex-col justify-between p-6 lg:p-7">
+        {/* LEFT PANEL — Branding & Stepper Navigation (Desktop only) */}
+        <div className="signup-left-panel w-72 relative hidden lg:flex flex-col justify-between p-6 lg:p-7 h-screen">
           {/* Background decorative elements */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute -top-20 -left-20 w-60 h-60 bg-white/5 rounded-full blur-2xl" />
@@ -102,9 +102,9 @@ const SignupForm: React.FC = () => {
           <div className="relative z-10">
             <div className="flex items-center gap-2.5 mb-1">
               <div className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+           <div className="mt-2 w-24 opacity-80">
+              <CompanyLogo />
+            </div>
               </div>
               <span className="text-white/90 font-bold text-lg tracking-tight">BidReady</span>
             </div>
@@ -199,12 +199,66 @@ const SignupForm: React.FC = () => {
         </div>
 
         {/* RIGHT PANEL — Form Content */}
-        <div className="bg-white flex flex-col">
+        <div className=" flex flex-col md:w-3xl mx-auto">
+          <div className="absolute inset-0 opacity-90 pointer-events-none" style={{ backgroundImage: "radial-gradient(circle at 20% 20%, rgba(14,165,233,0.12), transparent 55%), radial-gradient(circle at 80% 0%, rgba(248,113,113,0.15), transparent 45%), radial-gradient(circle at 50% 100%, rgba(59,130,246,0.08), transparent 60%)" }} />
+
+          {/* Mobile Compact Stepper (visible only on mobile) */}
+          <div className="lg:hidden signup-left-panel px-4 pt-4 pb-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <span className="text-white/90 font-bold text-base tracking-tight">BidReady</span>
+              </div>
+              <span className="text-white/60 text-xs">Step {currentStep} of {steps.length}</span>
+            </div>
+            {/* Horizontal step indicators */}
+            <div className="flex items-center gap-2">
+              {steps.map((step, index) => {
+                const stepNumber = index + 1;
+                const isActive = stepNumber === currentStep;
+                const isCompleted = completedSteps.includes(stepNumber);
+                return (
+                  <React.Fragment key={index}>
+                    <div className="flex items-center gap-1.5">
+                      <div className={`
+                        w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
+                        ${isCompleted 
+                          ? 'bg-white text-orange-600' 
+                          : isActive 
+                            ? 'bg-white text-orange-600 ring-2 ring-white/40' 
+                            : 'bg-white/15 text-white/50'
+                        }
+                      `}>
+                        {isCompleted ? (
+                          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        ) : (
+                          stepNumber
+                        )}
+                      </div>
+                      <span className={`text-xs font-medium transition-all duration-300 ${isActive || isCompleted ? 'text-white' : 'text-white/40'}`}>
+                        {step}
+                      </span>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div className={`flex-1 h-0.5 rounded-full transition-all duration-500 ${isCompleted ? 'bg-white/60' : 'bg-white/20'}`} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Header */}
-          <div className="px-6 pt-5 pb-3 sm:px-8 sm:pt-6 border-b border-gray-100">
+          <div className="px-5 pt-4 pb-3 sm:px-8 sm:pt-6 border-b border-gray-100">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
+                <h1 className="text-lg sm:text-xl font-bold text-gray-900">
                   {currentStep === 1 ? "Create Your Account" : "Company Information"}
                 </h1>
                 <p className="text-gray-500 text-xs mt-0.5">
@@ -234,7 +288,7 @@ const SignupForm: React.FC = () => {
           </div>
 
           {/* Form Content (scrollable) */}
-          <div className="flex-1 overflow-y-auto px-6 py-4 sm:px-8 sm:py-5 custom-scrollbar">
+          <div className="px-5 py-4 sm:px-8 sm:py-5 lg:flex-1 lg:overflow-y-auto custom-scrollbar">
             <div className="step-transition">
               {renderStepContent()}
             </div>

@@ -298,7 +298,12 @@
   /* Premium Signup Styles */
   .signup-main-card {
     border: 1px solid rgba(0, 0, 0, 0.06);
-    max-height: 96vh;
+  }
+
+  @media (min-width: 1024px) {
+    .signup-main-card {
+      max-height: 96vh;
+    }
   }
 
   .signup-left-panel {
