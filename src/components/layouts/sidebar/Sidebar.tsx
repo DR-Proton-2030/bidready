@@ -53,7 +53,7 @@ const Sidebar = () => {
               src={user.company_details.logo}
               alt={user.company_details.company_name || "Company Logo"}
               className={`object-contain transition-all duration-300 ${
-                isSidebarCollapsed ? "h-12 w-12" : "h-8 w-40"
+                isSidebarCollapsed ? "h-12 w-12" : "h-16 w-40"
               }`}
               loading="lazy"
             />

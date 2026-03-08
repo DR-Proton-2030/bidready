@@ -13,6 +13,13 @@ interface CompanyDetailsStepProps {
   onFileSelect: (file: File | null) => void;
 }
 
+const FEATURES = [
+  { icon: "📊", title: "Advanced Analytics", desc: "Real-time insights & reporting" },
+  { icon: "👥", title: "Team Collaboration", desc: "Unlimited team members" },
+  { icon: "🛡️", title: "Priority Support", desc: "24/7 dedicated support" },
+  { icon: "🔌", title: "Custom Integrations", desc: "API access & integrations" },
+];
+
 const CompanyDetailsStep: React.FC<CompanyDetailsStepProps> = ({
   formData,
   logoPreview,
@@ -38,16 +45,7 @@ const CompanyDetailsStep: React.FC<CompanyDetailsStepProps> = ({
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-semibold text-secondary mb-2">
-          Company Information
-        </h2>
-        <p className="text-gray-600">
-          Tell us about your company
-        </p>
-      </div>
-
+    <div className="space-y-4">
       {/* Company Logo Upload */}
       <FileUpload
         label="Company Logo"
@@ -68,88 +66,37 @@ const CompanyDetailsStep: React.FC<CompanyDetailsStepProps> = ({
               handleChange={onChange}
             />
             {errors[input.name] && (
-              <p className="mt-1 text-sm text-red-600">{errors[input.name]}</p>
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {errors[input.name]}
+              </p>
             )}
           </div>
         ))}
       </div>
 
-      {/* Company Features */}
-      <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-6">
-        <h4 className="text-lg font-semibold text-orange-800 mb-4">
-          🚀 What you'll get with BidReady Premium
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-start space-x-3">
-            <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div>
-              <h5 className="font-medium text-orange-800">Advanced Analytics</h5>
-              <p className="text-sm text-orange-700">Real-time insights and reporting</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start space-x-3">
-            <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div>
-              <h5 className="font-medium text-orange-800">Team Collaboration</h5>
-              <p className="text-sm text-orange-700">Unlimited team members</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start space-x-3">
-            <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div>
-              <h5 className="font-medium text-orange-800">Priority Support</h5>
-              <p className="text-sm text-orange-700">24/7 dedicated support</p>
-            </div>
-          </div>
-          
-          <div className="flex items-start space-x-3">
-            <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div>
-              <h5 className="font-medium text-orange-800">Custom Integrations</h5>
-              <p className="text-sm text-orange-700">API access and integrations</p>
-            </div>
-          </div>
-        </div>
-      </div>
+   
 
       {/* Terms and Conditions */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <input
-            type="checkbox"
-            id="terms"
-            className="mt-1 h-4 w-4 text-primary border-gray-300 rounded focus:ring-primary"
-            required
-          />
-          <label htmlFor="terms" className="text-sm text-gray-700">
-            I agree to the{" "}
-            <a href="/terms" className="text-primary hover:text-primary-hover font-medium">
-              Terms of Service
-            </a>{" "}
-            and{" "}
-            <a href="/privacy" className="text-primary hover:text-primary-hover font-medium">
-              Privacy Policy
-            </a>
-          </label>
-        </div>
+      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+        <input
+          type="checkbox"
+          id="terms"
+          className="mt-0.5 h-4 w-4 text-orange-500 border-gray-300 rounded focus:ring-orange-500 accent-orange-500"
+          required
+        />
+        <label htmlFor="terms" className="text-xs text-gray-600 leading-relaxed">
+          I agree to the{" "}
+          <a href="/terms" className="text-orange-600 font-medium hover:text-orange-700 transition-colors">
+            Terms of Service
+          </a>{" "}
+          and{" "}
+          <a href="/privacy" className="text-orange-600 font-medium hover:text-orange-700 transition-colors">
+            Privacy Policy
+          </a>
+        </label>
       </div>
     </div>
   );

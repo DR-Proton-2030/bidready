@@ -13,7 +13,6 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [otpError, setOtpError] = useState<string>("");
   const [email, setEmail] = useState<string>("");
-  const [serverOtp, setServerOtp] = useState<string>(""); // store OTP from backend
   const [userId, setUserId] = useState<string>("");
 
   // Step 1: Open modal and request OTP
@@ -23,11 +22,9 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
       setOtpError("");
       setIsModalOpen(true);
 
-      // call backend to generate OTP
-      const { otp, userId } = await api.auth.getOtp({ email: userEmail ,  type: options?.type, });
-      setServerOtp(otp);   // save server otp in state
+      // call backend to generate OTP (OTP is sent via email, not returned)
+      const { userId } = await api.auth.getOtp({ email: userEmail, type: options?.type });
       setUserId(userId);
-      console.log("Generated OTP:", otp);
     } catch (error: any) {
       setOtpError(error?.message || "Failed to generate OTP");
       options?.onError?.(error?.message);
@@ -40,15 +37,21 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
     setIsVerifying(false);
   }, []);
 
-  // Step 2: Verify entered OTP
+  // Step 2: Verify entered OTP via server-side verification
   const verifyOtp = useCallback(
     async (enteredOtp: string) => {
       setIsVerifying(true);
       setOtpError("");
 
       try {
-        // ✅ Compare with the OTP from state
-        if (enteredOtp === serverOtp) {
+        // Verify OTP on the server
+        const result = await api.auth.verifyOtp({
+          email,
+          otp: enteredOtp,
+          type: options?.type,
+        });
+
+        if (result?.verified) {
           setIsModalOpen(false);
           options?.onSuccess?.(enteredOtp);
         } else {
@@ -63,18 +66,16 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
         setIsVerifying(false);
       }
     },
-    [serverOtp, options, email]
+    [email, options]
   );
 
   // Step 3: Resend OTP
   const resendOtp = useCallback(async () => {
     try {
-      const { otp, userId } = await api.auth.getOtp({ email ,   type: options?.type });
-      setServerOtp(otp);
+      const { userId } = await api.auth.getOtp({ email, type: options?.type });
       setUserId(userId);
       setOtpError("");
       options?.onResend?.();
-      console.log("Resent OTP:", otp);
     } catch (error: any) {
       const errorMessage =
         error?.message || "Failed to resend OTP. Please try again.";
@@ -95,3 +96,4 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
     resendOtp,
   };
 };
+

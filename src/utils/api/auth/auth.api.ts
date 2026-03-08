@@ -36,17 +36,22 @@ export const verifyToken = async (): Promise<any> => {
 export const getOtp = async (payload: Payload) => {
   try {
     const data = await post(`/${initialRoute}/get-otp`, payload);
-    console.log("OTP API response:", data);
 
-    const { result: otp, userId, message } = data || {};
+    const { userId, message } = data || {};
 
-    if (otp) {
-      return { otp, userId };
-    }
-
-    throw new Error(message || "OTP result not found");
+    return { userId, message };
   } catch (error: any) {
     console.error("OTP Error:", error);
+    throw error;
+  }
+};
+
+export const verifyOtp = async (payload: { email: string; otp: string; type?: string }) => {
+  try {
+    const data = await post(`/${initialRoute}/verify-otp`, payload);
+    return data;
+  } catch (error: any) {
+    console.error("OTP Verification Error:", error);
     throw error;
   }
 };

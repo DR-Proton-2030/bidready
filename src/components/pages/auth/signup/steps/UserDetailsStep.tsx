@@ -56,16 +56,7 @@ const UserDetailsStep: React.FC<UserDetailsStepProps> = ({
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-6">
-        <h2 className="text-2xl font-semibold text-secondary mb-2">
-          Create Your Account
-        </h2>
-        <p className="text-gray-600">
-          Let's start with your basic information
-        </p>
-      </div>
-
+    <div className="space-y-4">
       {/* Profile Picture Upload */}
       <FileUpload
         label="Profile Picture"
@@ -77,23 +68,28 @@ const UserDetailsStep: React.FC<UserDetailsStepProps> = ({
       />
 
       {/* Basic Info Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="space-y-4">
         {inputFields.map((input, index) => (
-          <div key={index} className={input.name === 'full_name' || input.name === 'email' ? 'md:col-span-2' : ''}>
+          <div key={index}>
             <CommonInput
               input={input}
               value={formData[input.name as keyof ISignupFormData] as string}
               handleChange={onChange}
             />
             {errors[input.name] && (
-              <p className="mt-1 text-sm text-red-600">{errors[input.name]}</p>
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {errors[input.name]}
+              </p>
             )}
           </div>
         ))}
       </div>
 
       {/* Password Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {passwordFields.map((input, index) => (
           <div key={index}>
             <PasswordInput
@@ -102,32 +98,18 @@ const UserDetailsStep: React.FC<UserDetailsStepProps> = ({
               handleChange={onChange}
             />
             {errors[input.name] && (
-              <p className="mt-1 text-sm text-red-600">{errors[input.name]}</p>
+              <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {errors[input.name]}
+              </p>
             )}
           </div>
         ))}
       </div>
 
-      {/* Password Requirements */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-blue-800 mb-2">
-          Password Requirements:
-        </h4>
-        <ul className="text-sm text-blue-700 space-y-1">
-          <li className="flex items-center">
-            <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            At least 6 characters long
-          </li>
-          <li className="flex items-center">
-            <svg className="w-4 h-4 mr-2 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-            Mix of letters and numbers recommended
-          </li>
-        </ul>
-      </div>
+   
     </div>
   );
 };

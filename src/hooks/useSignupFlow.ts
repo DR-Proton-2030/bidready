@@ -24,7 +24,7 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     resetStepper,
   } = useStepper(TOTAL_STEPS);
   
-  // OTP verification hook
+  // OTP verification hook — triggers after Step 1, before going to Step 2
   const {
     isModalOpen: isOtpModalOpen,
     isVerifying: isOtpVerifying,
@@ -35,14 +35,11 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     verifyOtp,
     resendOtp,
   } = useOtpVerification({
-     type: "signup",
-    onSuccess: async (otp) => {
-      // After OTP verification, proceed with actual signup
-      console.log("OTP verified successfully:", otp);
-      const result = await submitSignup(formData, profileFile.file, companyFile.file);
-      if (!result.success) {
-        setSubmitError(result.error || "Signup failed after OTP verification");
-      }
+    type: "signup",
+    onSuccess: async () => {
+      // OTP verified successfully → proceed to Step 2 (Company Info)
+      console.log("OTP verified, proceeding to company details step");
+      goToNextStep();
     },
     onError: (error) => {
       console.error("OTP verification failed:", error);
@@ -89,14 +86,22 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     }
   }, [handleFileSelect, errors, clearError]);
 
-  // Handle next step with validation
+  // Handle next step — on Step 1, open OTP modal first to verify email
   const handleNext = useCallback(() => {
-    if (validateStep(currentStep, formData)) {
+    if (!validateStep(currentStep, formData)) {
+      return;
+    }
+
+    if (currentStep === 1) {
+      // Step 1 → Verify email via OTP before proceeding
+      openOtpModal(formData.email);
+    } else {
+      // Other steps → go directly to next step
       goToNextStep();
     }
-  }, [currentStep, formData, validateStep, goToNextStep]);
+  }, [currentStep, formData, validateStep, goToNextStep, openOtpModal]);
 
-  // Handle form submission - now triggers OTP verification first
+  // Handle final form submission — directly creates the account (email already verified)
   const handleSubmit = useCallback(async (event?: React.FormEvent) => {
     if (event) {
       event.preventDefault();
@@ -106,9 +111,12 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
       return;
     }
     
-    // Open OTP modal instead of directly submitting
-    openOtpModal(formData.email);
-  }, [currentStep, formData, validateStep, openOtpModal]);
+    // Email already verified via OTP in Step 1, proceed directly with signup
+    const result = await submitSignup(formData, profileFile.file, companyFile.file);
+    if (!result.success) {
+      setSubmitError(result.error || "Signup failed. Please try again.");
+    }
+  }, [currentStep, formData, validateStep, submitSignup, profileFile.file, companyFile.file, setSubmitError]);
 
   // Reset entire form flow
   const resetAll = useCallback(() => {
