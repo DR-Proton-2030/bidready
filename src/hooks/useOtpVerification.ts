@@ -20,14 +20,17 @@ export const useOtpVerification = (options?: UseOtpVerificationOptions) => {
     try {
       setEmail(userEmail);
       setOtpError("");
-      setIsModalOpen(true);
 
       // call backend to generate OTP (OTP is sent via email, not returned)
       const { userId } = await api.auth.getOtp({ email: userEmail, type: options?.type });
       setUserId(userId);
+
+      // Only open modal after OTP is successfully generated
+      setIsModalOpen(true);
     } catch (error: any) {
-      setOtpError(error?.message || "Failed to generate OTP");
-      options?.onError?.(error?.message);
+      // Don't open the modal on error — let the caller handle it
+      setIsModalOpen(false);
+      options?.onError?.(error?.message || "Failed to generate OTP");
     }
   }, [options]);
 

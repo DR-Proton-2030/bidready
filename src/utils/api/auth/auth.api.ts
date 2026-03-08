@@ -59,7 +59,7 @@ export const verifyOtp = async (payload: { email: string; otp: string; type?: st
 export const googleLogin = async (payload: any) => {
   try {
     const response = await post(`/${initialRoute}/google-login`, payload);
-    return response.data;
+    return response;
   } catch (error: any) {
     throw new Error(error.response?.data?.message || "Login failed");
   }

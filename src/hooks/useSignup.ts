@@ -35,6 +35,7 @@ export const useSignup = (options?: UseSignupOptions) => {
             email: formData.email,
             password: formData.password,
             emp_id: formData.emp_id,
+            google_profile_picture: formData.google_profile_picture || undefined,
           })
         );
 

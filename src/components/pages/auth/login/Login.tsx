@@ -41,8 +41,15 @@ const Login = () => {
 
       const response = await api.auth.googleLogin(payload);
 
-      if (response?.token) {
-        const { user, company, token, isNew } = response;
+      if (response?.isRegistered === false && response?.googleProfile) {
+        // User not found, redirect to signup with pre-filled data
+        localStorage.setItem("@googleProfile", JSON.stringify(response.googleProfile));
+        router.push("/signup");
+        return;
+      }
+
+      if (response?.data?.token) {
+        const { user, company, token, isNew } = response.data;
 
         localStorage.setItem("@token", token);
         document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
@@ -58,20 +65,12 @@ const Login = () => {
         router.push(isNew === false ? "/dashboard" : "/signup");
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Login failed";
-      if (message.toLowerCase().includes("user not found")) {
-        setUserNotFoundMessage(
-          "This Google account is not registered. Please contact your admin or sign up."
-        );
-        setIsUserNotFoundOpen(true);
-        return;
-      }
       console.error("Firebase Google sign-in failed:", err);
     }
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-t from-orange-100 via-orange-50 to-white sm:px-38 py-5 ">
+    <div className="h-screen overflow-hidden bg-gradient-to-t from-orange-100 via-orange-50 to-white lg:px-38 md:px-20 sm:px-16 px-5 py-5 ">
       {/* <div className="fixed top-4 left-36">
 
         <CompanyLogo /

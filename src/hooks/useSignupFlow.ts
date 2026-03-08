@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSignupForm } from "./useSignupForm";
 import { useFormValidation } from "./useFormValidation";
 import { useFileUpload } from "./useFileUpload";
@@ -11,8 +11,8 @@ const STEP_NAMES = ["User Details", "Company Info"];
 
 export const useSignupFlow = (options?: UseSignupOptions) => {
   // Initialize all hooks
-  const { formData, handleInputChange, resetForm } = useSignupForm();
-  const { errors, validateStep, clearError, setSubmitError } = useFormValidation();
+  const { formData, isGoogleLogin, handleInputChange, resetForm } = useSignupForm();
+  const { errors, validateStep, clearError, setSubmitError, setFieldError } = useFormValidation();
   const { profileFile, companyFile, handleFileSelect, resetFiles } = useFileUpload();
   const {
     currentStep,
@@ -23,6 +23,13 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     isLastStep,
     resetStepper,
   } = useStepper(TOTAL_STEPS);
+
+  // Auto-progress to step 2 if registered via Google
+  useEffect(() => {
+    if (isGoogleLogin && currentStep === 1) {
+      goToNextStep();
+    }
+  }, [isGoogleLogin, goToNextStep, currentStep]);
   
   // OTP verification hook — triggers after Step 1, before going to Step 2
   const {
@@ -43,14 +50,29 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     },
     onError: (error) => {
       console.error("OTP verification failed:", error);
+      // Show warning modal if email already exists
+      if (error?.toLowerCase().includes("email already exists")) {
+        setEmailExistsModal(true);
+      } else {
+        setFieldError("email", error || "Failed to send verification code");
+      }
     },
     onResend: () => {
       console.log("OTP resent to:", formData.email);
     },
   });
 
+  // Email already exists warning modal
+  const [emailExistsModal, setEmailExistsModal] = useState(false);
+  const closeEmailExistsModal = useCallback(() => setEmailExistsModal(false), []);
+
   const { isLoading, showSuccess, submitSignup, handleSuccessClose } = useSignup({
     ...options,
+    onSuccess: () => {
+      // Cleanup google profile if it exists
+      localStorage.removeItem("@googleProfile");
+      options?.onSuccess?.();
+    },
     onError: (error) => {
       setSubmitError(error);
       options?.onError?.(error);
@@ -94,12 +116,17 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
 
     if (currentStep === 1) {
       // Step 1 → Verify email via OTP before proceeding
-      openOtpModal(formData.email);
+      // Skip OTP if it's Google login (email already verified by Google)
+      if (isGoogleLogin) {
+        goToNextStep();
+      } else {
+        openOtpModal(formData.email);
+      }
     } else {
       // Other steps → go directly to next step
       goToNextStep();
     }
-  }, [currentStep, formData, validateStep, goToNextStep, openOtpModal]);
+  }, [currentStep, formData, validateStep, goToNextStep, openOtpModal, isGoogleLogin]);
 
   // Handle final form submission — directly creates the account (email already verified)
   const handleSubmit = useCallback(async (event?: React.FormEvent) => {
@@ -162,6 +189,10 @@ export const useSignupFlow = (options?: UseSignupOptions) => {
     verifyOtp,
     resendOtp,
     
+    // Email exists warning
+    emailExistsModal,
+    closeEmailExistsModal,
+
     // Utilities
     resetAll,
   };

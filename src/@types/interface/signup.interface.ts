@@ -7,6 +7,7 @@ export interface ISignupStep1 {
   password: string;
   confirmPassword: string;
   emp_id: string;
+  google_profile_picture?: string;
 }
 
 export interface ISignupStep2 {

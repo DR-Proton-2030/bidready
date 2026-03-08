@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import UserDetailsStep from "./steps/UserDetailsStep";
 import CompanyLogo from "@/components/shared/companyLogo/CompanyLogo";
 import SuccessAnimation from "@/components/shared/successAnimation/SuccessAnimation";
@@ -50,7 +51,11 @@ const SignupForm: React.FC = () => {
     closeOtpModal,
     verifyOtp,
     resendOtp,
+    emailExistsModal,
+    closeEmailExistsModal,
   } = useSignupFlow();
+
+  const router = useRouter();
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -321,6 +326,45 @@ const SignupForm: React.FC = () => {
         error={otpError}
         onResendOtp={resendOtp}
       />
+
+      {/* Email Already Exists Warning Modal */}
+      {emailExistsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 p-6 text-center">
+            {/* Warning Icon */}
+            <div className="mx-auto w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-5">
+              <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Email Already Registered</h3>
+            <p className="text-sm text-gray-600 mb-6">
+              This email is already associated with an existing account. Please try logging in or create an account with a different email address.
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  closeEmailExistsModal();
+                }}
+                className="flex-1 py-2.5 px-4 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Use Different Email
+              </button>
+              <button
+                onClick={() => {
+                  closeEmailExistsModal();
+                  router.push("/login");
+                }}
+                className="flex-1 py-2.5 px-4 text-sm font-semibold text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                Go to Login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
