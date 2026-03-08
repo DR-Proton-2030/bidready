@@ -1,6 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SignupFormData } from "@/@types/auth/signup.interface";
+import { api } from "@/utils/api";
+import AuthContext from "@/contexts/authContext/authContext";
 
 export const useSignup = () => {
   const [signupData, setSignupData] = useState<SignupFormData>({
@@ -10,6 +13,8 @@ export const useSignup = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Partial<SignupFormData>>({});
+  const { setUser } = useContext(AuthContext);
+  const router = useRouter();
 
   const handleInputChange = (field: keyof SignupFormData, value: string) => {
     setSignupData(prev => ({
@@ -59,16 +64,43 @@ export const useSignup = () => {
     setIsLoading(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Build FormData for signup API
+      const submitData = new FormData();
+      submitData.append(
+        "user_details",
+        JSON.stringify({
+          full_name: signupData.fullName,
+          email: signupData.email,
+          password: signupData.password,
+        })
+      );
+      submitData.append(
+        "company_details",
+        JSON.stringify({
+          company_name: "",
+          website: "",
+          role: "",
+        })
+      );
+
+      const response = await api.auth.signupUser(submitData);
       
-      console.log("Signup data:", signupData);
-      
-      // TODO: Implement actual signup logic here
-      // await signupUser(signupData);
-      
-    } catch (error) {
+      if (response) {
+        const { user, token } = response;
+        
+        // Store token (matching login flow)
+        if (token) {
+          localStorage.setItem("@token", token);
+          document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
+        }
+
+        setUser(user);
+        router.push("/dashboard");
+      }
+    } catch (error: any) {
       console.error("Signup error:", error);
+      const message = error?.message || "Signup failed. Please try again.";
+      setErrors(prev => ({ ...prev, email: message }));
     } finally {
       setIsLoading(false);
     }
@@ -79,7 +111,7 @@ export const useSignup = () => {
     
     try {
       console.log(`Signing up with ${provider}`);
-      // TODO: Implement social login logic
+      // Social login is handled by the GoogleLogin component directly
     } catch (error) {
       console.error(`${provider} signup error:`, error);
     } finally {

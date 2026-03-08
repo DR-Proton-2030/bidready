@@ -1,6 +1,7 @@
 import {
   createUsers,
   getOtp,
+  verifyOtp,
   getProfile,
   getUsers,
   googleLogin,
@@ -36,6 +37,7 @@ export const api = {
     loginUser,
     verifyToken,
     getOtp,
+    verifyOtp,
     googleLogin,
     createUsers,
     getUsers,

@@ -35,6 +35,7 @@ export const useSignup = (options?: UseSignupOptions) => {
             email: formData.email,
             password: formData.password,
             emp_id: formData.emp_id,
+            google_profile_picture: formData.google_profile_picture || undefined,
           })
         );
 
@@ -59,7 +60,14 @@ export const useSignup = (options?: UseSignupOptions) => {
         const response = await api.auth.signupUser(submitData);
 
         if (response) {
-          const { user } = response;
+          const { user, token } = response;
+          
+          // Store token (matching login flow)
+          if (token) {
+            localStorage.setItem("@token", token);
+            document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${window.location.protocol === 'https:' ? '; Secure' : ''}`;
+          }
+          
           setUser(user);
           setShowSuccess(true);
           options?.onSuccess?.();

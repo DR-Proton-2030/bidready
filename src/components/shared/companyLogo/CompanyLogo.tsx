@@ -6,7 +6,7 @@ const CompanyLogo = ({ width = 200 }:{ width?: number }) => {
   return (
     <div id="company-logo-container">
       <div id="company-logo" className="flex justify-center ">
-        <Image src={assets.images.logo} alt="Logo" width={width} height={10} />
+        <Image src={assets.images.logo} alt="Logo" width={width} height={16} />
       </div>
     </div>
   );

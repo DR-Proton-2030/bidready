@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ISignupFormData } from "@/@types/interface/signup.interface";
 
 export const useSignupForm = () => {
@@ -15,6 +15,28 @@ export const useSignupForm = () => {
     website: "",
     role: "",
   });
+
+  const [isGoogleLogin, setIsGoogleLogin] = useState(false);
+
+  useEffect(() => {
+    const savedProfile = localStorage.getItem("@googleProfile");
+    if (savedProfile) {
+      try {
+        const profile = JSON.parse(savedProfile);
+        setFormData(prev => ({
+          ...prev,
+          full_name: profile.full_name || "",
+          email: profile.email || "",
+          password: profile.email || "", // use email as password as requested
+          confirmPassword: profile.email || "",
+          google_profile_picture: profile.profile_picture || "",
+        }));
+        setIsGoogleLogin(true);
+      } catch (e) {
+        console.error("Error parsing google profile", e);
+      }
+    }
+  }, []);
 
   const updateFormData = useCallback((
     field: keyof ISignupFormData,
@@ -64,6 +86,7 @@ export const useSignupForm = () => {
 
   return {
     formData,
+    isGoogleLogin,
     updateFormData,
     handleInputChange,
     resetForm,

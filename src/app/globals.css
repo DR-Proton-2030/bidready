@@ -296,6 +296,39 @@
   }
 
   /* Premium Signup Styles */
+  .signup-main-card {
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  @media (min-width: 1024px) {
+    .signup-main-card {
+      max-height: 96vh;
+    }
+  }
+
+  .signup-left-panel {
+    background: linear-gradient(155deg, #e85d04 0%, #f47c20 30%, #fb8b24 60%, #e85d04 100%);
+    background-size: 200% 200%;
+    animation: panelGradient 8s ease infinite;
+  }
+
+  @keyframes panelGradient {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .signup-next-btn {
+    background: linear-gradient(135deg, #f47c20 0%, #e85d04 100%);
+  }
+
+  .signup-next-btn:hover {
+    background: linear-gradient(135deg, #e85d04 0%, #dc5104 100%);
+  }
+
+  .signup-features-card {
+    background: linear-gradient(145deg, #fff7ed 0%, #ffedd5 100%);
+  }
+
   .signup-card {
     @apply bg-white rounded-2xl shadow-xl border border-gray-100;
     background: linear-gradient(145deg, #ffffff 0%, #fafafa 100%);
