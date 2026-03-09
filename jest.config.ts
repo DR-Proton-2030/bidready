@@ -53,7 +53,7 @@ module.exports = createJestConfig(customJestConfig);
 //   // The directory where Jest should output its coverage files
 //   coverageDirectory: "coverage",
 
-//   // An array of regexp pattern strings used to skip coverage collection
+//   // An array of regexp pattern strings used to -pip coverage collection
 //   // coveragePathIgnorePatterns: [
 //   //   "\\\\node_modules\\\\"
 //   // ],
