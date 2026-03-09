@@ -1126,45 +1126,30 @@ export default function FullScreenImageViewer({
       return;
     }
 
-    if (activeTool === "annotate") {
-      const imageRect = e.currentTarget.getBoundingClientRect();
+    if (activeTool === "annotate" || activeTool === "crop-overlay") {
+      const img = imageRef.current;
+      if (!img || !imageDimensions.width) return;
+      const rect = img.getBoundingClientRect();
 
-      if (imageRect && imageDimensions.width > 0) {
-        const scaleX = imageDimensions.width / imageRect.width;
-        const scaleY = imageDimensions.height / imageRect.height;
+      // Calculate actual rendered dimensions (accounting for object-contain)
+      const renderRatio = Math.min(rect.width / imageDimensions.width, rect.height / imageDimensions.height);
+      const actualWidth = imageDimensions.width * renderRatio;
+      const actualHeight = imageDimensions.height * renderRatio;
 
-        const x = (e.clientX - imageRect.left) * scaleX;
-        const y = (e.clientY - imageRect.top) * scaleY;
+      // Calculate letterbox offsets
+      const offsetX = (rect.width - actualWidth) / 2;
+      const offsetY = (rect.height - actualHeight) / 2;
 
-        setIsDrawing(true);
-        setStartPoint({ x, y });
-        setCurrentBox({
-          x,
-          y,
-          width: 0,
-          height: 0,
-        });
-      }
-    } else if (activeTool === "crop-overlay") {
-      const imageRect = e.currentTarget.getBoundingClientRect();
+      // Map click to base image coordinates
+      const x = (e.clientX - rect.left - offsetX) * (imageDimensions.width / actualWidth);
+      const y = (e.clientY - rect.top - offsetY) * (imageDimensions.height / actualHeight);
 
-      if (imageRect && imageDimensions.width > 0) {
-        const scaleX = imageDimensions.width / imageRect.width;
-        const scaleY = imageDimensions.height / imageRect.height;
-
-        const x = (e.clientX - imageRect.left) * scaleX;
-        const y = (e.clientY - imageRect.top) * scaleY;
-
-        setIsDrawing(true);
-        setStartPoint({ x, y });
-        setCurrentBox({
-          x,
-          y,
-          width: 0,
-          height: 0,
-        });
-      }
-    } else if (activeTool === "pan" || zoom > 1) {
+      setIsDrawing(true);
+      setStartPoint({ x, y });
+      setCurrentBox({ x, y, width: 0, height: 0 });
+      return;
+    }
+    else if (activeTool === "pan" || zoom > 1) {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - imagePosition.x,
@@ -1224,41 +1209,28 @@ export default function FullScreenImageViewer({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (activeTool === "annotate" && isDrawing) {
-      const imageRect = e.currentTarget.getBoundingClientRect();
+    if ((activeTool === "annotate" || activeTool === "crop-overlay") && isDrawing) {
+      const img = imageRef.current;
+      if (!img || !imageDimensions.width) return;
+      const rect = img.getBoundingClientRect();
 
-      if (imageRect && imageDimensions.width > 0) {
-        const scaleX = imageDimensions.width / imageRect.width;
-        const scaleY = imageDimensions.height / imageRect.height;
+      const renderRatio = Math.min(rect.width / imageDimensions.width, rect.height / imageDimensions.height);
+      const actualWidth = imageDimensions.width * renderRatio;
+      const actualHeight = imageDimensions.height * renderRatio;
+      const offsetX = (rect.width - actualWidth) / 2;
+      const offsetY = (rect.height - actualHeight) / 2;
 
-        const currentX = (e.clientX - imageRect.left) * scaleX;
-        const currentY = (e.clientY - imageRect.top) * scaleY;
+      const currentX = (e.clientX - rect.left - offsetX) * (imageDimensions.width / actualWidth);
+      const currentY = (e.clientY - rect.top - offsetY) * (imageDimensions.height / actualHeight);
 
-        setCurrentBox({
-          x: Math.min(startPoint.x, currentX),
-          y: Math.min(startPoint.y, currentY),
-          width: Math.abs(currentX - startPoint.x),
-          height: Math.abs(currentY - startPoint.y),
-        });
-      }
-    } else if (activeTool === "crop-overlay" && isDrawing) {
-      const imageRect = e.currentTarget.getBoundingClientRect();
-
-      if (imageRect && imageDimensions.width > 0) {
-        const scaleX = imageDimensions.width / imageRect.width;
-        const scaleY = imageDimensions.height / imageRect.height;
-
-        const currentX = (e.clientX - imageRect.left) * scaleX;
-        const currentY = (e.clientY - imageRect.top) * scaleY;
-
-        setCurrentBox({
-          x: Math.min(startPoint.x, currentX),
-          y: Math.min(startPoint.y, currentY),
-          width: Math.abs(currentX - startPoint.x),
-          height: Math.abs(currentY - startPoint.y),
-        });
-      }
-    } else if ((activeTool === "linear" || activeTool === "measure") && isMeasuring && measurementDraft) {
+      setCurrentBox({
+        x: Math.min(startPoint.x, currentX),
+        y: Math.min(startPoint.y, currentY),
+        width: Math.abs(currentX - startPoint.x),
+        height: Math.abs(currentY - startPoint.y),
+      });
+    }
+    else if ((activeTool === "linear" || activeTool === "measure") && isMeasuring && measurementDraft) {
       const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
@@ -2057,6 +2029,7 @@ export default function FullScreenImageViewer({
             style={{
               transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom
                 }px, ${imagePosition.y / zoom}px)`,
+              transformOrigin: "center center",
               cursor:
                 activeTool === "annotate" ||
                   activeTool === "polygon" ||
@@ -2116,7 +2089,8 @@ export default function FullScreenImageViewer({
               style={{
                 width: "100%",
                 height: "100%",
-                transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
+                transformOrigin: "center center",
                 pointerEvents: "auto",
               }}
               viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
@@ -2182,7 +2156,7 @@ export default function FullScreenImageViewer({
               style={{
                 width: "100%",
                 height: "100%",
-                transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
                 transformOrigin: "center center", // Ensure matching transform origin with img
               }}
               viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
@@ -2227,7 +2201,8 @@ export default function FullScreenImageViewer({
               style={{
                 width: "100%",
                 height: "100%",
-                transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
+                transformOrigin: "center center",
               }}
               viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
               preserveAspectRatio="xMidYMid meet"
@@ -2240,21 +2215,8 @@ export default function FullScreenImageViewer({
                     detection.id.startsWith("user-annotation-");
 
                   // Apply different positioning logic for user annotations vs original detections
-                  let xShift, yShift;
-
-                  if (isUserAnnotation) {
-                    // For user annotations: simple offset down and right
-                    xShift = -1; // Move 10 pixels to the right
-                    yShift = -1; // Move 10 pixels down
-                  } else {
-                    // For original detections: keep the existing complex calculation
-                    const shiftRatio =
-                      Math.log2(
-                        detection.width * 20000000000000000000000000000
-                      ) / 200; // non-linear smooth scaling
-                    xShift = detection.width * shiftRatio;
-                    yShift = detection.height * shiftRatio;
-                  }
+                  const xShift = detection.width / 2;
+                  const yShift = detection.height / 2;
 
                   const xRect = detection.x - xShift;
                   const yRect = detection.y - yShift;
@@ -2643,6 +2605,7 @@ export default function FullScreenImageViewer({
                 width: "100%",
                 height: "100%",
                 transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
+                transformOrigin: "center center",
               }}
               viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
               preserveAspectRatio="xMidYMid meet"

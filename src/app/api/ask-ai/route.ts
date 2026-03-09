@@ -43,18 +43,25 @@ const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
   if (!isRecord(context)) return "";
 
   const ctx = context as Record<string, unknown>;
-  const stats = isRecord(ctx.stats) ? (ctx.stats as Record<string, unknown>) : undefined;
+  const stats = isRecord(ctx.stats)
+    ? (ctx.stats as Record<string, unknown>)
+    : undefined;
   const predictions = Array.isArray(ctx.predictions) ? ctx.predictions : [];
   const shapes = Array.isArray(ctx.dimensionShapes) ? ctx.dimensionShapes : [];
-  const annotations = Array.isArray(ctx.userAnnotations) ? ctx.userAnnotations : [];
+  const annotations = Array.isArray(ctx.userAnnotations)
+    ? ctx.userAnnotations
+    : [];
   const measurements = Array.isArray(ctx.measurements) ? ctx.measurements : [];
 
   const totalDetections =
-    toFiniteNumber(stats?.totalPredictions) ?? (predictions.length ? predictions.length : undefined);
+    toFiniteNumber(stats?.totalPredictions) ??
+    (predictions.length ? predictions.length : undefined);
   const totalAnnotations =
-    toFiniteNumber(stats?.totalUserAnnotations) ?? (annotations.length ? annotations.length : undefined);
+    toFiniteNumber(stats?.totalUserAnnotations) ??
+    (annotations.length ? annotations.length : undefined);
   const totalMeasurements =
-    toFiniteNumber(stats?.totalMeasurements) ?? (measurements.length ? measurements.length : undefined);
+    toFiniteNumber(stats?.totalMeasurements) ??
+    (measurements.length ? measurements.length : undefined);
 
   const lines: string[] = [];
 
@@ -66,13 +73,14 @@ const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
     lines.push(
       `Overall counts → detections: ${totalDetections ?? "n/a"}, annotations: ${
         totalAnnotations ?? "n/a"
-      }, measurements: ${totalMeasurements ?? "n/a"}.`
+      }, measurements: ${totalMeasurements ?? "n/a"}.`,
     );
   }
 
-  const classBreakdown = stats && isRecord(stats.classBreakdown)
-    ? (stats.classBreakdown as Record<string, unknown>)
-    : undefined;
+  const classBreakdown =
+    stats && isRecord(stats.classBreakdown)
+      ? (stats.classBreakdown as Record<string, unknown>)
+      : undefined;
   if (classBreakdown) {
     const sorted = Object.entries(classBreakdown)
       .filter(([, count]) => typeof count === "number" && count > 0)
@@ -92,22 +100,33 @@ const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
 
   if (predictions.length) {
     const confidences = predictions
-      .map((prediction) => (isRecord(prediction) ? toFiniteNumber(prediction.confidence) : undefined))
+      .map((prediction) =>
+        isRecord(prediction)
+          ? toFiniteNumber(prediction.confidence)
+          : undefined,
+      )
       .filter((value): value is number => typeof value === "number");
     if (confidences.length) {
       const avgConfidence =
-        confidences.reduce((sum, confidence) => sum + confidence, 0) / confidences.length;
-      lines.push(`Average AI confidence: ${(avgConfidence * 100).toFixed(1)}%.`);
+        confidences.reduce((sum, confidence) => sum + confidence, 0) /
+        confidences.length;
+      lines.push(
+        `Average AI confidence: ${(avgConfidence * 100).toFixed(1)}%.`,
+      );
     }
 
     const samples = predictions
       .slice(0, 4)
       .map((prediction) => {
         if (!isRecord(prediction)) return "";
-        const label = typeof prediction.label === "string" ? prediction.label : "item";
+        const label =
+          typeof prediction.label === "string" ? prediction.label : "item";
         const confidence = toFiniteNumber(prediction.confidence);
-        const source = typeof prediction.source === "string" ? prediction.source : undefined;
-        const confidenceText = confidence ? `${(confidence * 100).toFixed(0)}%` : "";
+        const source =
+          typeof prediction.source === "string" ? prediction.source : undefined;
+        const confidenceText = confidence
+          ? `${(confidence * 100).toFixed(0)}%`
+          : "";
         return `${label}${confidenceText ? ` (${confidenceText})` : ""}${source ? ` · ${source}` : ""}`;
       })
       .filter(Boolean);
@@ -118,27 +137,29 @@ const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
   }
 
   if (shapes.length) {
-    const shapeSummary = shapes
-      .slice(0, 3)
-      .map((shape) => {
-        if (!isRecord(shape)) return "shape";
-        const type = typeof shape.type === "string" ? shape.type : "shape";
-        const area = toFiniteNumber(shape.area);
-        return area ? `${type} area ${area}` : type;
-      });
+    const shapeSummary = shapes.slice(0, 3).map((shape) => {
+      if (!isRecord(shape)) return "shape";
+      const type = typeof shape.type === "string" ? shape.type : "shape";
+      const area = toFiniteNumber(shape.area);
+      return area ? `${type} area ${area}` : type;
+    });
     lines.push(
-      `Dimension shapes captured (${shapes.length} total) → ${shapeSummary.join(", ")}. Values are raw drawing units unless calibration is provided.`
+      `Dimension shapes captured (${shapes.length} total) → ${shapeSummary.join(", ")}. Values are raw drawing units unless calibration is provided.`,
     );
   }
 
   if (annotations.length) {
     const annotationLabels = annotations
-      .map((annotation) => (isRecord(annotation) && typeof annotation.label === "string" ? annotation.label : null))
+      .map((annotation) =>
+        isRecord(annotation) && typeof annotation.label === "string"
+          ? annotation.label
+          : null,
+      )
       .filter((label): label is string => Boolean(label))
       .slice(0, 5);
 
     lines.push(
-      `User annotations (${annotations.length}) → ${annotationLabels.length ? annotationLabels.join(", ") : "labels not provided"}.`
+      `User annotations (${annotations.length}) → ${annotationLabels.length ? annotationLabels.join(", ") : "labels not provided"}.`,
     );
   }
 
@@ -149,13 +170,15 @@ const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
   if (isRecord(ctx.calibration)) {
     const calibration = ctx.calibration as Record<string, unknown>;
     const scale = toFiniteNumber(calibration.scale);
-    const ref = toFiniteNumber(calibration.referenceLength ?? calibration.reference);
+    const ref = toFiniteNumber(
+      calibration.referenceLength ?? calibration.reference,
+    );
     const units =
       typeof calibration.units === "string"
         ? calibration.units
         : typeof calibration.unit === "string"
-        ? calibration.unit
-        : undefined;
+          ? calibration.unit
+          : undefined;
 
     const calibrationParts = [];
     if (scale) calibrationParts.push(`scale ${scale}`);
@@ -164,7 +187,7 @@ const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
     lines.push(
       calibrationParts.length
         ? `Calibration metadata detected → ${calibrationParts.join(", ")}.`
-        : "Calibration metadata detected (fields unspecified)."
+        : "Calibration metadata detected (fields unspecified).",
     );
   }
 
@@ -191,7 +214,10 @@ const normalizeHistory = (history: unknown): ChatHistoryEntry[] => {
     }));
 };
 
-const extractNextStepActions = (reply: string, maxActions = 6): Array<{ id: string; label: string }> => {
+const extractNextStepActions = (
+  reply: string,
+  maxActions = 6,
+): Array<{ id: string; label: string }> => {
   if (typeof reply !== "string" || !reply.trim()) return [];
 
   const markerMatch = /next step[s]?/i.exec(reply);
@@ -212,7 +238,8 @@ const extractNextStepActions = (reply: string, maxActions = 6): Array<{ id: stri
     if (actions.length && /[:：]$/.test(line)) break;
     if (/^[A-Z][^a-z]{0,}$/u.test(line) && actions.length) break; // uppercase heading
 
-    const bulletMatch = line.match(/^[-*]\s+(.*)$/) || line.match(/^\d+\.\s+(.*)$/);
+    const bulletMatch =
+      line.match(/^[-*]\s+(.*)$/) || line.match(/^\d+\.\s+(.*)$/);
     if (bulletMatch) {
       const label = bulletMatch[1]?.trim();
       if (label) actions.push(label.replace(/[*_`]/g, ""));
@@ -238,12 +265,18 @@ export async function POST(request: NextRequest) {
     const history: unknown = body?.history;
 
     if (typeof prompt !== "string" || !prompt.trim()) {
-      return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Prompt is required." },
+        { status: 400 },
+      );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY || "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";
+    const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "OpenAI API key is not configured." }, { status: 500 });
+      return NextResponse.json(
+        { error: "OpenAI API key is not configured." },
+        { status: 500 },
+      );
     }
 
     const sanitizedContext = sanitizeForPrompt(detectionContext);
@@ -254,16 +287,20 @@ export async function POST(request: NextRequest) {
       "You are BidReady Copilot, a senior construction estimator and building-science analyst.",
       "Use the detection context to answer questions about the current blueprint: quantify trades, recommend scopes of work, flag data risks, and outline next actions.",
       "Always explain calculations (counts, ratios, take-off assumptions) so the user can follow the math.",
-        "Limit responses to ~220 words, favour short sections or bullets, and explicitly note any missing data or assumptions.",
-        "When surfacing recommendations or follow-up tasks, include a heading exactly named 'NEXT STEP' followed by a short bullet or numbered list so the client UI can reliably parse them.",
+      "Limit responses to ~220 words, favour short sections or bullets, and explicitly note any missing data or assumptions.",
+      "When surfacing recommendations or follow-up tasks, include a heading exactly named 'NEXT STEP' followed by a short bullet or numbered list so the client UI can reliably parse them.",
     ];
 
     if (typeof imageName === "string" && imageName.trim()) {
-      systemMessageParts.push(`The current blueprint file is named \"${imageName.trim()}\".`);
+      systemMessageParts.push(
+        `The current blueprint file is named \"${imageName.trim()}\".`,
+      );
     }
 
     if (structuredContext || sanitizedContext) {
-      systemMessageParts.push("A structured detection summary and raw JSON payload will follow with each user prompt.");
+      systemMessageParts.push(
+        "A structured detection summary and raw JSON payload will follow with each user prompt.",
+      );
     }
 
     const messages: OpenAIMessage[] = [
@@ -313,17 +350,18 @@ export async function POST(request: NextRequest) {
       const errorText = await response.text();
       return NextResponse.json(
         { error: "OpenAI request failed.", details: errorText.slice(0, 500) },
-        { status: response.status }
+        { status: response.status },
       );
     }
 
     const data = await response.json();
-    const reply: string | undefined = data?.choices?.[0]?.message?.content?.trim();
+    const reply: string | undefined =
+      data?.choices?.[0]?.message?.content?.trim();
 
     if (!reply) {
       return NextResponse.json(
         { error: "Empty response from AI." },
-        { status: 502 }
+        { status: 502 },
       );
     }
 
@@ -332,6 +370,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ reply, actions });
   } catch (error) {
     console.error("[AskAI] Unable to process request", error);
-    return NextResponse.json({ error: "Failed to generate AI response." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to generate AI response." },
+      { status: 500 },
+    );
   }
 }

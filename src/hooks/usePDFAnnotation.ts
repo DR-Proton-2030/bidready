@@ -507,25 +507,58 @@ export const usePDFAnnotation = (
 
           // Filter out shapes that intersect
           const newShapes = annotations.shapes.filter(shape => {
-            const shapeX = (shape.startPoint.x + shape.endPoint.x) / 2;
-            const shapeY = (shape.startPoint.y + shape.endPoint.y) / 2;
             return !drawing.points.some(eraserPoint => {
-              const distance = Math.sqrt(
-                Math.pow(shapeX - eraserPoint.x, 2) +
-                Math.pow(shapeY - eraserPoint.y, 2)
-              );
-              return distance < eraserRadius * 3;
+              const x1 = Math.min(shape.startPoint.x, shape.endPoint.x);
+              const y1 = Math.min(shape.startPoint.y, shape.endPoint.y);
+              const x2 = Math.max(shape.startPoint.x, shape.endPoint.x);
+              const y2 = Math.max(shape.startPoint.y, shape.endPoint.y);
+
+              if (shape.type === 'rectangle') {
+                // Expanding the hit area slightly for the border
+                return eraserPoint.x >= x1 - eraserRadius &&
+                  eraserPoint.x <= x2 + eraserRadius &&
+                  eraserPoint.y >= y1 - eraserRadius &&
+                  eraserPoint.y <= y2 + eraserRadius;
+              } else if (shape.type === 'circle') {
+                const centerX = (shape.startPoint.x + shape.endPoint.x) / 2;
+                const centerY = (shape.startPoint.y + shape.endPoint.y) / 2;
+                const radiusX = Math.abs(shape.endPoint.x - shape.startPoint.x) / 2;
+                const radiusY = Math.abs(shape.endPoint.y - shape.startPoint.y) / 2;
+
+                // Ellipse intersection (approximate as circle if radiusX=radiusY)
+                const dx = eraserPoint.x - centerX;
+                const dy = eraserPoint.y - centerY;
+                return (dx * dx) / ((radiusX + eraserRadius) ** 2) +
+                  (dy * dy) / ((radiusY + eraserRadius) ** 2) <= 1;
+              } else if (shape.type === 'line' || shape.type === 'arrow') {
+                // Line segment distance
+                const px = shape.endPoint.x - shape.startPoint.x;
+                const py = shape.endPoint.y - shape.startPoint.y;
+                const d2 = px * px + py * py;
+                if (d2 === 0) return false;
+
+                let u = ((eraserPoint.x - shape.startPoint.x) * px + (eraserPoint.y - shape.startPoint.y) * py) / d2;
+                if (u > 1) u = 1; else if (u < 0) u = 0;
+
+                const x = shape.startPoint.x + u * px;
+                const y = shape.startPoint.y + u * py;
+                const dist = Math.sqrt((x - eraserPoint.x) ** 2 + (y - eraserPoint.y) ** 2);
+                return dist < eraserRadius * 1.5;
+              }
+              return false;
             });
           });
 
           // Filter out texts that intersect
           const newTexts = annotations.texts.filter(text => {
+            const textWidth = text.text.length * text.fontSize * 0.6;
+            const textHeight = text.fontSize;
+
             return !drawing.points.some(eraserPoint => {
-              const distance = Math.sqrt(
-                Math.pow(text.position.x - eraserPoint.x, 2) +
-                Math.pow(text.position.y - eraserPoint.y, 2)
-              );
-              return distance < eraserRadius * 2;
+              return eraserPoint.x >= text.position.x - eraserRadius &&
+                eraserPoint.x <= text.position.x + textWidth + eraserRadius &&
+                eraserPoint.y >= text.position.y - textHeight - eraserRadius &&
+                eraserPoint.y <= text.position.y + eraserRadius;
             });
           });
 
