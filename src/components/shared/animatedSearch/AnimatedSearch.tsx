@@ -62,7 +62,7 @@ export const AnimatedSearch = () => {
         icon: <Settings size={18} weight="Linear" />,
       },
     ],
-    []
+    [],
   );
 
   // Fetch dynamic results
@@ -77,23 +77,35 @@ export const AnimatedSearch = () => {
         const res = await api.search.globalSearch(query);
         const { projects, blueprints, users } = res || {};
 
-        const projectResults: SearchResult[] = (projects || []).map((p: any) => ({
-          id: p._id,
-          title: p.title,
-          category: "Projects" as const,
-          route: `/project-details/${p._id}`,
-          icon: <Folder2 size={18} weight="Linear" className="text-blue-500" />,
-          description: p.description,
-        }));
+        const projectResults: SearchResult[] = (projects || []).map(
+          (p: any) => ({
+            id: p._id,
+            title: p.title,
+            category: "Projects" as const,
+            route: `/project-details/${p._id}`,
+            icon: (
+              <Folder2 size={18} weight="Linear" className="text-blue-500" />
+            ),
+            description: p.description,
+          }),
+        );
 
-        const blueprintResults: SearchResult[] = (blueprints || []).map((b: any) => ({
-          id: b._id,
-          title: b.name,
-          category: "Blueprints" as const,
-          route: `/blueprints/${b._id}`,
-          icon: <DocumentText size={18} weight="Linear" className="text-purple-500" />,
-          description: b.description,
-        }));
+        const blueprintResults: SearchResult[] = (blueprints || []).map(
+          (b: any) => ({
+            id: b._id,
+            title: b.name,
+            category: "Blueprints" as const,
+            route: `/blueprints/${b._id}`,
+            icon: (
+              <DocumentText
+                size={18}
+                weight="Linear"
+                className="text-purple-500"
+              />
+            ),
+            description: b.description,
+          }),
+        );
 
         const userResults: SearchResult[] = (users || []).map((u: any) => ({
           id: u._id,
@@ -105,10 +117,15 @@ export const AnimatedSearch = () => {
         }));
 
         const filteredNav = navItems.filter((item) =>
-          item.title.toLowerCase().includes(query.toLowerCase())
+          item.title.toLowerCase().includes(query.toLowerCase()),
         );
 
-        setResults([...filteredNav, ...projectResults, ...blueprintResults, ...userResults]);
+        setResults([
+          ...filteredNav,
+          ...projectResults,
+          ...blueprintResults,
+          ...userResults,
+        ]);
         setSelectedIndex(0);
       } catch (error) {
         console.error("Search fetch error:", error);
@@ -133,7 +150,9 @@ export const AnimatedSearch = () => {
         setSelectedIndex((prev) => (prev + 1) % results.length);
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
+        setSelectedIndex(
+          (prev) => (prev - 1 + results.length) % results.length,
+        );
       } else if (e.key === "Enter" && results[selectedIndex]) {
         e.preventDefault();
         handleSelect(results[selectedIndex]);
@@ -169,10 +188,14 @@ export const AnimatedSearch = () => {
         className="flex w-full max-w-xl cursor-pointer items-center gap-3 rounded-full border border-slate-200/80 bg-white/60 px-4 py-4 backdrop-blur transition hover:bg-white/80 hover:shadow-sm"
         onClick={() => setIsOpen(true)}
       >
-        <Search size={22}  className="shrink-0 text-slate-400" />
-        <span className="flex-1 select-none text-sm text-slate-400">
+        <Search size={22} className="shrink-0 text-slate-400" />
+        <span className="flex-1 hidden sm:inline  select-none text-sm text-slate-400">
           What would you like to find today?
         </span>
+        <span className="flex-1  sm:hidden  select-none text-sm text-slate-400">
+          Search..
+        </span>
+
         <div className="hidden items-center gap-0.5 sm:flex">
           <kbd className="flex h-5 items-center rounded border border-slate-200 bg-white/80 px-1.5 text-[10px] font-semibold text-slate-400 shadow-m">
             ⌘
@@ -203,13 +226,22 @@ export const AnimatedSearch = () => {
             <motion.div
               initial={{ y: -16, opacity: 0, scale: 0.97 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: -8, opacity: 0, scale: 0.97, transition: { duration: 0.12 } }}
+              exit={{
+                y: -8,
+                opacity: 0,
+                scale: 0.97,
+                transition: { duration: 0.12 },
+              }}
               transition={{ type: "spring", damping: 28, stiffness: 380 }}
               className="relative flex w-full max-w-2xl flex-col gap-4"
             >
               {/* ─── Search bar panel ─── */}
               <div className="flex items-center gap-4 rounded-2xl border border-white/60 bg-white/80 px-5 py-4 shadow-[0_8px_32px_-8px_rgba(99,102,241,0.12)] backdrop-blur-2xl">
-                <Magnifer size={22} weight="Bold" className="shrink-0 text-slate-800" />
+                <Magnifer
+                  size={22}
+                  weight="Bold"
+                  className="shrink-0 text-slate-800"
+                />
                 <input
                   autoFocus
                   ref={inputRef}
@@ -262,7 +294,9 @@ export const AnimatedSearch = () => {
                                 <div className="min-w-0 flex-1">
                                   <span
                                     className={`block text-[15px] font-medium ${
-                                      isActive ? "text-slate-900" : "text-slate-700"
+                                      isActive
+                                        ? "text-slate-900"
+                                        : "text-slate-700"
                                     }`}
                                   >
                                     {item.title}
@@ -291,7 +325,11 @@ export const AnimatedSearch = () => {
               {/* Empty state */}
               {query.trim() && results.length === 0 && (
                 <div className="flex flex-col items-center rounded-2xl border border-white/60 bg-white/80 px-6 py-12 text-center shadow-[0_16px_48px_-12px_rgba(99,102,241,0.14)] backdrop-blur-2xl">
-                  <Magnifer size={36} weight="Linear" className="mb-3 text-slate-300" />
+                  <Magnifer
+                    size={36}
+                    weight="Linear"
+                    className="mb-3 text-slate-300"
+                  />
                   <p className="text-sm font-semibold text-slate-700">
                     No results found for &ldquo;{query}&rdquo;
                   </p>

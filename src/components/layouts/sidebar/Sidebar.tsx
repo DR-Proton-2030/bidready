@@ -15,7 +15,9 @@ const Sidebar = () => {
   // Check if user is admin (COMPANY_ADMIN role)
   const isAdmin = useMemo(() => {
     const role = user?.role?.toUpperCase() || "";
-    return role === "COMPANY_ADMIN" || role === "ADMIN" || role === "SUPER_ADMIN";
+    return (
+      role === "COMPANY_ADMIN" || role === "ADMIN" || role === "SUPER_ADMIN"
+    );
   }, [user?.role]);
 
   // Filter sidebar items based on admin status
@@ -33,19 +35,23 @@ const Sidebar = () => {
     <>
       <aside
         className={`
-          fixed top-0 left-0 z-40 h-screen bg-white shadow-lg
+          fixed top-0 left-0 z-[60] lg:z-40 h-screen bg-white shadow-lg
           border-r border-gray-100
           transition-all duration-300 ease-in-out
           flex flex-col
-          ${isSidebarCollapsed ? "w-[72px]" : "w-64"}
+          ${
+            isSidebarCollapsed
+              ? "-translate-x-full lg:translate-x-0 lg:w-[72px] w-64"
+              : "translate-x-0 w-full lg:w-64"
+          }
         `}
       >
         {/* LOGO AREA */}
         <div
           className={`
-            p-6 border-b border-gray-100 
-            transition-all duration-300 
-            ${isSidebarCollapsed ? "flex justify-center" : ""}
+            p-6 border-b border-gray-100
+            transition-all duration-300
+            ${isSidebarCollapsed ? "flex justify-center" : "flex justify-between items-center"}
           `}
         >
           {user?.company_details?.logo ? (
@@ -53,17 +59,41 @@ const Sidebar = () => {
               src={user.company_details.logo}
               alt={user.company_details.company_name || "Company Logo"}
               className={`object-contain transition-all duration-300 ${
-                isSidebarCollapsed ? "h-12 w-12" : "h-16 w-40"
+                isSidebarCollapsed ? "h-12 w-12" : "h-16 w-32 lg:w-40"
               }`}
               loading="lazy"
             />
           ) : (
             <CompanyLogo width={isSidebarCollapsed ? 40 : 150} />
           )}
+
+          {/* Close Button for Mobile */}
+          {!isSidebarCollapsed && (
+            <button
+              onClick={toggleSidebar}
+              className="lg:hidden p-2 -mr-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Close sidebar"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* NAVIGATION */}
-        <nav className="flex-1 px-3 py-4 space-y-2">
+        <nav className="flex-1 px-3 py-4 space-y-2 overflow-y-auto">
           {filteredSidebarItems.map((item) => {
             const isActive = pathname === item.route;
             const Icon = item.icon;
@@ -97,7 +127,9 @@ const Sidebar = () => {
 
             const iconClassName = [
               "relative z-10 h-[18px] w-[18px] transition-all duration-300",
-              isActive ? "text-white" : "text-slate-500 group-hover:text-orange-500",
+              isActive
+                ? "text-white"
+                : "text-slate-500 group-hover:text-orange-500",
               item.iconProps?.className ?? "",
             ]
               .join(" ")
@@ -105,7 +137,9 @@ const Sidebar = () => {
 
             const labelClassName = [
               "font-semibold text-sm tracking-wide transition-all duration-300",
-              isActive ? "text-white" : "text-slate-600 group-hover:text-orange-700",
+              isActive
+                ? "text-white"
+                : "text-slate-600 group-hover:text-orange-700",
             ]
               .join(" ")
               .trim();
@@ -116,6 +150,15 @@ const Sidebar = () => {
                 href={item.route}
                 className={itemClassName}
                 title={isSidebarCollapsed ? item.label : ""}
+                onClick={() => {
+                  if (
+                    typeof window !== "undefined" &&
+                    window.innerWidth < 1024 &&
+                    !isSidebarCollapsed
+                  ) {
+                    toggleSidebar();
+                  }
+                }}
               >
                 {/* ICON */}
                 <div className={iconWrapperClassName}>
@@ -125,12 +168,8 @@ const Sidebar = () => {
 
                 {/* LABEL */}
                 {!isSidebarCollapsed && (
-                  <span className={labelClassName}>
-                    {item.label}
-                  </span>
+                  <span className={labelClassName}>{item.label}</span>
                 )}
-
-               
               </Link>
             );
           })}
@@ -140,7 +179,7 @@ const Sidebar = () => {
         <div className="mt-auto py-4 border-t border-gray-100 px-4">
           <div
             className={`
-              flex flex-col items-center 
+              flex flex-col items-center
               ${isSidebarCollapsed ? "scale-90" : ""}
               transition-all duration-300
             `}
@@ -156,7 +195,7 @@ const Sidebar = () => {
       {/* MOBILE OVERLAY */}
       {!isSidebarCollapsed && (
         <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 lg:hidden"
           onClick={toggleSidebar}
         ></div>
       )}

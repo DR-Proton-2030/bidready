@@ -37,7 +37,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
   maxFiles = 5,
   onChange,
   onUpload,
-  blueprint_images
+  blueprint_images,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previews, setPreviews] = useState<PreviewType[]>([]);
@@ -49,10 +49,10 @@ const ImageCard: React.FC<ImageCardProps> = ({
   const notifyChange = useCallback(
     (items: FilePreview[]) => {
       // only notify with actual File objects (local uploads)
-      const files = items.filter((p) => p.file).map((p) => p.file!)
-      onChange?.(files)
+      const files = items.filter((p) => p.file).map((p) => p.file!);
+      onChange?.(files);
     },
-    [onChange]
+    [onChange],
   );
 
   const openPanel = useCallback(() => {
@@ -85,7 +85,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
       notifyChange(merged);
       openPanel();
     },
-    [maxFiles, previews, notifyChange, openPanel]
+    [maxFiles, previews, notifyChange, openPanel],
   );
 
   const handleDrop: React.DragEventHandler<HTMLDivElement> = (e) => {
@@ -108,22 +108,24 @@ const ImageCard: React.FC<ImageCardProps> = ({
   // initialize with blueprint_images if provided
   useEffect(() => {
     // Transform new remote images
-    const preloaded: PreviewType[] = (blueprint_images || []).map((img: any) => ({
-      file: null,
-      src: img.file_url,
-      name: img.file_url?.split("/").pop?.() ?? img.file_url,
-      remote: true,
-      id: img._id,
-      overlay: Boolean(img.svg_overlay_url),
-      overlayData: img.svg_overlay_url,
-    }));
+    const preloaded: PreviewType[] = (blueprint_images || []).map(
+      (img: any) => ({
+        file: null,
+        src: img.file_url,
+        name: img.file_url?.split("/").pop?.() ?? img.file_url,
+        remote: true,
+        id: img._id,
+        overlay: Boolean(img.svg_overlay_url),
+        overlayData: img.svg_overlay_url,
+      }),
+    );
 
     setPreviews((prev) => {
       // Keep existing LOCAL uploads
       const localFiles = prev.filter((p) => !p.remote);
 
       // Combine local uploads + new remote images
-      // (Local uploads stay on top/first as per existing behavior in addFiles, 
+      // (Local uploads stay on top/first as per existing behavior in addFiles,
       // but typically we might want remote loaded ones to replace old remote ones)
       return [...localFiles, ...preloaded];
     });
@@ -132,7 +134,9 @@ const ImageCard: React.FC<ImageCardProps> = ({
   const handleUpload = async () => {
     if (!onUpload) return;
     try {
-      const filesToUpload = previews.map((p) => p.file).filter(Boolean) as File[];
+      const filesToUpload = previews
+        .map((p) => p.file)
+        .filter(Boolean) as File[];
       if (!filesToUpload.length) return;
       await onUpload(filesToUpload);
     } catch (err) {
@@ -161,8 +165,11 @@ const ImageCard: React.FC<ImageCardProps> = ({
 
   // Inline viewer state (no new page)
   const [viewerOpen, setViewerOpen] = useState(false);
-  const [viewerImages, setViewerImages] = useState<Array<{ id: string; name: string; path: string }>>([]);
-  const [viewerDetectionResults, setViewerDetectionResults] = useState<any>(null);
+  const [viewerImages, setViewerImages] = useState<
+    Array<{ id: string; name: string; path: string }>
+  >([]);
+  const [viewerDetectionResults, setViewerDetectionResults] =
+    useState<any>(null);
   const [viewerImageId, setViewerImageId] = useState<string | null>(null);
   const [viewerImageUrl, setViewerImageUrl] = useState<string | null>(null);
   const detectionCacheRef = useRef<Record<string, any>>({});
@@ -181,7 +188,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
       // Trigger detection, then show inline
       try {
         if (detectingIds.has(imageId)) return;
-        setDetectingIds(prev => new Set(prev).add(imageId));
+        setDetectingIds((prev) => new Set(prev).add(imageId));
         console.log("Starting detection for", p.src);
         const result = await detectImage(p.src);
         console.log("Detection Result:", result);
@@ -203,7 +210,8 @@ const ImageCard: React.FC<ImageCardProps> = ({
           electricalPreds = raw.map((pred: any) => ({
             id: pred.detection_id ?? undefined,
             class: pred.class ?? pred.label ?? "Unknown",
-            confidence: typeof pred.confidence === "number" ? pred.confidence : undefined,
+            confidence:
+              typeof pred.confidence === "number" ? pred.confidence : undefined,
             x: typeof pred.x === "number" ? pred.x : 0,
             y: typeof pred.y === "number" ? pred.y : 0,
             width: typeof pred.width === "number" ? pred.width : 0,
@@ -218,7 +226,9 @@ const ImageCard: React.FC<ImageCardProps> = ({
         detectionCacheRef.current[imageId] = combined;
 
         // Open inline viewer
-        setViewerImages([{ id: imageId, name: p.name || "image", path: p.src }]);
+        setViewerImages([
+          { id: imageId, name: p.name || "image", path: p.src },
+        ]);
         setViewerDetectionResults(combined);
         setViewerImageId(imageId);
         setViewerImageUrl(p.src);
@@ -226,7 +236,11 @@ const ImageCard: React.FC<ImageCardProps> = ({
       } catch (err) {
         console.error("Detection failed:", err);
       } finally {
-        setDetectingIds(prev => { const next = new Set(prev); next.delete(imageId); return next; });
+        setDetectingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(imageId);
+          return next;
+        });
       }
     }
   };
@@ -237,11 +251,13 @@ const ImageCard: React.FC<ImageCardProps> = ({
       const cached = detectionCacheRef.current[viewerImageId];
       if (cached) {
         try {
-          const payload = [{
-            _id: viewerImageId,
-            imgurl: viewerImageUrl,
-            detection: cached,
-          }];
+          const payload = [
+            {
+              _id: viewerImageId,
+              imgurl: viewerImageUrl,
+              detection: cached,
+            },
+          ];
           console.log("Saving detection to DB:", payload);
           await uploadDetections(payload);
           console.log("Detection saved successfully");
@@ -253,7 +269,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
                 return { ...pr, overlay: true, overlayData: cached };
               }
               return pr;
-            })
+            }),
           );
         } catch (err) {
           console.error("Failed to save detection:", err);
@@ -267,7 +283,7 @@ const ImageCard: React.FC<ImageCardProps> = ({
   };
 
   return (
-    <div className="w-1/3">
+    <div className="w-full lg:w-1/3 flex-shrink-0">
       <div
         role="button"
         tabIndex={0}
@@ -311,146 +327,160 @@ const ImageCard: React.FC<ImageCardProps> = ({
         </div>
       </div>
 
-      {sidebarOpen && (
-        <div className="fixed h-screen inset-0 z-[70] flex items-stretch justify-end px-0 sm:px-0">
-          <div
-            className={`absolute inset-0 bg-slate-950/50 backdrop-blur-sm transition-opacity
-               duration-500 ${drawerActive ? "opacity-100" : "opacity-0"}`}
-            onClick={closePanel}
-          />
-
-          <div className="relative z-10 pointer-events-none w-full">
+      {sidebarOpen &&
+        typeof window !== "undefined" &&
+        createPortal(
+          <div className="fixed h-screen inset-0 z-[70] flex items-stretch justify-end px-0 sm:px-0">
             <div
-              className={`pointer-events-auto fixed right-0 top-0 h-full w-full 
-                sm:w-[520px] md:w-[640px] max-w-[80vw] border-l border-slate-200/50 
+              className={`absolute inset-0 bg-slate-950/50 backdrop-blur-sm transition-opacity
+               duration-500 ${drawerActive ? "opacity-100" : "opacity-0"}`}
+              onClick={closePanel}
+            />
+
+            <div className="relative z-10 pointer-events-none w-full">
+              <div
+                className={`pointer-events-auto fixed right-0 top-0 h-full w-full
+                sm:w-[520px] md:w-[640px] sm:max-w-[80vw] border-l border-slate-200/50
                 bg-white
                 shadow-[-20px_0_60px_rgba(15,23,42,0.15)] transform transition-transform duration-500 ease-out
                  ${drawerActive ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"}`}
-            >
-              <div className="z-10 flex h-full flex-col">
-                {/* Drawer header */}
-                <div className="shrink-0 border-b border-slate-100 px-8 pt-8 pb-6">
-                  <div className="flex items-start justify-between gap-6">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-orange-400">
-                          <Image className="h-3.5 w-3.5 text-white" />
+              >
+                <div className="z-10 flex h-full flex-col">
+                  {/* Drawer header */}
+                  <div className="shrink-0 border-b border-slate-100 px-8 pt-8 pb-6">
+                    <div className="flex items-start justify-between gap-6">
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-orange-400">
+                            <Image className="h-3.5 w-3.5 text-white" />
+                          </div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
+                            Blueprint Library
+                          </p>
                         </div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400">
-                          Blueprint Library
+                        <h2 className="text-2xl font-semibold text-slate-900">
+                          Floor Plan Media
+                        </h2>
+                        <p className="mt-2 text-sm text-slate-500 max-w-md">
+                          Upload, review, and launch detections for every
+                          blueprint image.
                         </p>
                       </div>
-                      <h2 className="text-2xl font-semibold text-slate-900">
-                        Floor Plan Media
-                      </h2>
-                      <p className="mt-2 text-sm text-slate-500 max-w-md">
-                        Upload, review, and launch detections for every blueprint image.
-                      </p>
+                      <button
+                        onClick={closePanel}
+                        className="rounded-xl border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+                        aria-label="Close viewer"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
                     </div>
-                    <button
-                      onClick={closePanel}
-                      className="rounded-xl border border-slate-200 p-2 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
-                      aria-label="Close viewer"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
                   </div>
-                </div>
 
-                {/* Image grid area */}
-                <div className="flex-1 overflow-hidden px-8 pt-6">
-                  {previews.length ? (
-                    <div className="h-full overflow-y-auto pr-1 -mr-1">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {previews.map((p, idx) => (
-                          <ImagePreview
-                            key={p.src ?? p.id ?? idx}
-                            p={p}
-                            idx={idx}
-                            onRemove={(i) => removeAt(i)}
-                            onViewDetection={(preview) => viewDetection(preview)}
-                            loading={detectingIds.has(p.id || p.src)}
-                            disabled={detectingIds.size > 0}
-                          />
-                        ))}
+                  {/* Image grid area */}
+                  <div className="flex-1 overflow-hidden px-8 pt-6">
+                    {previews.length ? (
+                      <div className="h-full overflow-y-auto pr-1 -mr-1">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {previews.map((p, idx) => (
+                            <ImagePreview
+                              key={p.src ?? p.id ?? idx}
+                              p={p}
+                              idx={idx}
+                              onRemove={(i) => removeAt(i)}
+                              onViewDetection={(preview) =>
+                                viewDetection(preview)
+                              }
+                              loading={detectingIds.has(p.id || p.src)}
+                              disabled={detectingIds.size > 0}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center text-center">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 mb-4">
-                        <Image className="w-7 h-7 text-slate-400" />
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center text-center">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 mb-4">
+                          <Image className="w-7 h-7 text-slate-400" />
+                        </div>
+                        <p className="text-base font-medium text-slate-600">
+                          No blueprint images yet
+                        </p>
+                        <p className="text-sm text-slate-400 mt-1 max-w-xs">
+                          Upload files to visualize them here in a responsive
+                          grid.
+                        </p>
                       </div>
-                      <p className="text-base font-medium text-slate-600">No blueprint images yet</p>
-                      <p className="text-sm text-slate-400 mt-1 max-w-xs">
-                        Upload files to visualize them here in a responsive grid.
-                      </p>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
 
-                {/* Drawer footer */}
-                <div className="shrink-0 flex items-center justify-between border-t border-slate-100 px-8 py-4">
-                  <p className="text-xs font-medium text-slate-400 tabular-nums">
-                    {previews.length} / {maxFiles} synced
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={closePanel}
-                      className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-                    >
-                      Close
-                    </button>
-                    <button
-                      onClick={handleUpload}
-                      disabled={!previews.length || !onUpload}
-                      className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-40"
-                    >
-                      <Upload className="h-3.5 w-3.5" />
-                      Upload
-                    </button>
+                  {/* Drawer footer */}
+                  <div className="shrink-0 flex items-center justify-between border-t border-slate-100 px-8 py-4">
+                    <p className="text-xs font-medium text-slate-400 tabular-nums">
+                      {previews.length} / {maxFiles} synced
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={closePanel}
+                        className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                      >
+                        Close
+                      </button>
+                      <button
+                        onClick={handleUpload}
+                        disabled={!previews.length || !onUpload}
+                        className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-40"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        Upload
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Inline FullScreenImageViewer via portal – renders at body level above sidebar/navbar */}
-      {viewerOpen && createPortal(
-        <FullScreenImageViewer
-          images={viewerImages}
-          initialIndex={0}
-          isOpen={viewerOpen}
-          onClose={handleViewerClose}
-          onImageChange={() => { }}
-          detectionResults={viewerDetectionResults}
-          onDetectionsChange={(imageId: string, combinedDetections: Array<any>) => {
-            try {
-              const existing = detectionCacheRef.current[imageId] ?? {};
-              const normalized = combinedDetections.map((d: any) => ({
-                id: d.id ?? undefined,
-                class: d.className ?? d.class ?? "Unknown",
-                confidence: typeof d.confidence === "number" ? d.confidence : undefined,
-                x: typeof d.x === "number" ? d.x : 0,
-                y: typeof d.y === "number" ? d.y : 0,
-                width: typeof d.width === "number" ? d.width : 0,
-                height: typeof d.height === "number" ? d.height : 0,
-                source: d.source ?? "User",
-                points: d.points ?? undefined,
-              }));
-              detectionCacheRef.current[imageId] = {
-                ...existing,
-                predictions: normalized,
-                combined_export: combinedDetections,
-              };
-            } catch (e) {
-              console.error("Failed to store combined detections:", e);
-            }
-          }}
-        />,
-        document.body
-      )}
+      {viewerOpen &&
+        createPortal(
+          <FullScreenImageViewer
+            images={viewerImages}
+            initialIndex={0}
+            isOpen={viewerOpen}
+            onClose={handleViewerClose}
+            onImageChange={() => {}}
+            detectionResults={viewerDetectionResults}
+            onDetectionsChange={(
+              imageId: string,
+              combinedDetections: Array<any>,
+            ) => {
+              try {
+                const existing = detectionCacheRef.current[imageId] ?? {};
+                const normalized = combinedDetections.map((d: any) => ({
+                  id: d.id ?? undefined,
+                  class: d.className ?? d.class ?? "Unknown",
+                  confidence:
+                    typeof d.confidence === "number" ? d.confidence : undefined,
+                  x: typeof d.x === "number" ? d.x : 0,
+                  y: typeof d.y === "number" ? d.y : 0,
+                  width: typeof d.width === "number" ? d.width : 0,
+                  height: typeof d.height === "number" ? d.height : 0,
+                  source: d.source ?? "User",
+                  points: d.points ?? undefined,
+                }));
+                detectionCacheRef.current[imageId] = {
+                  ...existing,
+                  predictions: normalized,
+                  combined_export: combinedDetections,
+                };
+              } catch (e) {
+                console.error("Failed to store combined detections:", e);
+              }
+            }}
+          />,
+          document.body,
+        )}
     </div>
   );
 };
