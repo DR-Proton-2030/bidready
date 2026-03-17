@@ -1,0 +1,18 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+        # Explicitly write the API key to .env.production so Next.js can pick it up during build/runtime
+        - echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env.production
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { analyzeFloorPlan } from "@/services/geminiService";
 import { AIAnalysisResult } from "@/types/gemini";
 import {
@@ -40,6 +46,13 @@ interface Detection {
   points?: Array<{ x: number; y: number }>;
   meta?: Record<string, any>;
 }
+
+type RoiRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 type MeasurementPoint = { x: number; y: number };
 
@@ -100,7 +113,10 @@ interface FullScreenImageViewerProps {
   onImageChange?: (image: Image, index: number) => void;
   detectionResults?: any;
   onSvgOverlayUpdate?: (imageId: string, svgData: string | null) => void;
-  onDetectionsChange?: (imageId: string, combinedDetections: Array<any>) => void;
+  onDetectionsChange?: (
+    imageId: string,
+    combinedDetections: Array<any>,
+  ) => void;
 }
 
 const areaFormatter = new Intl.NumberFormat("en-US", {
@@ -125,7 +141,7 @@ export default function FullScreenImageViewer({
   onDetectionsChange,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [zoom, setZoom] = useState(0.50);
+  const [zoom, setZoom] = useState(0.5);
   const [rotation, setRotation] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -144,19 +160,19 @@ export default function FullScreenImageViewer({
   const [showDetections, setShowDetections] = useState(true);
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
+  const [useDetectedRoi, setUseDetectedRoi] = useState(true);
+  const [detectedRoi, setDetectedRoi] = useState<RoiRect | null>(null);
+  const [roiOverlapThreshold, setRoiOverlapThreshold] = useState(0.5);
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
-  const [shapeTooltip, setShapeTooltip] = useState<
-    | {
-      x: number;
-      y: number;
-      name: string;
-      area?: string;
-      color: string;
-    }
-    | null
-  >(null);
+  const [shapeTooltip, setShapeTooltip] = useState<{
+    x: number;
+    y: number;
+    name: string;
+    area?: string;
+    color: string;
+  } | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [leftToolbarOpen, setLeftToolbarOpen] = useState(true);
@@ -179,17 +195,30 @@ export default function FullScreenImageViewer({
   const [startPoint, setStartPoint] = useState({ x: 0, y: 0 });
   const [currentBox, setCurrentBox] = useState<any>(null);
   const [userAnnotations, setUserAnnotations] = useState<Detection[]>([]);
-  const [polygonPoints, setPolygonPoints] = useState<Array<{ x: number; y: number }>>([]);
-  const [draggingPointIndex, setDraggingPointIndex] = useState<number | null>(null);
-  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
+  const [polygonPoints, setPolygonPoints] = useState<
+    Array<{ x: number; y: number }>
+  >([]);
+  const [draggingPointIndex, setDraggingPointIndex] = useState<number | null>(
+    null,
+  );
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(
+    null,
+  );
   const [showClassSelector, setShowClassSelector] = useState(false);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [selectedAnnotationClass, setSelectedAnnotationClass] = useState("");
-  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [dismissedDetections, setDismissedDetections] = useState<Set<string>>(new Set());
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(
+    null,
+  );
+  const [dismissedDetections, setDismissedDetections] = useState<Set<string>>(
+    new Set(),
+  );
   type UndoAction = { kind: "user" | "api"; id: string; payload?: Detection };
   const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
-  const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
+  const [snackbar, setSnackbar] = useState<{
+    visible: boolean;
+    message: string;
+  }>({ visible: false, message: "" });
   const snackbarTimerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -201,12 +230,14 @@ export default function FullScreenImageViewer({
   const [overlayScale, setOverlayScale] = useState(1);
   const [overlayRotation, setOverlayRotation] = useState(0);
   const [isOverlayInteractive, setIsOverlayInteractive] = useState(false);
-  const [overlayColor, setOverlayColor] = useState('none');
+  const [overlayColor, setOverlayColor] = useState("none");
   const [localOverlays, setLocalOverlays] = useState<Image[]>([]);
 
   const overlayImage = useMemo(() => {
     if (!overlayImageId) return null;
-    return [...images, ...localOverlays].find(img => img.id === overlayImageId);
+    return [...images, ...localOverlays].find(
+      (img) => img.id === overlayImageId,
+    );
   }, [overlayImageId, images, localOverlays]);
 
   const handleOverlayUpload = (file: File) => {
@@ -216,7 +247,7 @@ export default function FullScreenImageViewer({
       name: file.name,
       path: objectUrl,
     };
-    setLocalOverlays(prev => [...prev, newImage]);
+    setLocalOverlays((prev) => [...prev, newImage]);
     setOverlayImageId(newImage.id);
   };
 
@@ -225,12 +256,101 @@ export default function FullScreenImageViewer({
     setOverlayScale(1);
     setOverlayRotation(0);
     setIsOverlayInteractive(false);
-    setOverlayColor('none');
-    setOverlayBlendMode('normal');
+    setOverlayColor("none");
+    setOverlayBlendMode("normal");
   }, [overlayImageId]);
 
   const [isDeepScanning, setIsDeepScanning] = useState(false);
   const [aiCalibrationData, setAiCalibrationData] = useState<any>(null);
+
+  const clamp01 = useCallback((n: number) => Math.max(0, Math.min(1, n)), []);
+
+  const autoDetectPlanRoi = useCallback(
+    (imgW: number, imgH: number): RoiRect | null => {
+      if (!imgW || !imgH) return null;
+      const marginX = Math.round(imgW * 0.03);
+      const marginY = Math.round(imgH * 0.03);
+      const rightStrip = Math.round(imgW * 0.22); // excludes title block strip on right
+      const x = marginX;
+      const y = marginY;
+      const width = Math.max(1, imgW - marginX * 2 - rightStrip);
+      const height = Math.max(1, imgH - marginY * 2);
+      return { x, y, width, height };
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!imageDimensions.width || !imageDimensions.height) return;
+    const roi = autoDetectPlanRoi(
+      imageDimensions.width,
+      imageDimensions.height,
+    );
+    setDetectedRoi(roi);
+  }, [
+    imageDimensions.width,
+    imageDimensions.height,
+    currentImage?.id,
+    autoDetectPlanRoi,
+  ]);
+
+  const getBBoxFromDetection = useCallback((d: any) => {
+    if (!d) return null;
+    const w = Math.max(0, Number(d.width ?? 0));
+    const h = Math.max(0, Number(d.height ?? 0));
+    const cx = Number(d.x ?? 0);
+    const cy = Number(d.y ?? 0);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0)
+      return null;
+    const x1 = cx - w / 2;
+    const y1 = cy - h / 2;
+    const x2 = cx + w / 2;
+    const y2 = cy + h / 2;
+    return { x1, y1, x2, y2, area: w * h };
+  }, []);
+
+  const intersectionArea = useCallback(
+    (
+      a: { x1: number; y1: number; x2: number; y2: number },
+      b: { x1: number; y1: number; x2: number; y2: number },
+    ) => {
+      const xLeft = Math.max(a.x1, b.x1);
+      const yTop = Math.max(a.y1, b.y1);
+      const xRight = Math.min(a.x2, b.x2);
+      const yBottom = Math.min(a.y2, b.y2);
+      const w = Math.max(0, xRight - xLeft);
+      const h = Math.max(0, yBottom - yTop);
+      return w * h;
+    },
+    [],
+  );
+
+  const filterByRoi = useCallback(
+    <T extends any>(detections: T[]): T[] => {
+      if (!useDetectedRoi || !detectedRoi) return detections;
+      const roiBox = {
+        x1: detectedRoi.x,
+        y1: detectedRoi.y,
+        x2: detectedRoi.x + detectedRoi.width,
+        y2: detectedRoi.y + detectedRoi.height,
+      };
+      return detections.filter((d) => {
+        const b = getBBoxFromDetection(d);
+        if (!b || b.area <= 0) return false;
+        const inside = intersectionArea(b, roiBox);
+        const overlap = inside / b.area;
+        return overlap >= clamp01(roiOverlapThreshold);
+      });
+    },
+    [
+      useDetectedRoi,
+      detectedRoi,
+      getBBoxFromDetection,
+      intersectionArea,
+      clamp01,
+      roiOverlapThreshold,
+    ],
+  );
 
   const handleDeepScan = async () => {
     if (!currentImage) return;
@@ -252,9 +372,15 @@ export default function FullScreenImageViewer({
 
       if (result.autoCalibration) {
         setAiCalibrationData(result.autoCalibration);
-        setSnackbar({ visible: true, message: "Calibration updated from Deep Scan" });
+        setSnackbar({
+          visible: true,
+          message: "Calibration updated from Deep Scan",
+        });
       } else {
-        setSnackbar({ visible: true, message: "Deep Scan complete. No calibration found." });
+        setSnackbar({
+          visible: true,
+          message: "Deep Scan complete. No calibration found.",
+        });
       }
     } catch (e) {
       console.error("Deep Scan failed", e);
@@ -278,7 +404,7 @@ export default function FullScreenImageViewer({
       name: `${currentImage.name} (Copy)`,
       path: currentImage.path,
     };
-    setLocalOverlays(prev => [...prev, newImage]);
+    setLocalOverlays((prev) => [...prev, newImage]);
     setOverlayImageId(newImage.id);
   };
 
@@ -290,16 +416,17 @@ export default function FullScreenImageViewer({
   // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
-      localOverlays.forEach(img => URL.revokeObjectURL(img.path));
+      localOverlays.forEach((img) => URL.revokeObjectURL(img.path));
     };
   }, [localOverlays]);
 
   const calibrationInfo = useMemo(() => {
     if (aiCalibrationData) {
-      const { realValue, startNormalized, endNormalized, unit } = aiCalibrationData;
+      const { realValue, startNormalized, endNormalized, unit } =
+        aiCalibrationData;
       // Calculate pixel distance from normalized coordinates (0-1000 range)
       // We need image dimensions for this.
-      // If we don't have exact dimensions yet, this might be tricky, 
+      // If we don't have exact dimensions yet, this might be tricky,
       // but usually we rely on current image aspect ratio or assume standard.
       // Wait, normalized implies we need actual width/height.
 
@@ -307,16 +434,25 @@ export default function FullScreenImageViewer({
       const w = imageDimensions.width || 1000;
       const h = imageDimensions.height || 1000;
 
-      const p1 = { x: (startNormalized[1] / 1000) * w, y: (startNormalized[0] / 1000) * h };
-      const p2 = { x: (endNormalized[1] / 1000) * w, y: (endNormalized[0] / 1000) * h };
-      const pixelDist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+      const p1 = {
+        x: (startNormalized[1] / 1000) * w,
+        y: (startNormalized[0] / 1000) * h,
+      };
+      const p2 = {
+        x: (endNormalized[1] / 1000) * w,
+        y: (endNormalized[0] / 1000) * h,
+      };
+      const pixelDist = Math.sqrt(
+        Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2),
+      );
 
       if (pixelDist > 0 && realValue > 0) {
         const unitsPerPixel = realValue / pixelDist;
         return {
-          unit: unit === 'feet' || unit === 'ft' || unit.includes("'") ? 'ft' : 'm',
+          unit:
+            unit === "feet" || unit === "ft" || unit.includes("'") ? "ft" : "m",
           unitsPerPixel,
-          pixelsPerUnit: pixelDist / realValue
+          pixelsPerUnit: pixelDist / realValue,
         } as const;
       }
     }
@@ -326,14 +462,16 @@ export default function FullScreenImageViewer({
     if (typeof cal.error === "string" && cal.error.length > 0) return null;
 
     const numeric = (value: unknown) =>
-      typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+      typeof value === "number" && Number.isFinite(value) && value > 0
+        ? value
+        : null;
 
     let unit = "units";
     let pixelsPerUnit: number | null = null;
     let unitsPerPixel: number | null = null;
 
     // Check for px_per_inch pattern first (e.g., px_per_inch, px_per_foot, px_per_meter)
-    const pxPerPattern = Object.keys(cal).find(key => /^px_per_/i.test(key));
+    const pxPerPattern = Object.keys(cal).find((key) => /^px_per_/i.test(key));
     if (pxPerPattern) {
       const value = numeric((cal as any)[pxPerPattern]);
       if (value) {
@@ -440,7 +578,11 @@ export default function FullScreenImageViewer({
       }
     }
 
-    if (!unitsPerPixel || !Number.isFinite(unitsPerPixel) || unitsPerPixel <= 0) {
+    if (
+      !unitsPerPixel ||
+      !Number.isFinite(unitsPerPixel) ||
+      unitsPerPixel <= 0
+    ) {
       return null;
     }
 
@@ -449,7 +591,11 @@ export default function FullScreenImageViewer({
       unitsPerPixel,
       pixelsPerUnit: 1 / unitsPerPixel,
     } as const;
-  }, [detectionResults?.dimension_calibration, aiCalibrationData, imageDimensions]);
+  }, [
+    detectionResults?.dimension_calibration,
+    aiCalibrationData,
+    imageDimensions,
+  ]);
 
   const convertPixelDistance = useCallback(
     (pixels: number) => {
@@ -473,7 +619,7 @@ export default function FullScreenImageViewer({
         hasCalibration: true,
       } as const;
     },
-    [calibrationInfo]
+    [calibrationInfo],
   );
 
   const convertPixelArea = useCallback(
@@ -490,7 +636,9 @@ export default function FullScreenImageViewer({
       }
 
       const value =
-        absoluteArea * calibrationInfo.unitsPerPixel * calibrationInfo.unitsPerPixel;
+        absoluteArea *
+        calibrationInfo.unitsPerPixel *
+        calibrationInfo.unitsPerPixel;
       const unit = `${calibrationInfo.unit}²`;
       const formatted = `${areaFormatter.format(value)} ${unit}`;
       return {
@@ -500,7 +648,7 @@ export default function FullScreenImageViewer({
         hasCalibration: true,
       } as const;
     },
-    [calibrationInfo]
+    [calibrationInfo],
   );
 
   const computePolygonArea = useCallback((points: MeasurementPoint[]) => {
@@ -575,7 +723,10 @@ export default function FullScreenImageViewer({
   const showUndoSnackbar = (message = "Removed. Undo?") => {
     setSnackbar({ visible: true, message });
     if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
-    snackbarTimerRef.current = setTimeout(() => setSnackbar({ visible: false, message: "" }), 5000);
+    snackbarTimerRef.current = setTimeout(
+      () => setSnackbar({ visible: false, message: "" }),
+      5000,
+    );
   };
 
   const undoLast = () => {
@@ -602,7 +753,10 @@ export default function FullScreenImageViewer({
       setUserAnnotations((prev) => {
         const found = prev.find((a) => a.id === id);
         if (found) {
-          setUndoStack((stack) => [...stack, { kind: "user", id, payload: found }]);
+          setUndoStack((stack) => [
+            ...stack,
+            { kind: "user", id, payload: found },
+          ]);
         }
         return prev.filter((a) => a.id !== id);
       });
@@ -613,8 +767,6 @@ export default function FullScreenImageViewer({
     setSelectedOverlayId(null);
     showUndoSnackbar("Deleted. Undo?");
   };
-
-
 
   // Predefined colors for consistent class mapping
   const classColors = [
@@ -656,16 +808,26 @@ export default function FullScreenImageViewer({
   const classStats = useMemo<Record<string, ClassStat>>(() => {
     const accumulator: Record<
       string,
-      { count: number; aiDetections: number; confidenceSum: number; confidences: number[] }
+      {
+        count: number;
+        aiDetections: number;
+        confidenceSum: number;
+        confidences: number[];
+      }
     > = {};
 
     const bump = (
       className: string,
-      options?: { confidence?: number; trackConfidence?: boolean }
+      options?: { confidence?: number; trackConfidence?: boolean },
     ) => {
       const key = className || "Unknown";
       if (!accumulator[key]) {
-        accumulator[key] = { count: 0, aiDetections: 0, confidenceSum: 0, confidences: [] };
+        accumulator[key] = {
+          count: 0,
+          aiDetections: 0,
+          confidenceSum: 0,
+          confidences: [],
+        };
       }
       accumulator[key].count += 1;
       if (options?.trackConfidence && typeof options.confidence === "number") {
@@ -676,24 +838,36 @@ export default function FullScreenImageViewer({
     };
 
     if (showElectrical) {
-      (detectionResults?.electricalPredictions ?? []).forEach((prediction: any) => {
-        bump(prediction?.class ?? "Electrical", {
-          confidence:
-            typeof prediction?.confidence === "number" ? prediction.confidence : undefined,
-          trackConfidence: true,
-        });
-      });
+      (detectionResults?.electricalPredictions ?? []).forEach(
+        (prediction: any) => {
+          if (filterByRoi([prediction]).length === 0) return;
+          bump(prediction?.class ?? "Electrical", {
+            confidence:
+              typeof prediction?.confidence === "number"
+                ? prediction.confidence
+                : undefined,
+            trackConfidence: true,
+          });
+        },
+      );
     } else {
-      (detectionResults?.predictions ?? []).forEach((prediction: any, index: number) => {
-        if (prediction?.source === "User") return;
-        const detId = prediction?.id ? String(prediction.id) : `detection-${index}`;
-        if (dismissedDetections.has(detId)) return;
-        bump(prediction?.class ?? "Unknown", {
-          confidence:
-            typeof prediction?.confidence === "number" ? prediction.confidence : undefined,
-          trackConfidence: true,
-        });
-      });
+      (detectionResults?.predictions ?? []).forEach(
+        (prediction: any, index: number) => {
+          if (prediction?.source === "User") return;
+          const detId = prediction?.id
+            ? String(prediction.id)
+            : `detection-${index}`;
+          if (dismissedDetections.has(detId)) return;
+          if (filterByRoi([prediction]).length === 0) return;
+          bump(prediction?.class ?? "Unknown", {
+            confidence:
+              typeof prediction?.confidence === "number"
+                ? prediction.confidence
+                : undefined,
+            trackConfidence: true,
+          });
+        },
+      );
 
       userAnnotations.forEach((annotation) => {
         bump(annotation.class ?? "Unknown");
@@ -706,8 +880,11 @@ export default function FullScreenImageViewer({
           value.aiDetections > 0
             ? value.confidenceSum / value.aiDetections
             : null;
-        return [key, { count: value.count, avgConfidence, confidences: value.confidences }];
-      })
+        return [
+          key,
+          { count: value.count, avgConfidence, confidences: value.confidences },
+        ];
+      }),
     );
   }, [
     showElectrical,
@@ -783,7 +960,7 @@ export default function FullScreenImageViewer({
           label: conversion.formatted,
           hasCalibration: conversion.hasCalibration,
         };
-      })
+      }),
     );
   }, [convertPixelDistance]);
 
@@ -791,7 +968,8 @@ export default function FullScreenImageViewer({
     if (userAnnotations.length === 0) return;
     setUserAnnotations((prev) =>
       prev.map((annotation) => {
-        if (!annotation.points || annotation.points.length < 3) return annotation;
+        if (!annotation.points || annotation.points.length < 3)
+          return annotation;
         const areaPx = computePolygonArea(annotation.points);
         const areaInfo = convertPixelArea(areaPx);
         const centroid =
@@ -809,7 +987,7 @@ export default function FullScreenImageViewer({
             centroid,
           },
         };
-      })
+      }),
     );
   }, [convertPixelArea, computePolygonArea, computePolygonCentroid]);
 
@@ -845,19 +1023,19 @@ export default function FullScreenImageViewer({
           meta:
             Array.isArray(pred.points) && pred.points.length > 2
               ? (() => {
-                const pts = pred.points as MeasurementPoint[];
-                const areaPx = computePolygonArea(pts);
-                const areaInfo = convertPixelArea(areaPx);
-                const centroid = computePolygonCentroid(pts);
-                return {
-                  areaPx,
-                  areaValue: areaInfo.value,
-                  areaUnit: areaInfo.unit,
-                  areaFormatted: areaInfo.formatted,
-                  areaCalibrated: areaInfo.hasCalibration,
-                  centroid,
-                };
-              })()
+                  const pts = pred.points as MeasurementPoint[];
+                  const areaPx = computePolygonArea(pts);
+                  const areaInfo = convertPixelArea(areaPx);
+                  const centroid = computePolygonCentroid(pts);
+                  return {
+                    areaPx,
+                    areaValue: areaInfo.value,
+                    areaUnit: areaInfo.unit,
+                    areaFormatted: areaInfo.formatted,
+                    areaCalibrated: areaInfo.hasCalibration,
+                    centroid,
+                  };
+                })()
               : undefined,
         }));
 
@@ -865,7 +1043,13 @@ export default function FullScreenImageViewer({
         setUserAnnotations(userAnns);
       }
     }
-  }, [detectionResults, currentIndex, computePolygonArea, convertPixelArea, computePolygonCentroid]);
+  }, [
+    detectionResults,
+    currentIndex,
+    computePolygonArea,
+    convertPixelArea,
+    computePolygonCentroid,
+  ]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback(
@@ -897,7 +1081,7 @@ export default function FullScreenImageViewer({
           break;
       }
     },
-    [isOpen, isMeasuring, measurementDraft, onClose]
+    [isOpen, isMeasuring, measurementDraft, onClose],
   );
 
   useEffect(() => {
@@ -978,65 +1162,83 @@ export default function FullScreenImageViewer({
     if (!currentImage) return null;
 
     const rawPredictions = Array.isArray(detectionResults?.predictions)
-      ? detectionResults?.predictions ?? []
+      ? (detectionResults?.predictions ?? [])
       : [];
 
     const normalizedPredictions: NormalizedDetectionSummary[] = rawPredictions
-      .map((pred: any): NormalizedDetectionSummary => ({
-        id: pred?.id ?? null,
-        label: pred?.class ?? "Unknown",
-        confidence: typeof pred?.confidence === "number" ? Number(pred.confidence.toFixed(4)) : null,
-        source: pred?.source ?? "AI",
-        center: {
-          x: typeof pred?.x === "number" ? pred.x : 0,
-          y: typeof pred?.y === "number" ? pred.y : 0,
-        },
-        size: {
-          width: typeof pred?.width === "number" ? pred.width : 0,
-          height: typeof pred?.height === "number" ? pred.height : 0,
-        },
-        polygon: Array.isArray(pred?.points)
-          ? (pred.points as Array<{ x: number; y: number }>).slice(0, 20).map((pt) => ({
-            x: typeof pt?.x === "number" ? pt.x : 0,
-            y: typeof pt?.y === "number" ? pt.y : 0,
-          }))
-          : null,
-        pageNumber: pred?.pageNumber ?? currentImage.pageNumber ?? null,
-      }))
+      .map(
+        (pred: any): NormalizedDetectionSummary => ({
+          id: pred?.id ?? null,
+          label: pred?.class ?? "Unknown",
+          confidence:
+            typeof pred?.confidence === "number"
+              ? Number(pred.confidence.toFixed(4))
+              : null,
+          source: pred?.source ?? "AI",
+          center: {
+            x: typeof pred?.x === "number" ? pred.x : 0,
+            y: typeof pred?.y === "number" ? pred.y : 0,
+          },
+          size: {
+            width: typeof pred?.width === "number" ? pred.width : 0,
+            height: typeof pred?.height === "number" ? pred.height : 0,
+          },
+          polygon: Array.isArray(pred?.points)
+            ? (pred.points as Array<{ x: number; y: number }>)
+                .slice(0, 20)
+                .map((pt) => ({
+                  x: typeof pt?.x === "number" ? pt.x : 0,
+                  y: typeof pt?.y === "number" ? pt.y : 0,
+                }))
+            : null,
+          pageNumber: pred?.pageNumber ?? currentImage.pageNumber ?? null,
+        }),
+      )
       .slice(0, 200);
 
-    const normalizedAnnotations: NormalizedAnnotationSummary[] = userAnnotations.map((ann) => ({
-      id: ann.id,
-      label: ann.class ?? "Unknown",
-      confidence: typeof ann.confidence === "number" ? Number(ann.confidence.toFixed(4)) : null,
-      center: { x: ann.x, y: ann.y },
-      size: { width: ann.width, height: ann.height },
-      polygon: ann.points ? ann.points.slice(0, 20) : null,
-      meta: ann.meta ?? null,
-    }));
+    const normalizedAnnotations: NormalizedAnnotationSummary[] =
+      userAnnotations.map((ann) => ({
+        id: ann.id,
+        label: ann.class ?? "Unknown",
+        confidence:
+          typeof ann.confidence === "number"
+            ? Number(ann.confidence.toFixed(4))
+            : null,
+        center: { x: ann.x, y: ann.y },
+        size: { width: ann.width, height: ann.height },
+        polygon: ann.points ? ann.points.slice(0, 20) : null,
+        meta: ann.meta ?? null,
+      }));
 
-    const measurementSummaries: MeasurementSummary[] = measurements.map((measurement) => ({
-      id: measurement.id,
-      start: measurement.start,
-      end: measurement.end,
-      lengthPx: Number(measurement.lengthPx.toFixed(2)),
-      value: Number(measurement.value.toFixed(4)),
-      unit: measurement.unit,
-      label: measurement.label,
-      calibrated: measurement.hasCalibration,
-    }));
+    const measurementSummaries: MeasurementSummary[] = measurements.map(
+      (measurement) => ({
+        id: measurement.id,
+        start: measurement.start,
+        end: measurement.end,
+        lengthPx: Number(measurement.lengthPx.toFixed(2)),
+        value: Number(measurement.value.toFixed(4)),
+        unit: measurement.unit,
+        label: measurement.label,
+        calibrated: measurement.hasCalibration,
+      }),
+    );
 
     const dimensionShapes = Array.isArray(detectionResults?.shapes)
-      ? (detectionResults?.shapes as Array<any>).slice(0, 80).map((shape, index) => ({
-        id: shape?.id ?? `shape-${index}`,
-        type: shape?.type ?? "polygon",
-        label: shape?.label ?? shape?.name ?? null,
-        points: Array.isArray(shape?.points)
-          ? (shape.points as Array<{ x: number; y: number }>).slice(0, 40)
-          : null,
-        area: typeof shape?.area === "number" ? Number(shape.area.toFixed(2)) : null,
-        meta: shape?.meta ?? null,
-      }))
+      ? (detectionResults?.shapes as Array<any>)
+          .slice(0, 80)
+          .map((shape, index) => ({
+            id: shape?.id ?? `shape-${index}`,
+            type: shape?.type ?? "polygon",
+            label: shape?.label ?? shape?.name ?? null,
+            points: Array.isArray(shape?.points)
+              ? (shape.points as Array<{ x: number; y: number }>).slice(0, 40)
+              : null,
+            area:
+              typeof shape?.area === "number"
+                ? Number(shape.area.toFixed(2))
+                : null,
+            meta: shape?.meta ?? null,
+          }))
       : [];
 
     const classBreakdown: Record<string, number> = {};
@@ -1058,10 +1260,10 @@ export default function FullScreenImageViewer({
       generatedAt: new Date().toISOString(),
       calibration: calibrationInfo
         ? {
-          unit: calibrationInfo.unit,
-          unitsPerPixel: calibrationInfo.unitsPerPixel,
-          pixelsPerUnit: calibrationInfo.pixelsPerUnit,
-        }
+            unit: calibrationInfo.unit,
+            unitsPerPixel: calibrationInfo.unitsPerPixel,
+            pixelsPerUnit: calibrationInfo.pixelsPerUnit,
+          }
         : null,
       stats: {
         totalPredictions: normalizedPredictions.length,
@@ -1074,7 +1276,13 @@ export default function FullScreenImageViewer({
       measurements: measurementSummaries,
       dimensionShapes,
     };
-  }, [currentImage, detectionResults, userAnnotations, measurements, calibrationInfo]);
+  }, [
+    currentImage,
+    detectionResults,
+    userAnnotations,
+    measurements,
+    calibrationInfo,
+  ]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -1132,7 +1340,10 @@ export default function FullScreenImageViewer({
       const rect = img.getBoundingClientRect();
 
       // Calculate actual rendered dimensions (accounting for object-contain)
-      const renderRatio = Math.min(rect.width / imageDimensions.width, rect.height / imageDimensions.height);
+      const renderRatio = Math.min(
+        rect.width / imageDimensions.width,
+        rect.height / imageDimensions.height,
+      );
       const actualWidth = imageDimensions.width * renderRatio;
       const actualHeight = imageDimensions.height * renderRatio;
 
@@ -1141,15 +1352,18 @@ export default function FullScreenImageViewer({
       const offsetY = (rect.height - actualHeight) / 2;
 
       // Map click to base image coordinates
-      const x = (e.clientX - rect.left - offsetX) * (imageDimensions.width / actualWidth);
-      const y = (e.clientY - rect.top - offsetY) * (imageDimensions.height / actualHeight);
+      const x =
+        (e.clientX - rect.left - offsetX) *
+        (imageDimensions.width / actualWidth);
+      const y =
+        (e.clientY - rect.top - offsetY) *
+        (imageDimensions.height / actualHeight);
 
       setIsDrawing(true);
       setStartPoint({ x, y });
       setCurrentBox({ x, y, width: 0, height: 0 });
       return;
-    }
-    else if (activeTool === "pan" || zoom > 1) {
+    } else if (activeTool === "pan" || zoom > 1) {
       setIsDragging(true);
       setDragStart({
         x: e.clientX - imagePosition.x,
@@ -1209,19 +1423,29 @@ export default function FullScreenImageViewer({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if ((activeTool === "annotate" || activeTool === "crop-overlay") && isDrawing) {
+    if (
+      (activeTool === "annotate" || activeTool === "crop-overlay") &&
+      isDrawing
+    ) {
       const img = imageRef.current;
       if (!img || !imageDimensions.width) return;
       const rect = img.getBoundingClientRect();
 
-      const renderRatio = Math.min(rect.width / imageDimensions.width, rect.height / imageDimensions.height);
+      const renderRatio = Math.min(
+        rect.width / imageDimensions.width,
+        rect.height / imageDimensions.height,
+      );
       const actualWidth = imageDimensions.width * renderRatio;
       const actualHeight = imageDimensions.height * renderRatio;
       const offsetX = (rect.width - actualWidth) / 2;
       const offsetY = (rect.height - actualHeight) / 2;
 
-      const currentX = (e.clientX - rect.left - offsetX) * (imageDimensions.width / actualWidth);
-      const currentY = (e.clientY - rect.top - offsetY) * (imageDimensions.height / actualHeight);
+      const currentX =
+        (e.clientX - rect.left - offsetX) *
+        (imageDimensions.width / actualWidth);
+      const currentY =
+        (e.clientY - rect.top - offsetY) *
+        (imageDimensions.height / actualHeight);
 
       setCurrentBox({
         x: Math.min(startPoint.x, currentX),
@@ -1229,8 +1453,11 @@ export default function FullScreenImageViewer({
         width: Math.abs(currentX - startPoint.x),
         height: Math.abs(currentY - startPoint.y),
       });
-    }
-    else if ((activeTool === "linear" || activeTool === "measure") && isMeasuring && measurementDraft) {
+    } else if (
+      (activeTool === "linear" || activeTool === "measure") &&
+      isMeasuring &&
+      measurementDraft
+    ) {
       const imageRect = imageRef.current?.getBoundingClientRect();
       if (imageRect && imageDimensions.width > 0) {
         const scaleX = imageDimensions.width / imageRect.width;
@@ -1241,10 +1468,10 @@ export default function FullScreenImageViewer({
         setMeasurementDraft((prev) =>
           prev
             ? {
-              ...prev,
-              end: { x, y },
-            }
-            : prev
+                ...prev,
+                end: { x, y },
+              }
+            : prev,
         );
       }
     } else if (draggingPointIndex !== null) {
@@ -1258,16 +1485,21 @@ export default function FullScreenImageViewer({
 
         if (editingAnnotationId) {
           // Edit a saved annotation's point
-          setUserAnnotations((prev) => prev.map((ann) => {
-            if (ann.id === editingAnnotationId && ann.points) {
-              const newPoints = [...ann.points];
-              if (draggingPointIndex >= 0 && draggingPointIndex < newPoints.length) {
-                newPoints[draggingPointIndex] = { x, y };
+          setUserAnnotations((prev) =>
+            prev.map((ann) => {
+              if (ann.id === editingAnnotationId && ann.points) {
+                const newPoints = [...ann.points];
+                if (
+                  draggingPointIndex >= 0 &&
+                  draggingPointIndex < newPoints.length
+                ) {
+                  newPoints[draggingPointIndex] = { x, y };
+                }
+                return { ...ann, points: newPoints };
               }
-              return { ...ann, points: newPoints };
-            }
-            return ann;
-          }));
+              return ann;
+            }),
+          );
         } else {
           // Edit in-progress polygon points
           setPolygonPoints((prev) => {
@@ -1305,16 +1537,16 @@ export default function FullScreenImageViewer({
           // Smart Crop (Metadata based)
           const newImage: Image = {
             id: `crop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            name: `${currentImage?.name || 'Image'} (Crop)`,
-            path: currentImage?.path || '',
+            name: `${currentImage?.name || "Image"} (Crop)`,
+            path: currentImage?.path || "",
             crop: {
               x: currentBox.x,
               y: currentBox.y,
               width: currentBox.width,
-              height: currentBox.height
-            }
+              height: currentBox.height,
+            },
           };
-          setLocalOverlays(prev => [...prev, newImage]);
+          setLocalOverlays((prev) => [...prev, newImage]);
           setOverlayImageId(newImage.id);
         }
         setActiveTool("overlay");
@@ -1336,7 +1568,7 @@ export default function FullScreenImageViewer({
       event: React.MouseEvent<SVGPathElement, MouseEvent>,
       name: string,
       areaText: string | undefined,
-      color: string
+      color: string,
     ) => {
       if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
@@ -1351,7 +1583,7 @@ export default function FullScreenImageViewer({
         color,
       });
     },
-    []
+    [],
   );
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -1368,46 +1600,50 @@ export default function FullScreenImageViewer({
     const allBoxes = detectionResults.predictions
       // Filter out user annotations - they're handled separately in userAnnotations state
       .filter((detection: any) => detection.source !== "User")
-      .map(
-        (detection: any, index: number): Detection => {
-          const className = detection.class || "Unknown";
-          const color = getColorForClass(className);
+      .map((detection: any, index: number): Detection => {
+        const className = detection.class || "Unknown";
+        const color = getColorForClass(className);
 
-          return {
-            x: detection.x || 0,
-            y: detection.y || 0,
-            width: detection.width || 0,
-            height: detection.height || 0,
-            class: detection.class,
-            confidence: detection.confidence,
-            color,
-            id: detection.id ? String(detection.id) : `detection-${index}`,
-            points: detection.points || undefined, // Preserve points if present
-          };
-        }
-      );
+        return {
+          x: detection.x || 0,
+          y: detection.y || 0,
+          width: detection.width || 0,
+          height: detection.height || 0,
+          class: detection.class,
+          confidence: detection.confidence,
+          color,
+          id: detection.id ? String(detection.id) : `detection-${index}`,
+          points: detection.points || undefined, // Preserve points if present
+        };
+      });
 
     // Remove dismissed detections
-    const visibleBoxes = allBoxes.filter((box: Detection) => !dismissedDetections.has(box.id));
+    let visibleBoxes = allBoxes.filter(
+      (box: Detection) => !dismissedDetections.has(box.id),
+    );
+
+    visibleBoxes = filterByRoi(visibleBoxes);
 
     // Filter by selected classes if any are selected
     if (selectedClasses.size === 0) {
       return visibleBoxes; // Show all if none selected
     }
     return visibleBoxes.filter((box: Detection) =>
-      selectedClasses.has(box.class || "Unknown")
+      selectedClasses.has(box.class || "Unknown"),
     );
   };
 
   const getClassCounts = (): { [key: string]: number } => {
     const entries = Object.entries(classStats);
-    return Object.fromEntries(entries.map(([className, stats]) => [className, stats.count]));
+    return Object.fromEntries(
+      entries.map(([className, stats]) => [className, stats.count]),
+    );
   };
 
   const getClassSummary = (): string => {
     const counts = getClassCounts();
     const summaryParts = Object.entries(counts).map(
-      ([className, count]) => `${className} ${count}`
+      ([className, count]) => `${className} ${count}`,
     );
     return summaryParts.join(", ");
   };
@@ -1434,8 +1670,8 @@ export default function FullScreenImageViewer({
     const lowercaseTerm = searchTerm.toLowerCase();
     return Object.fromEntries(
       entries.filter(([className]) =>
-        className.toLowerCase().includes(lowercaseTerm)
-      )
+        className.toLowerCase().includes(lowercaseTerm),
+      ),
     );
   };
 
@@ -1477,7 +1713,10 @@ export default function FullScreenImageViewer({
   // Finish polygon: convert polygonPoints into a pendingAnnotation then open class selector
   const finishPolygon = () => {
     if (!polygonPoints || polygonPoints.length < 3) {
-      console.warn('Not enough points to create polygon:', polygonPoints.length);
+      console.warn(
+        "Not enough points to create polygon:",
+        polygonPoints.length,
+      );
       return;
     }
     // compute bounding box and centroid
@@ -1551,27 +1790,33 @@ export default function FullScreenImageViewer({
     let filteredUserAnnotations = userAnnotations;
     if (selectedClasses.size > 0) {
       filteredUserAnnotations = userAnnotations.filter((annotation) =>
-        selectedClasses.has(annotation.class || "Unknown")
+        selectedClasses.has(annotation.class || "Unknown"),
       );
     }
 
     // Build electrical boxes
     let electricalBoxes: Detection[] = [];
     if (detectionResults?.electricalPredictions) {
-      electricalBoxes = (detectionResults.electricalPredictions || []).map((p: any, i: number) => ({
-        x: p.x || 0,
-        y: p.y || 0,
-        width: p.width || 0,
-        height: p.height || 0,
-        class: p.class || "Electrical",
-        confidence: p.confidence,
-        color: getColorForClass(`electrical:${p.class || 'Electrical'}`),
-        id: p.id ? String(p.id) : `electrical-${i}`,
-        points: undefined,
-      }));
+      electricalBoxes = (detectionResults.electricalPredictions || []).map(
+        (p: any, i: number) => ({
+          x: p.x || 0,
+          y: p.y || 0,
+          width: p.width || 0,
+          height: p.height || 0,
+          class: p.class || "Electrical",
+          confidence: p.confidence,
+          color: getColorForClass(`electrical:${p.class || "Electrical"}`),
+          id: p.id ? String(p.id) : `electrical-${i}`,
+          points: undefined,
+        }),
+      );
+
+      electricalBoxes = filterByRoi(electricalBoxes);
 
       if (selectedClasses.size > 0) {
-        electricalBoxes = electricalBoxes.filter((b: Detection) => selectedClasses.has(b.class || "Unknown"));
+        electricalBoxes = electricalBoxes.filter((b: Detection) =>
+          selectedClasses.has(b.class || "Unknown"),
+        );
       }
     }
 
@@ -1607,36 +1852,50 @@ export default function FullScreenImageViewer({
             color,
             id: `detection-${index}`,
           };
-        }
+        },
       );
+
+      const roiFilteredBoxes = filterByRoi(originalBoxes);
 
       // Filter by selected classes if any are selected
       if (selectedClasses.size === 0) {
-        allDetections = [...allDetections, ...originalBoxes];
+        allDetections = [...allDetections, ...roiFilteredBoxes];
       } else {
-        allDetections = [...allDetections, ...originalBoxes.filter((box: Detection) =>
-          selectedClasses.has(box.class || "Unknown")
-        )];
+        allDetections = [
+          ...allDetections,
+          ...roiFilteredBoxes.filter((box: Detection) =>
+            selectedClasses.has(box.class || "Unknown"),
+          ),
+        ];
       }
     }
 
     // If electrical-only mode is enabled, add only electrical predictions
     if (showElectrical && detectionResults?.electricalPredictions) {
-      const elBoxes = (detectionResults.electricalPredictions || []).map((p: any, i: number): Detection => ({
-        x: p.x || 0,
-        y: p.y || 0,
-        width: p.width || 0,
-        height: p.height || 0,
-        class: p.class || "Electrical",
-        confidence: p.confidence,
-        color: getColorForClass(`electrical:${p.class || 'Electrical'}`),
-        id: p.id ? String(p.id) : `electrical-${i}`,
-      }));
+      const elBoxes = (detectionResults.electricalPredictions || []).map(
+        (p: any, i: number): Detection => ({
+          x: p.x || 0,
+          y: p.y || 0,
+          width: p.width || 0,
+          height: p.height || 0,
+          class: p.class || "Electrical",
+          confidence: p.confidence,
+          color: getColorForClass(`electrical:${p.class || "Electrical"}`),
+          id: p.id ? String(p.id) : `electrical-${i}`,
+        }),
+      );
+
+      const roiFilteredElBoxes = filterByRoi(elBoxes);
 
       if (selectedClasses.size === 0) {
-        allDetections = [...allDetections, ...elBoxes];
+        allDetections = [...allDetections, ...roiFilteredElBoxes];
       } else {
-        allDetections = [...allDetections, ...elBoxes.filter((b: Detection) => selectedClasses.has(b.class || "Unknown"))];
+        allDetections = [
+          ...allDetections,
+          ...roiFilteredElBoxes.filter((box: Detection) =>
+            selectedClasses.has(box.class || "Unknown"),
+          ),
+        ];
       }
     }
 
@@ -1644,7 +1903,7 @@ export default function FullScreenImageViewer({
     let filteredUserAnnotations = userAnnotations;
     if (selectedClasses.size > 0) {
       filteredUserAnnotations = userAnnotations.filter((annotation) =>
-        selectedClasses.has(annotation.class || "Unknown")
+        selectedClasses.has(annotation.class || "Unknown"),
       );
     }
     allDetections = [...allDetections, ...filteredUserAnnotations];
@@ -1652,35 +1911,50 @@ export default function FullScreenImageViewer({
     if (allDetections.length === 0) return null;
 
     const svgContent = `
-      <svg xmlns="http://www.w3.org/2000/svg" 
-           width="${imageDimensions.width}" 
-           height="${imageDimensions.height}" 
+      <svg xmlns="http://www.w3.org/2000/svg"
+           width="${imageDimensions.width}"
+           height="${imageDimensions.height}"
            viewBox="0 0 ${imageDimensions.width} ${imageDimensions.height}">
-        ${allDetections.map(detection => `
-          <rect x="${detection.x - detection.width / 2}" 
-                y="${detection.y - detection.height / 2}" 
-                width="${detection.width}" 
-                height="${detection.height}" 
-                fill="none" 
-                stroke="${detection.color}" 
-                stroke-width="2" 
+        ${allDetections
+          .map(
+            (detection) => `
+          <rect x="${detection.x - detection.width / 2}"
+                y="${detection.y - detection.height / 2}"
+                width="${detection.width}"
+                height="${detection.height}"
+                fill="none"
+                stroke="${detection.color}"
+                stroke-width="2"
                 opacity="0.8"/>
-          ${detection.class ? `
-            <text x="${detection.x - detection.width / 2}" 
-                  y="${detection.y - detection.height / 2 - 5}" 
-                  font-family="Arial, sans-serif" 
-                  font-size="12" 
-                  fill="${detection.color}" 
+          ${
+            detection.class
+              ? `
+            <text x="${detection.x - detection.width / 2}"
+                  y="${detection.y - detection.height / 2 - 5}"
+                  font-family="Arial, sans-serif"
+                  font-size="12"
+                  fill="${detection.color}"
                   font-weight="bold">
-              ${detection.class}${detection.confidence ? ` (${Math.round(detection.confidence * 100)}%)` : ''}
+              ${detection.class}${detection.confidence ? ` (${Math.round(detection.confidence * 100)}%)` : ""}
             </text>
-          ` : ''}
-        `).join('')}
+          `
+              : ""
+          }
+        `,
+          )
+          .join("")}
       </svg>
     `;
 
     return svgContent;
-  }, [imageDimensions.width, imageDimensions.height, detectionResults, userAnnotations, selectedClasses, showDetections]);
+  }, [
+    imageDimensions.width,
+    imageDimensions.height,
+    detectionResults,
+    userAnnotations,
+    selectedClasses,
+    showDetections,
+  ]);
 
   // Update SVG overlay when detections change
   useEffect(() => {
@@ -1689,7 +1963,6 @@ export default function FullScreenImageViewer({
       onSvgOverlayUpdate(currentImage.id, svgData);
     }
   }, [generateSvgOverlay, currentImage?.id, onSvgOverlayUpdate]);
-
 
   // Toolbar action handlers
   const handleDownload = () => {
@@ -1751,7 +2024,7 @@ export default function FullScreenImageViewer({
     height: number;
     pageNumber?: number;
   }> => {
-    const ai = (detectionResults?.predictions || [])
+    let ai = (detectionResults?.predictions || [])
       .filter((det: any, index: number) => {
         // Skip user annotations - they're handled separately below
         if (det.source === "User") return false;
@@ -1770,6 +2043,8 @@ export default function FullScreenImageViewer({
         height: det.height || 0,
         pageNumber: currentImage?.pageNumber,
       }));
+
+    ai = filterByRoi(ai);
 
     const user = userAnnotations.map((a) => ({
       id: a.id,
@@ -1800,7 +2075,13 @@ export default function FullScreenImageViewer({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentImage?.id, userAnnotations, detectionResults, selectedClasses, dismissedDetections]);
+  }, [
+    currentImage?.id,
+    userAnnotations,
+    detectionResults,
+    selectedClasses,
+    dismissedDetections,
+  ]);
 
   // Export: draw base image + overlay to canvas, embed into PDF, download; also allow CSV export
   const handleExportPdf = async () => {
@@ -1852,7 +2133,11 @@ export default function FullScreenImageViewer({
       // Create PDF from canvas
       // @ts-ignore - jsPDF types may not be available at runtime until installed
       const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ unit: "px", format: [width, height], orientation: width >= height ? "l" : "p" });
+      const doc = new jsPDF({
+        unit: "px",
+        format: [width, height],
+        orientation: width >= height ? "l" : "p",
+      });
       const imgData = canvas.toDataURL("image/png");
       doc.addImage(imgData, "PNG", 0, 0, width, height);
       const filename = `${(currentImage.name || "blueprint").replace(/\s+/g, "_")}.pdf`;
@@ -1884,18 +2169,22 @@ export default function FullScreenImageViewer({
       };
       const lines = [headers.join(",")];
       rows.forEach((r) => {
-        lines.push([
-          r.id,
-          r.source,
-          r.className,
-          typeof r.confidence === "number" ? r.confidence.toFixed(4) : "",
-          r.x,
-          r.y,
-          r.width,
-          r.height,
-          r.pageNumber ?? "",
-          currentImage.name,
-        ].map(escapeCsv).join(","));
+        lines.push(
+          [
+            r.id,
+            r.source,
+            r.className,
+            typeof r.confidence === "number" ? r.confidence.toFixed(4) : "",
+            r.x,
+            r.y,
+            r.width,
+            r.height,
+            r.pageNumber ?? "",
+            currentImage.name,
+          ]
+            .map(escapeCsv)
+            .join(","),
+        );
       });
       const csv = lines.join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -1958,7 +2247,10 @@ export default function FullScreenImageViewer({
       <OverlayControlPanel
         isOpen={activeTool === "overlay"}
         onClose={() => setActiveTool("select")}
-        images={[...images.filter(img => img.id !== currentImage.id), ...localOverlays]}
+        images={[
+          ...images.filter((img) => img.id !== currentImage.id),
+          ...localOverlays,
+        ]}
         selectedOverlayId={overlayImageId}
         onSelectOverlay={setOverlayImageId}
         opacity={overlayOpacity}
@@ -1974,30 +2266,33 @@ export default function FullScreenImageViewer({
         rotation={overlayRotation}
         onRotationChange={setOverlayRotation}
         isInteractive={isOverlayInteractive}
-        onToggleInteraction={() => setIsOverlayInteractive(!isOverlayInteractive)}
+        onToggleInteraction={() =>
+          setIsOverlayInteractive(!isOverlayInteractive)
+        }
         onCropStart={handleCropStart}
         overlayColor={overlayColor}
         onOverlayColorChange={(color) => {
           setOverlayColor(color);
           // Auto-switch blend mode for best visibility when coloring is active
-          if (color !== 'none') {
-            setOverlayBlendMode('multiply'); // Multiply is best for Colored Lines on White Paper
+          if (color !== "none") {
+            setOverlayBlendMode("multiply"); // Multiply is best for Colored Lines on White Paper
           } else {
-            setOverlayBlendMode('normal');
+            setOverlayBlendMode("normal");
           }
         }}
       />
 
       {/* Image Container */}
       <div
-        className={`flex-1 flex items-center justify-center relative ${leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
-          }`}
+        className={`flex-1 flex items-center justify-center relative ${
+          leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
+        }`}
         style={{
           cursor:
             activeTool === "annotate" ||
-              activeTool === "polygon" ||
-              activeTool === "linear" ||
-              activeTool === "measure"
+            activeTool === "polygon" ||
+            activeTool === "linear" ||
+            activeTool === "measure"
               ? "crosshair"
               : activeTool === "erase"
                 ? "pointer"
@@ -2020,21 +2315,21 @@ export default function FullScreenImageViewer({
           onMouseUp={activeTool !== "annotate" ? handleMouseUp : undefined}
           onMouseLeave={activeTool !== "annotate" ? handleMouseUp : undefined}
         >
-
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={currentImage.path}
             alt={currentImage.name}
             className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
             style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom
-                }px, ${imagePosition.y / zoom}px)`,
+              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
+                imagePosition.x / zoom
+              }px, ${imagePosition.y / zoom}px)`,
               transformOrigin: "center center",
               cursor:
                 activeTool === "annotate" ||
-                  activeTool === "polygon" ||
-                  activeTool === "linear" ||
-                  activeTool === "measure"
+                activeTool === "polygon" ||
+                activeTool === "linear" ||
+                activeTool === "measure"
                   ? "crosshair"
                   : activeTool === "pan" || zoom > 1
                     ? isDragging
@@ -2045,13 +2340,27 @@ export default function FullScreenImageViewer({
             onLoad={handleImageLoad}
             ref={imageRef}
             onMouseDown={
-              activeTool === "annotate" || activeTool === "polygon" || activeTool === "crop-overlay" ? handleMouseDown : undefined
+              activeTool === "annotate" ||
+              activeTool === "polygon" ||
+              activeTool === "crop-overlay"
+                ? handleMouseDown
+                : undefined
             }
             onMouseMove={
-              activeTool === "annotate" || activeTool === "crop-overlay" ? handleMouseMove : undefined
+              activeTool === "annotate" || activeTool === "crop-overlay"
+                ? handleMouseMove
+                : undefined
             }
-            onMouseUp={activeTool === "annotate" || activeTool === "crop-overlay" ? handleMouseUp : undefined}
-            onMouseLeave={activeTool === "annotate" || activeTool === "crop-overlay" ? handleMouseUp : undefined}
+            onMouseUp={
+              activeTool === "annotate" || activeTool === "crop-overlay"
+                ? handleMouseUp
+                : undefined
+            }
+            onMouseLeave={
+              activeTool === "annotate" || activeTool === "crop-overlay"
+                ? handleMouseUp
+                : undefined
+            }
             onError={(e) => {
               e.currentTarget.src =
                 "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjMzMzIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgTm90IEZvdW5kPC90ZXh0Pjwvc3ZnPg==";
@@ -2083,71 +2392,96 @@ export default function FullScreenImageViewer({
           )}
 
           {/* Dimension Shapes Overlay */}
-          {showDimensions && detectionResults?.shapes && imageDimensions.width > 0 && (
-            <svg
-              className="absolute top-0 left-0"
-              style={{
-                width: "100%",
-                height: "100%",
-                transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
-                transformOrigin: "center center",
-                pointerEvents: "auto",
-              }}
-              viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
-              preserveAspectRatio="xMidYMid meet"
-              onMouseLeave={() => {
-                setHoveredShapeId(null);
-                setShapeTooltip(null);
-              }}
-            >
-              {detectionResults.shapes.map((shape: any, idx: number) => {
-                const fillColor = shape.color || "#00ff00";
-                const numericArea = typeof shape.area === "number"
-                  ? shape.area
-                  : typeof shape.meta?.area === "number"
-                    ? shape.meta.area
-                    : undefined;
-                const areaLabel = typeof numericArea === "number"
-                  ? `${areaFormatter.format(numericArea)} sq units`
-                  : undefined;
-                const displayName =
-                  typeof shape.label === "string" && shape.label.trim()
-                    ? shape.label
-                    : `Dimension ${idx + 1}`;
-                const shapeId = String(shape.id ?? `dim-shape-${idx}`);
-                const isHovered = hoveredShapeId === shapeId;
+          {showDimensions &&
+            detectionResults?.shapes &&
+            imageDimensions.width > 0 && (
+              <svg
+                className="absolute top-0 left-0"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
+                  transformOrigin: "center center",
+                  pointerEvents: "auto",
+                }}
+                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+                preserveAspectRatio="xMidYMid meet"
+                onMouseLeave={() => {
+                  setHoveredShapeId(null);
+                  setShapeTooltip(null);
+                }}
+              >
+                {detectionResults.shapes.map((shape: any, idx: number) => {
+                  const fillColor = shape.color || "#00ff00";
+                  const numericArea =
+                    typeof shape.area === "number"
+                      ? shape.area
+                      : typeof shape.meta?.area === "number"
+                        ? shape.meta.area
+                        : undefined;
+                  const areaLabel =
+                    typeof numericArea === "number"
+                      ? `${areaFormatter.format(numericArea)} sq units`
+                      : undefined;
+                  const displayName =
+                    typeof shape.label === "string" && shape.label.trim()
+                      ? shape.label
+                      : `Dimension ${idx + 1}`;
+                  const shapeId = String(shape.id ?? `dim-shape-${idx}`);
+                  const isHovered = hoveredShapeId === shapeId;
 
-                return (
-                  <path
-                    key={shapeId}
-                    d={shape.path}
-                    fill={fillColor}
-                    fillOpacity={isHovered ? 0.35 : 0.12}
-                    stroke={fillColor}
-                    strokeWidth={isHovered ? 3 : 2}
-                    strokeOpacity={isHovered ? 1 : 0.85}
-                    style={{ pointerEvents: "visiblePainted", cursor: areaLabel ? "crosshair" : "pointer", transition: "fill-opacity 120ms ease, stroke-opacity 120ms ease, stroke-width 120ms ease" }}
-                    onMouseEnter={(event) => {
-                      setHoveredShapeId(shapeId);
-                      updateShapeTooltip(event, displayName, areaLabel, fillColor);
-                    }}
-                    onMouseMove={(event) => {
-                      if (hoveredShapeId === shapeId) {
-                        updateShapeTooltip(event, displayName, areaLabel, fillColor);
+                  return (
+                    <path
+                      key={shapeId}
+                      d={shape.path}
+                      fill={fillColor}
+                      fillOpacity={isHovered ? 0.35 : 0.12}
+                      stroke={fillColor}
+                      strokeWidth={isHovered ? 3 : 2}
+                      strokeOpacity={isHovered ? 1 : 0.85}
+                      style={{
+                        pointerEvents: "visiblePainted",
+                        cursor: areaLabel ? "crosshair" : "pointer",
+                        transition:
+                          "fill-opacity 120ms ease, stroke-opacity 120ms ease, stroke-width 120ms ease",
+                      }}
+                      onMouseEnter={(event) => {
+                        setHoveredShapeId(shapeId);
+                        updateShapeTooltip(
+                          event,
+                          displayName,
+                          areaLabel,
+                          fillColor,
+                        );
+                      }}
+                      onMouseMove={(event) => {
+                        if (hoveredShapeId === shapeId) {
+                          updateShapeTooltip(
+                            event,
+                            displayName,
+                            areaLabel,
+                            fillColor,
+                          );
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredShapeId((prev) =>
+                          prev === shapeId ? null : prev,
+                        );
+                        setShapeTooltip(null);
+                      }}
+                      aria-label={
+                        areaLabel
+                          ? `Dimension shape with area ${areaLabel}`
+                          : undefined
                       }
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredShapeId((prev) => (prev === shapeId ? null : prev));
-                      setShapeTooltip(null);
-                    }}
-                    aria-label={areaLabel ? `Dimension shape with area ${areaLabel}` : undefined}
-                  >
-                    {areaLabel && <title>{`Area: ${areaLabel}`}</title>}
-                  </path>
-                );
-              })}
-            </svg>
-          )}
+                    >
+                      {areaLabel && <title>{`Area: ${areaLabel}`}</title>}
+                    </path>
+                  );
+                })}
+              </svg>
+            )}
 
           {/* Crop Spotlight Overlay */}
           {activeTool === "crop-overlay" && imageDimensions.width > 0 && (
@@ -2164,10 +2498,11 @@ export default function FullScreenImageViewer({
             >
               {/* Dimmer / Mask */}
               <path
-                d={`M0 0 h${imageDimensions.width} v${imageDimensions.height} h-${imageDimensions.width} z ${isDrawing && currentBox
-                  ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
-                  : ""
-                  }`}
+                d={`M0 0 h${imageDimensions.width} v${imageDimensions.height} h-${imageDimensions.width} z ${
+                  isDrawing && currentBox
+                    ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
+                    : ""
+                }`}
                 fill="rgba(0, 0, 0, 0.6)"
                 fillRule="evenodd"
               />
@@ -2194,10 +2529,11 @@ export default function FullScreenImageViewer({
           {/* User Annotations Overlay */}
           {imageDimensions.width > 0 && (
             <svg
-              className={`absolute inset-0 ${activeTool === "annotate"
-                ? "pointer-events-none"
-                : "pointer-events-none"
-                }`}
+              className={`absolute inset-0 ${
+                activeTool === "annotate"
+                  ? "pointer-events-none"
+                  : "pointer-events-none"
+              }`}
               style={{
                 width: "100%",
                 height: "100%",
@@ -2224,7 +2560,11 @@ export default function FullScreenImageViewer({
                   let userPolygonAreaLabel: string | undefined;
                   let userPolygonCentroid: MeasurementPoint | null = null;
 
-                  if (isUserAnnotation && detection.points && detection.points.length > 2) {
+                  if (
+                    isUserAnnotation &&
+                    detection.points &&
+                    detection.points.length > 2
+                  ) {
                     userPolygonAreaLabel =
                       typeof detection.meta?.areaFormatted === "string"
                         ? detection.meta.areaFormatted
@@ -2233,18 +2573,37 @@ export default function FullScreenImageViewer({
                           : undefined;
 
                     userPolygonCentroid =
-                      (detection.meta?.centroid as MeasurementPoint | undefined) ??
+                      (detection.meta?.centroid as
+                        | MeasurementPoint
+                        | undefined) ??
                       computePolygonCentroid(detection.points);
                   }
 
                   const labelX = xRect;
                   const labelY = yRect - 6;
-                  const hasConfidence = typeof detection.confidence === "number";
+                  const hasConfidence =
+                    typeof detection.confidence === "number";
                   return (
-                    <g key={detection.id} style={{ pointerEvents: isUserAnnotation || activeTool === "erase" ? "auto" : "none", cursor: activeTool === "erase" ? "not-allowed" : isUserAnnotation ? "pointer" : "default" }}
+                    <g
+                      key={detection.id}
+                      style={{
+                        pointerEvents:
+                          isUserAnnotation || activeTool === "erase"
+                            ? "auto"
+                            : "none",
+                        cursor:
+                          activeTool === "erase"
+                            ? "not-allowed"
+                            : isUserAnnotation
+                              ? "pointer"
+                              : "default",
+                      }}
                       onClick={() => {
                         if (activeTool === "erase") {
-                          removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                          removeOverlayWithUndo(
+                            detection.id,
+                            !!isUserAnnotation,
+                          );
                         } else if (isUserAnnotation) {
                           setSelectedOverlayId(detection.id);
                         }
@@ -2252,7 +2611,10 @@ export default function FullScreenImageViewer({
                       onContextMenu={(e) => {
                         if (isUserAnnotation || activeTool === "erase") {
                           e.preventDefault();
-                          removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                          removeOverlayWithUndo(
+                            detection.id,
+                            !!isUserAnnotation,
+                          );
                         }
                       }}
                     >
@@ -2261,7 +2623,9 @@ export default function FullScreenImageViewer({
                         <>
                           {/* Render polygon shape */}
                           <polygon
-                            points={detection.points.map((p: any) => `${p.x},${p.y}`).join(" ")}
+                            points={detection.points
+                              .map((p: any) => `${p.x},${p.y}`)
+                              .join(" ")}
                             fill={detection.color}
                             fillOpacity={isSelected ? 0.25 : 0.2}
                             stroke={isSelected ? "#22c55e" : detection.color}
@@ -2269,39 +2633,49 @@ export default function FullScreenImageViewer({
                             strokeOpacity={0.9}
                           />
                           {/* Show corner handles for user annotations */}
-                          {isUserAnnotation && detection.points.map((p: any, idx: any) => (
-                            <g key={`handle-${idx}`}>
-                              <circle
-                                cx={p.x}
-                                cy={p.y}
-                                r={6}
-                                fill="white"
-                                stroke={detection.color}
-                                strokeWidth={2}
-                                style={{ pointerEvents: 'auto', cursor: 'move' }}
-                              />
-                              <circle
-                                cx={p.x}
-                                cy={p.y}
-                                r={2.5}
-                                fill={detection.color}
-                                style={{ pointerEvents: 'none' }}
-                              />
-                            </g>
-                          ))}
-                          {isUserAnnotation && userPolygonAreaLabel && userPolygonCentroid && (
-                            <text
-                              x={userPolygonCentroid.x}
-                              y={userPolygonCentroid.y}
-                              fill="#f8fafc"
-                              fontSize={14}
-                              fontWeight="bold"
-                              textAnchor="middle"
-                              style={{ paintOrder: 'stroke', stroke: 'rgba(15,23,42,0.85)', strokeWidth: 4 }}
-                            >
-                              {userPolygonAreaLabel}
-                            </text>
-                          )}
+                          {isUserAnnotation &&
+                            detection.points.map((p: any, idx: any) => (
+                              <g key={`handle-${idx}`}>
+                                <circle
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={6}
+                                  fill="white"
+                                  stroke={detection.color}
+                                  strokeWidth={2}
+                                  style={{
+                                    pointerEvents: "auto",
+                                    cursor: "move",
+                                  }}
+                                />
+                                <circle
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={2.5}
+                                  fill={detection.color}
+                                  style={{ pointerEvents: "none" }}
+                                />
+                              </g>
+                            ))}
+                          {isUserAnnotation &&
+                            userPolygonAreaLabel &&
+                            userPolygonCentroid && (
+                              <text
+                                x={userPolygonCentroid.x}
+                                y={userPolygonCentroid.y}
+                                fill="#f8fafc"
+                                fontSize={14}
+                                fontWeight="bold"
+                                textAnchor="middle"
+                                style={{
+                                  paintOrder: "stroke",
+                                  stroke: "rgba(15,23,42,0.85)",
+                                  strokeWidth: 4,
+                                }}
+                              >
+                                {userPolygonAreaLabel}
+                              </text>
+                            )}
                         </>
                       ) : (
                         <>
@@ -2399,11 +2773,9 @@ export default function FullScreenImageViewer({
                           {`${Math.round(detection.confidence * 100)}%`}
                         </text>
                       )} */}
-
                     </g>
                   );
                 })}
-
 
               {measurements.map((measurement) => {
                 const midX = (measurement.start.x + measurement.end.x) / 2;
@@ -2413,12 +2785,14 @@ export default function FullScreenImageViewer({
                   <g
                     key={measurement.id}
                     style={{
-                      pointerEvents: isErasing ? 'auto' : 'none',
-                      cursor: isErasing ? 'not-allowed' : 'default',
+                      pointerEvents: isErasing ? "auto" : "none",
+                      cursor: isErasing ? "not-allowed" : "default",
                     }}
                     onClick={() => {
                       if (isErasing) {
-                        setMeasurements((prev) => prev.filter((m) => m.id !== measurement.id));
+                        setMeasurements((prev) =>
+                          prev.filter((m) => m.id !== measurement.id),
+                        );
                         showUndoSnackbar("Measurement deleted.");
                       }
                     }}
@@ -2466,7 +2840,11 @@ export default function FullScreenImageViewer({
                       fontSize={13}
                       fontWeight="bold"
                       textAnchor="middle"
-                      style={{ paintOrder: 'stroke', stroke: 'rgba(15,23,42,0.9)', strokeWidth: 4 }}
+                      style={{
+                        paintOrder: "stroke",
+                        stroke: "rgba(15,23,42,0.9)",
+                        strokeWidth: 4,
+                      }}
                     >
                       {measurement.label}
                     </text>
@@ -2485,108 +2863,118 @@ export default function FullScreenImageViewer({
                 );
               })}
 
-              {isMeasuring && measurementDraft && (() => {
-                const dx = measurementDraft.end.x - measurementDraft.start.x;
-                const dy = measurementDraft.end.y - measurementDraft.start.y;
-                const lengthPx = Math.sqrt(dx * dx + dy * dy);
-                const conversion = convertPixelDistance(lengthPx);
-                const midX = (measurementDraft.start.x + measurementDraft.end.x) / 2;
-                const midY = (measurementDraft.start.y + measurementDraft.end.y) / 2;
-                return (
-                  <g style={{ pointerEvents: 'none' }}>
-                    <line
-                      x1={measurementDraft.start.x}
-                      y1={measurementDraft.start.y}
-                      x2={measurementDraft.end.x}
-                      y2={measurementDraft.end.y}
-                      stroke={measurementDraftColor}
-                      strokeWidth={2}
-                      strokeDasharray="6 4"
-                      strokeOpacity={0.9}
-                    />
-                    <circle
-                      cx={measurementDraft.start.x}
-                      cy={measurementDraft.start.y}
-                      r={3.8}
-                      fill="white"
-                      stroke={measurementDraftColor}
-                      strokeWidth={2}
-                    />
-                    <circle
-                      cx={measurementDraft.end.x}
-                      cy={measurementDraft.end.y}
-                      r={3.8}
-                      fill="white"
-                      stroke={measurementDraftColor}
-                      strokeWidth={2}
-                    />
-                    <text
-                      x={midX}
-                      y={midY - 6}
-                      fill="#1e293b"
-                      fontSize={12}
-                      fontWeight="bold"
-                      textAnchor="middle"
-                      style={{ paintOrder: 'stroke', stroke: 'rgba(255,255,255,0.85)', strokeWidth: 4 }}
-                    >
-                      {conversion.formatted}
-                    </text>
-                  </g>
-                );
-              })()}
-
-              {/* Polygon in-progress drawing */}
-              {polygonPoints.length > 0 && (() => {
-                const liveAreaPx = computePolygonArea(polygonPoints);
-                const liveInfo = convertPixelArea(liveAreaPx);
-                const liveCentroid = computePolygonCentroid(polygonPoints);
-                return (
-                  <g>
-                    {/* Semi-transparent fill */}
-                    <polygon
-                      points={polygonPoints.map((p) => `${p.x},${p.y}`).join(" ")}
-                      fill="#60a5fa"
-                      fillOpacity={0.2}
-                      stroke="#60a5fa"
-                      strokeWidth={2}
-                      strokeOpacity={0.9}
-                    />
-                    {/* Corner point handles - larger circles with white fill and colored border */}
-                    {polygonPoints.map((p, idx) => (
-                      <g key={idx}>
-                        <circle
-                          cx={p.x}
-                          cy={p.y}
-                          r={8}
-                          fill="white"
-                          stroke="#60a5fa"
-                          strokeWidth={3}
-                          style={{ cursor: 'move' }}
-                        />
-                        <circle
-                          cx={p.x}
-                          cy={p.y}
-                          r={3}
-                          fill="#60a5fa"
-                        />
-                      </g>
-                    ))}
-                    {polygonPoints.length > 2 && (
+              {isMeasuring &&
+                measurementDraft &&
+                (() => {
+                  const dx = measurementDraft.end.x - measurementDraft.start.x;
+                  const dy = measurementDraft.end.y - measurementDraft.start.y;
+                  const lengthPx = Math.sqrt(dx * dx + dy * dy);
+                  const conversion = convertPixelDistance(lengthPx);
+                  const midX =
+                    (measurementDraft.start.x + measurementDraft.end.x) / 2;
+                  const midY =
+                    (measurementDraft.start.y + measurementDraft.end.y) / 2;
+                  return (
+                    <g style={{ pointerEvents: "none" }}>
+                      <line
+                        x1={measurementDraft.start.x}
+                        y1={measurementDraft.start.y}
+                        x2={measurementDraft.end.x}
+                        y2={measurementDraft.end.y}
+                        stroke={measurementDraftColor}
+                        strokeWidth={2}
+                        strokeDasharray="6 4"
+                        strokeOpacity={0.9}
+                      />
+                      <circle
+                        cx={measurementDraft.start.x}
+                        cy={measurementDraft.start.y}
+                        r={3.8}
+                        fill="white"
+                        stroke={measurementDraftColor}
+                        strokeWidth={2}
+                      />
+                      <circle
+                        cx={measurementDraft.end.x}
+                        cy={measurementDraft.end.y}
+                        r={3.8}
+                        fill="white"
+                        stroke={measurementDraftColor}
+                        strokeWidth={2}
+                      />
                       <text
-                        x={liveCentroid.x}
-                        y={liveCentroid.y}
-                        fill="#0f172a"
-                        fontSize={13}
+                        x={midX}
+                        y={midY - 6}
+                        fill="#1e293b"
+                        fontSize={12}
                         fontWeight="bold"
                         textAnchor="middle"
-                        style={{ paintOrder: 'stroke', stroke: 'rgba(248,250,252,0.85)', strokeWidth: 4 }}
+                        style={{
+                          paintOrder: "stroke",
+                          stroke: "rgba(255,255,255,0.85)",
+                          strokeWidth: 4,
+                        }}
                       >
-                        {liveInfo.formatted}
+                        {conversion.formatted}
                       </text>
-                    )}
-                  </g>
-                );
-              })()}
+                    </g>
+                  );
+                })()}
+
+              {/* Polygon in-progress drawing */}
+              {polygonPoints.length > 0 &&
+                (() => {
+                  const liveAreaPx = computePolygonArea(polygonPoints);
+                  const liveInfo = convertPixelArea(liveAreaPx);
+                  const liveCentroid = computePolygonCentroid(polygonPoints);
+                  return (
+                    <g>
+                      {/* Semi-transparent fill */}
+                      <polygon
+                        points={polygonPoints
+                          .map((p) => `${p.x},${p.y}`)
+                          .join(" ")}
+                        fill="#60a5fa"
+                        fillOpacity={0.2}
+                        stroke="#60a5fa"
+                        strokeWidth={2}
+                        strokeOpacity={0.9}
+                      />
+                      {/* Corner point handles - larger circles with white fill and colored border */}
+                      {polygonPoints.map((p, idx) => (
+                        <g key={idx}>
+                          <circle
+                            cx={p.x}
+                            cy={p.y}
+                            r={8}
+                            fill="white"
+                            stroke="#60a5fa"
+                            strokeWidth={3}
+                            style={{ cursor: "move" }}
+                          />
+                          <circle cx={p.x} cy={p.y} r={3} fill="#60a5fa" />
+                        </g>
+                      ))}
+                      {polygonPoints.length > 2 && (
+                        <text
+                          x={liveCentroid.x}
+                          y={liveCentroid.y}
+                          fill="#0f172a"
+                          fontSize={13}
+                          fontWeight="bold"
+                          textAnchor="middle"
+                          style={{
+                            paintOrder: "stroke",
+                            stroke: "rgba(248,250,252,0.85)",
+                            strokeWidth: 4,
+                          }}
+                        >
+                          {liveInfo.formatted}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })()}
 
               {/* Debug: Show if we're in drawing mode */}
               {isDrawing && (
@@ -2598,115 +2986,113 @@ export default function FullScreenImageViewer({
           )}
 
           {/* Drawing Box (Detection Creation) */}
-          {activeTool === "annotate" && isDrawing && currentBox && imageDimensions.width > 0 && (
-            <svg
-              className="absolute top-0 left-0 pointer-events-none"
-              style={{
-                width: "100%",
-                height: "100%",
-                transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
-                transformOrigin: "center center",
-              }}
-              viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
-              preserveAspectRatio="xMidYMid meet"
-            >
-              <rect
-                x={currentBox.x}
-                y={currentBox.y}
-                width={currentBox.width}
-                height={currentBox.height}
-                fill="rgba(59, 130, 246, 0.1)"
-                stroke="#3b82f6"
-                strokeWidth={2 / zoom}
-              />
-            </svg>
-          )}
+          {activeTool === "annotate" &&
+            isDrawing &&
+            currentBox &&
+            imageDimensions.width > 0 && (
+              <svg
+                className="absolute top-0 left-0 pointer-events-none"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
+                  transformOrigin: "center center",
+                }}
+                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <rect
+                  x={currentBox.x}
+                  y={currentBox.y}
+                  width={currentBox.width}
+                  height={currentBox.height}
+                  fill="rgba(59, 130, 246, 0.1)"
+                  stroke="#3b82f6"
+                  strokeWidth={2 / zoom}
+                />
+              </svg>
+            )}
         </div>
       </div>
 
-      {
-        shapeTooltip && showDimensions && (
-          <div
-            className="pointer-events-none absolute z-[55] flex min-w-[160px] max-w-[200px] flex-col gap-2 rounded-xl border border-white/60 bg-slate-900/90 px-3 py-2 text-white shadow-2xl backdrop-blur"
-            style={{
-              left: Math.max(
-                12,
-                Math.min(
-                  shapeTooltip.x + 18,
-                  (containerRef.current?.clientWidth ?? 0) - 200
-                )
+      {shapeTooltip && showDimensions && (
+        <div
+          className="pointer-events-none absolute z-[55] flex min-w-[160px] max-w-[200px] flex-col gap-2 rounded-xl border border-white/60 bg-slate-900/90 px-3 py-2 text-white shadow-2xl backdrop-blur"
+          style={{
+            left: Math.max(
+              12,
+              Math.min(
+                shapeTooltip.x + 18,
+                (containerRef.current?.clientWidth ?? 0) - 200,
               ),
-              top: Math.max(
-                12,
-                Math.min(
-                  shapeTooltip.y + 18,
-                  (containerRef.current?.clientHeight ?? 0) - 120
-                )
+            ),
+            top: Math.max(
+              12,
+              Math.min(
+                shapeTooltip.y + 18,
+                (containerRef.current?.clientHeight ?? 0) - 120,
               ),
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className="inline-flex h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: shapeTooltip.color }}
-              />
-              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
-                {shapeTooltip.name}
-              </span>
-            </div>
-            {shapeTooltip.area ? (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-200">Area</span>
-                <span className="font-bold" style={{ color: shapeTooltip.color }}>
-                  {shapeTooltip.area}
-                </span>
-              </div>
-            ) : (
-              <span className="text-[11px] text-slate-400">Area unavailable</span>
-            )}
-            <span className="text-[10px] uppercase tracking-wide text-slate-500">
-              Hover for live values
+            ),
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: shapeTooltip.color }}
+            />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-300">
+              {shapeTooltip.name}
             </span>
           </div>
-        )
-      }
+          {shapeTooltip.area ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-200">Area</span>
+              <span className="font-bold" style={{ color: shapeTooltip.color }}>
+                {shapeTooltip.area}
+              </span>
+            </div>
+          ) : (
+            <span className="text-[11px] text-slate-400">Area unavailable</span>
+          )}
+          <span className="text-[10px] uppercase tracking-wide text-slate-500">
+            Hover for live values
+          </span>
+        </div>
+      )}
 
       {/* Image Counter */}
-      {
-        images.length > 1 && (
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="flex space-x-1">
-              {images.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentIndex(index)}
-                  className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
+      {images.length > 1 && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10">
+          <div className="flex space-x-1">
+            {images.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentIndex(index)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  index === currentIndex
                     ? "bg-white"
                     : "bg-white bg-opacity-50 hover:bg-opacity-75"
-                    }`}
-                />
-              ))}
-            </div>
+                }`}
+              />
+            ))}
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* Snackbar */}
-      {
-        snackbar.visible && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
-            <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
-              <span className="text-sm">{snackbar.message}</span>
-              <button
-                className="text-green-400 hover:text-green-300 font-semibold text-sm"
-                onClick={undoLast}
-              >
-                Undo
-              </button>
-            </div>
+      {snackbar.visible && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+          <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
+            <span className="text-sm">{snackbar.message}</span>
+            <button
+              className="text-green-400 hover:text-green-300 font-semibold text-sm"
+              onClick={undoLast}
+            >
+              Undo
+            </button>
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* Instructions */}
       {/* <div className="absolute bottom-4 left-4 z-10 text-white text-sm bg-black bg-opacity-50 rounded-lg p-3 max-w-xs">
@@ -2751,124 +3137,118 @@ export default function FullScreenImageViewer({
       />
 
       {/* Class Selector Modal for Annotations */}
-      {
-        showClassSelector && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60">
-            <div className="bg-white rounded-lg p-6 w-96 w-md mx-4 max-h-[70vh] overflow-y-auto">
-              {/* Create New Class */}
-              <div className="">
-                <h4 className="text-md font-semibold text-gray-900  mb-2">
-                  Create New Class
-                </h4>
-                <input
-                  type="text"
-                  placeholder="Enter new class name..."
-                  value={selectedAnnotationClass}
-                  onChange={(e) => setSelectedAnnotationClass(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
-                  onKeyPress={(e) =>
-                    e.key === "Enter" && handleCreateNewClassForAnnotation()
-                  }
-                />
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleCreateNewClassForAnnotation}
-                    disabled={!selectedAnnotationClass.trim()}
-                    className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg
-                   hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed 
-                   transition-colors text-sm"
-                  >
-                    Create & Assign
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowClassSelector(false);
-                      setPendingAnnotation(null);
-                      setSelectedAnnotationClass("");
-                    }}
-                    className="flex-1 px-4 py-2 bg-gray-800 text-gray-100 rounded-lg
-                   hover:bg-gray-300 transition-colors text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-
-              {/* Existing Classes */}
-              <div className="my-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">
-                  Existing Classes:
-                </h4>
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {getAllAvailableClasses().map((className) => (
-                    <button
-                      key={className}
-                      onClick={() => handleAssignClass(className)}
-                      className="w-full flex items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <div
-                        className="w-4 h-4 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: getColorForClass(className) }}
-                      ></div>
-                      <span className="capitalize text-sm">{className}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      {/* Add New Class Modal */}
-      {
-        showAddClassModal && (
-          <div className="fixed inset-0 bg-black/50 bg-blur-sm bg-opacity-50 flex items-center justify-center 0 z-60">
-            <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4">
-              <h3 className="text-lg font-semibold mb-4">Add New Class</h3>
+      {showClassSelector && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-60">
+          <div className="bg-white rounded-lg p-6 w-96 w-md mx-4 max-h-[70vh] overflow-y-auto">
+            {/* Create New Class */}
+            <div className="">
+              <h4 className="text-md font-semibold text-gray-900  mb-2">
+                Create New Class
+              </h4>
               <input
                 type="text"
-                placeholder="Enter class name..."
-                value={newClassName}
-                onChange={(e) => setNewClassName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
-                onKeyPress={(e) => e.key === "Enter" && handleAddNewClass()}
+                placeholder="Enter new class name..."
+                value={selectedAnnotationClass}
+                onChange={(e) => setSelectedAnnotationClass(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+                onKeyPress={(e) =>
+                  e.key === "Enter" && handleCreateNewClassForAnnotation()
+                }
               />
               <div className="flex gap-3">
                 <button
-                  onClick={handleAddNewClass}
-                  disabled={!newClassName.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  onClick={handleCreateNewClassForAnnotation}
+                  disabled={!selectedAnnotationClass.trim()}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg
+                   hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed
+                   transition-colors text-sm"
                 >
-                  Add Class
+                  Create & Assign
                 </button>
                 <button
                   onClick={() => {
-                    setShowAddClassModal(false);
-                    setNewClassName("");
+                    setShowClassSelector(false);
+                    setPendingAnnotation(null);
+                    setSelectedAnnotationClass("");
                   }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  className="flex-1 px-4 py-2 bg-gray-800 text-gray-100 rounded-lg
+                   hover:bg-gray-300 transition-colors text-sm"
                 >
                   Cancel
                 </button>
               </div>
             </div>
+
+            {/* Existing Classes */}
+            <div className="my-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                Existing Classes:
+              </h4>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {getAllAvailableClasses().map((className) => (
+                  <button
+                    key={className}
+                    onClick={() => handleAssignClass(className)}
+                    className="w-full flex items-center gap-3 px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <div
+                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: getColorForClass(className) }}
+                    ></div>
+                    <span className="capitalize text-sm">{className}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-        )
-      }
+        </div>
+      )}
+
+      {/* Add New Class Modal */}
+      {showAddClassModal && (
+        <div className="fixed inset-0 bg-black/50 bg-blur-sm bg-opacity-50 flex items-center justify-center 0 z-60">
+          <div className="bg-white rounded-lg p-6 w-96 max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-4">Add New Class</h3>
+            <input
+              type="text"
+              placeholder="Enter class name..."
+              value={newClassName}
+              onChange={(e) => setNewClassName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+              onKeyPress={(e) => e.key === "Enter" && handleAddNewClass()}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleAddNewClass}
+                disabled={!newClassName.trim()}
+                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                Add Class
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddClassModal(false);
+                  setNewClassName("");
+                }}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toggle Sidebar Button (when closed) */}
-      {
-        !sidebarOpen && detectionResults && (
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="absolute top-24 right-4 z-10 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
-            title="Show Detection Panel"
-          >
-            <Search className="w-5 h-5" />
-          </button>
-        )
-      }
-    </div >
+      {!sidebarOpen && detectionResults && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="absolute top-24 right-4 z-10 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
+          title="Show Detection Panel"
+        >
+          <Search className="w-5 h-5" />
+        </button>
+      )}
+    </div>
   );
 }
