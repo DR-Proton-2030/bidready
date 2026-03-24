@@ -154,7 +154,10 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
                                 {isScanning ? (
                                     <div className="w-[18px] h-[18px] border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                                 ) : (
-                                    <ScanSearch size={18} />
+                                    <div className="flex items-center gap-2">
+                                        <ScanSearch size={16} />
+                                        Run Calibration
+                                    </div>
                                 )}
                             </button>
 
@@ -288,7 +291,10 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
                         {isScanning ? (
                             <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                         ) : (
-                            <ScanSearch size={16} />
+                            <div className="flex items-center gap-2">
+                                <ScanSearch size={16} />
+                                Run Calibration
+                            </div>
                         )}
                     </button>
 

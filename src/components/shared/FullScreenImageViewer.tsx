@@ -1003,6 +1003,12 @@ export default function FullScreenImageViewer({
   // Function to get consistent color for a class
   const getColorForClass = (className: string): string => {
     if (!className) return classColors[0];
+    const lowerName = className.toLowerCase();
+    if (lowerName.includes("room")) {
+      return "#1a9e21af"; // bright green
+    } if (lowerName.includes("corridor")) {
+      return "#ffb74dff"; // bright red
+    }
 
     // Create a simple hash from the class name for consistent color assignment
     let hash = 0;
@@ -2821,18 +2827,23 @@ export default function FullScreenImageViewer({
                   const labelY = yRect - 6;
                   const hasConfidence =
                     typeof detection.confidence === "number";
+                  const isRoomOrCorridor = ["rooms", "corridors", "room", "corridor"].includes(
+                    String(detection.class || "").trim().toLowerCase()
+                  );
+
                   return (
                     <g
                       key={detection.id}
+                      className={isRoomOrCorridor ? "group" : ""}
                       style={{
                         pointerEvents:
-                          isUserAnnotation || activeTool === "erase"
+                          isUserAnnotation || activeTool === "erase" || isRoomOrCorridor
                             ? "auto"
                             : "none",
                         cursor:
                           activeTool === "erase"
                             ? "not-allowed"
-                            : isUserAnnotation
+                            : isUserAnnotation || isRoomOrCorridor
                               ? "pointer"
                               : "default",
                       }}
@@ -2918,6 +2929,7 @@ export default function FullScreenImageViewer({
                       ) : (
                         <>
                           <rect
+                            className={isRoomOrCorridor ? "transition-all duration-300 group-hover:stroke-[3px]" : ""}
                             x={xRect}
                             y={yRect}
                             width={detection.width}
@@ -2928,12 +2940,13 @@ export default function FullScreenImageViewer({
                             strokeOpacity="0.7"
                           />
                           <rect
+                            className={isRoomOrCorridor ? "transition-all duration-300 group-hover:opacity-75" : ""}
                             x={xRect}
                             y={yRect}
                             width={detection.width}
                             height={detection.height}
                             fill={detection.color}
-                            fillOpacity={isSelected ? 0.2 : 0.3}
+                            fillOpacity={isSelected ? 0.2 : (isRoomOrCorridor ? 0.4 : 0.3)}
                           />
                         </>
                       )}
