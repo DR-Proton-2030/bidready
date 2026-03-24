@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
 import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
@@ -11,7 +11,6 @@ import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import Loader from "@/components/shared/loader/Loader";
 import useImageDetect from "@/hooks/useImageDetect";
 import axios from "axios";
-import { s } from "node_modules/framer-motion/dist/types.d-Cjd591yU";
 
 const BluePrintDetection = ({ id: propId }: any) => {
   const resolveIdFromWindow = (propId?: string | null): string | null => {
@@ -44,6 +43,34 @@ const BluePrintDetection = ({ id: propId }: any) => {
   const [saving, setSaving] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const { uploadDetections, isUploading: isUploadingDetections } = useBulkDetectionsUpload();
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+
+  // Auto-populate cache from database when images are first loaded
+  useEffect(() => {
+    if (images.length > 0 && !initialDataLoaded) {
+      const newDetectedKeys = new Set<string>();
+      
+      images.forEach((img) => {
+        const cacheKey = img.id;
+        if (img.detection || img.roomCorridorDetections) {
+          // Merge detection data from DB into cache
+          const toCache = {
+            ...(typeof img.detection === 'object' ? img.detection : {}),
+            // Prioritize explicit roomCorridorDetections if they exist as a top-level field
+            roomCorridorDetections: img.roomCorridorDetections || (img.detection as any)?.roomCorridorDetections || []
+          };
+          
+          detectionCache.set(cacheKey, toCache);
+          newDetectedKeys.add(cacheKey);
+        }
+      });
+
+      if (newDetectedKeys.size > 0) {
+        setDetectedKeys(newDetectedKeys);
+      }
+      setInitialDataLoaded(true);
+    }
+  }, [images, initialDataLoaded]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -86,11 +113,16 @@ const BluePrintDetection = ({ id: propId }: any) => {
       .map((key) => {
         const found = images.find((it) => it.id === key || it.url === key);
         const imgurl = found?.url ?? (typeof key === "string" && (key.startsWith("http://") || key.startsWith("https://")) ? key : undefined);
-        const detection = detectionCache.get(key) ?? null;
+        const cachedData = detectionCache.get(key) ?? null;
         // include _id (image id) when available, otherwise null
-        return imgurl ? { _id: found?.id ?? null, imgurl, detection } : null;
+        return imgurl ? { 
+          _id: found?.id ?? null, 
+          imgurl, 
+          detection: cachedData,
+          roomCorridorDetections: cachedData?.roomCorridorDetections || []
+        } : null;
       })
-      .filter((it): it is { _id: string | null; imgurl: string; detection: any } => it !== null);
+      .filter((it): it is { _id: string | null; imgurl: string; detection: any; roomCorridorDetections: any[] } => it !== null);
 
     console.log("Detected items (batch):", result);
 
@@ -376,8 +408,36 @@ const BluePrintDetection = ({ id: propId }: any) => {
           initialIndex={viewerIndex}
           isOpen={viewerOpen}
           onClose={() => setViewerOpen(false)}
-          onImageChange={() => { }}
+          onImageChange={(image, index) => {
+            const cacheKey = image.id || image.path;
+            const cached = detectionCache.get(cacheKey);
+            // Sync parent state with what the viewer shows for this image
+            if (cached) {
+              setDetectionResults(cached);
+            } else {
+              setDetectionResults(null); 
+            }
+            setViewerIndex(index);
+            // Sync the selected state so the background UI matches the viewer
+            const found = images.find((it) => it.id === image.id || it.url === image.path);
+            if (found) setSelected(found);
+          }}
           detectionResults={detectionResults}
+          onDimensionDetectionsChange={(imageId, detections) => {
+            try {
+              const cacheKey = imageId;
+              const existing = detectionCache.get(cacheKey) ?? {};
+              // Cache room/corridor detections specifically so they persist between viewer sessions
+              detectionCache.set(cacheKey, { 
+                ...existing, 
+                roomCorridorDetections: detections 
+              });
+              // Update status
+              setDetectedKeys((prev) => new Set(prev).add(cacheKey));
+            } catch (e) {
+              console.error('Failed to store dimension detections:', e);
+            }
+          }}
           onDetectionsChange={(imageId: string, combinedDetections: Array<any>) => {
             try {
               const existing = detectionCache.get(imageId) ?? {};

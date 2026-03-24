@@ -46,9 +46,9 @@ interface Detection {
   confidence?: number;
   color: string;
   id: string;
-  // optional polygon points (in image pixel coords)
   points?: Array<{ x: number; y: number }>;
   meta?: Record<string, any>;
+  source?: string;
 }
 
 type RoiRect = {
@@ -121,6 +121,10 @@ interface FullScreenImageViewerProps {
     imageId: string,
     combinedDetections: Array<any>,
   ) => void;
+  onDimensionDetectionsChange?: (
+    imageId: string,
+    detections: BlueprintRegionDetection[],
+  ) => void;
 }
 
 const areaFormatter = new Intl.NumberFormat("en-US", {
@@ -143,6 +147,7 @@ export default function FullScreenImageViewer({
   detectionResults,
   onSvgOverlayUpdate,
   onDetectionsChange,
+  onDimensionDetectionsChange,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(0.5);
@@ -501,21 +506,51 @@ export default function FullScreenImageViewer({
 
   const runDimensionDetection = useCallback(async () => {
     if (!currentImage) return;
+
     const cacheKey = currentImage.id || currentImage.path;
+
+    // 1. Check internal cache
     const cached = dimensionCacheRef.current.get(cacheKey);
     if (cached && cached.length) {
       setDimensionDetections(cached);
       return;
     }
 
+    // 2. Check parent cache
+    const parentDetections = detectionResults?.roomCorridorDetections;
+
+    if (parentDetections && parentDetections.length > 0) {
+      setDimensionDetections(parentDetections);
+      dimensionCacheRef.current.set(cacheKey, parentDetections);
+      return;
+    }
+
+    // fallback: check if dimensions are already embedded in the main predictions
+    const embeddedDimensions = (detectionResults?.predictions || []).filter(
+      (p: any) => p.source === "RoomModel" || ["Rooms", "Corridors", "Room", "Corridor"].includes(p.class)
+    );
+    if (embeddedDimensions.length > 0) {
+      // Dimensions are already stored in the main DB output, skip API call.
+      // We don't need to rebuild dimensionDetections because the SVG overlay handles them natively.
+      return;
+    }
+
+    // 3. Only now call API
     setDimensionDetecting(true);
     setDimensionDetectError(null);
 
     try {
       const base64 = await getImageDataUrl(currentImage.path);
       const detections = await detectRoomsAndCorridors(base64);
+
       setDimensionDetections(detections);
       dimensionCacheRef.current.set(cacheKey, detections);
+
+      // Store in parent with key
+      if (onDimensionDetectionsChange && detections.length > 0) {
+        onDimensionDetectionsChange(cacheKey, detections);
+      }
+
       if (!detections.length) {
         setSnackbar({
           visible: true,
@@ -524,15 +559,23 @@ export default function FullScreenImageViewer({
       }
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Room/corridor detection failed.";
+        err instanceof Error
+          ? err.message
+          : "Room/corridor detection failed.";
+
       setDimensionDetectError(message);
       setDimensionDetections([]);
+
       setSnackbar({ visible: true, message });
     } finally {
       setDimensionDetecting(false);
     }
-  }, [currentImage, getImageDataUrl]);
-
+  }, [
+    currentImage,
+    getImageDataUrl,
+    detectionResults,
+    onDimensionDetectionsChange,
+  ]);
   const handleToggleDimensions = () => {
     setShowDimensions((prev) => {
       const next = !prev;
@@ -550,7 +593,7 @@ export default function FullScreenImageViewer({
       void runDimensionDetection();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentImage?.id]);
+  }, [currentImage?.id, showDimensions, runDimensionDetection]);
 
   // Auto-close sidebar when overlay is active to prevent clutter
   useEffect(() => {
@@ -1020,6 +1063,19 @@ export default function FullScreenImageViewer({
             ? String(prediction.id)
             : `detection-${index}`;
           if (dismissedDetections.has(detId)) return;
+
+          // Filter out RoomModel detections unless showDimensions is on
+          if (prediction?.source === "RoomModel") {
+            if (!showDimensions) return;
+          } else if (
+            prediction?.class === "Rooms" ||
+            prediction?.class === "Corridors" ||
+            prediction?.class === "Room" ||
+            prediction?.class === "Corridor"
+          ) {
+            if (!showDimensions) return;
+          }
+
           if (filterByRoi([prediction]).length === 0) return;
           bump(prediction?.class ?? "Unknown", {
             confidence:
@@ -1762,6 +1818,22 @@ export default function FullScreenImageViewer({
     const allBoxes = detectionResults.predictions
       // Filter out user annotations - they're handled separately in userAnnotations state
       .filter((detection: any) => detection.source !== "User")
+      // Filter out RoomModel detections unless showDimensions is on
+      .filter((detection: any) => {
+        if (detection.source === "RoomModel") {
+          return showDimensions;
+        }
+        // Fallback for classes that might be rooms/corridors
+        if (
+          detection.class === "Rooms" ||
+          detection.class === "Corridors" ||
+          detection.class === "Room" ||
+          detection.class === "Corridor"
+        ) {
+          return showDimensions;
+        }
+        return true;
+      })
       .map((detection: any, index: number): Detection => {
         const className = detection.class || "Unknown";
         const color = getColorForClass(className);
@@ -1772,6 +1844,7 @@ export default function FullScreenImageViewer({
           width: detection.width || 0,
           height: detection.height || 0,
           class: detection.class,
+          source: detection.source,
           confidence: detection.confidence,
           color,
           id: detection.id ? String(detection.id) : `detection-${index}`,
@@ -2011,6 +2084,7 @@ export default function FullScreenImageViewer({
             width: detection.width || 0,
             height: detection.height || 0,
             class: detection.class,
+            source: detection.source,
             confidence: detection.confidence,
             color,
             id: `detection-${index}`,
@@ -2018,7 +2092,24 @@ export default function FullScreenImageViewer({
         },
       );
 
-      const roiFilteredBoxes = filterByRoi(originalBoxes);
+      // Filter out RoomModel detections unless showDimensions is on
+      const filteredForDimensions = originalBoxes.filter((box: any) => {
+        if (box.source === "RoomModel") {
+          return showDimensions;
+        }
+        // Fallback for classes that might be rooms/corridors
+        if (
+          box.class === "Rooms" ||
+          box.class === "Corridors" ||
+          box.class === "Room" ||
+          box.class === "Corridor"
+        ) {
+          return showDimensions;
+        }
+        return true;
+      });
+
+      const roiFilteredBoxes = filterByRoi(filteredForDimensions);
 
       // Filter by selected classes if any are selected
       if (selectedClasses.size === 0) {
@@ -2185,6 +2276,7 @@ export default function FullScreenImageViewer({
     width: number;
     height: number;
     pageNumber?: number;
+    points?: Array<{ x: number; y: number }>;
   }> => {
     let ai = (detectionResults?.predictions || [])
       .filter((det: any, index: number) => {
@@ -2221,7 +2313,28 @@ export default function FullScreenImageViewer({
       points: a.points ?? undefined,
     }));
 
-    return [...ai, ...user];
+    const rooms = dimensionDetections.map((det, index) => {
+      // Convert 0-1000 normalized coordinates to image pixels
+      const [ymin, xmin, ymax, xmax] = det.box;
+      const w_px = (Math.abs(xmax - xmin) / 1000) * (imageDimensions.width || 1000);
+      const h_px = (Math.abs(ymax - ymin) / 1000) * (imageDimensions.height || 1000);
+      const cx_px = ((xmin + xmax) / 2 / 1000) * (imageDimensions.width || 1000);
+      const cy_px = ((ymin + ymax) / 2 / 1000) * (imageDimensions.height || 1000);
+
+      return {
+        id: `room-${index}`,
+        source: "RoomModel" as const,
+        className: det.label || "Room",
+        confidence: 0.9, // Default confidence for room detections
+        x: Number(cx_px.toFixed(2)),
+        y: Number(cy_px.toFixed(2)),
+        width: Number(w_px.toFixed(2)),
+        height: Number(h_px.toFixed(2)),
+        pageNumber: currentImage?.pageNumber,
+      };
+    });
+
+    return [...ai, ...user, ...rooms];
   };
 
   // Notify parent when the combined detections (AI + user annotations) change
@@ -2243,6 +2356,9 @@ export default function FullScreenImageViewer({
     detectionResults,
     selectedClasses,
     dismissedDetections,
+    dimensionDetections,
+    imageDimensions.width,
+    imageDimensions.height,
   ]);
 
   // Export: draw base image + overlay to canvas, embed into PDF, download; also allow CSV export
@@ -2561,7 +2677,11 @@ export default function FullScreenImageViewer({
             />
           )}
 
-          {/* Room/Corridor Overlay (Dimensions button) */}
+          {/* Room/Corridor Overlay (Dimensions button) 
+              Note: This renders the big semi-transparent boxes while the API detects them.
+              After saving to DB, they are integrated into detectionResults.predictions (source=RoomModel)
+              and drawn by the generateSvgOverlay above. 
+          */}
           {showDimensions &&
             imageDimensions.width > 0 &&
             dimensionDetections.length > 0 && (
