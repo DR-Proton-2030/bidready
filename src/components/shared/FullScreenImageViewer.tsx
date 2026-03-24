@@ -527,7 +527,10 @@ export default function FullScreenImageViewer({
 
     // fallback: check if dimensions are already embedded in the main predictions
     const embeddedDimensions = (detectionResults?.predictions || []).filter(
-      (p: any) => p.source === "RoomModel" || ["Rooms", "Corridors", "Room", "Corridor"].includes(p.class)
+      (p: any) => {
+        const cls = String(p.class || p.className || "").trim().toLowerCase();
+        return p.source === "RoomModel" || ["rooms", "corridors", "room", "corridor"].includes(cls);
+      }
     );
     if (embeddedDimensions.length > 0) {
       // Dimensions are already stored in the main DB output, skip API call.
@@ -1065,13 +1068,14 @@ export default function FullScreenImageViewer({
           if (dismissedDetections.has(detId)) return;
 
           // Filter out RoomModel detections unless showDimensions is on
+          const cls = String(prediction?.class || "").trim().toLowerCase();
           if (prediction?.source === "RoomModel") {
             if (!showDimensions) return;
           } else if (
-            prediction?.class === "Rooms" ||
-            prediction?.class === "Corridors" ||
-            prediction?.class === "Room" ||
-            prediction?.class === "Corridor"
+            cls === "rooms" ||
+            cls === "corridors" ||
+            cls === "room" ||
+            cls === "corridor"
           ) {
             if (!showDimensions) return;
           }
@@ -1824,11 +1828,12 @@ export default function FullScreenImageViewer({
           return showDimensions;
         }
         // Fallback for classes that might be rooms/corridors
+        const cls = String(detection.class || "").trim().toLowerCase();
         if (
-          detection.class === "Rooms" ||
-          detection.class === "Corridors" ||
-          detection.class === "Room" ||
-          detection.class === "Corridor"
+          cls === "rooms" ||
+          cls === "corridors" ||
+          cls === "room" ||
+          cls === "corridor"
         ) {
           return showDimensions;
         }
@@ -2098,11 +2103,12 @@ export default function FullScreenImageViewer({
           return showDimensions;
         }
         // Fallback for classes that might be rooms/corridors
+        const cls = String(box.class || "").trim().toLowerCase();
         if (
-          box.class === "Rooms" ||
-          box.class === "Corridors" ||
-          box.class === "Room" ||
-          box.class === "Corridor"
+          cls === "rooms" ||
+          cls === "corridors" ||
+          cls === "room" ||
+          cls === "corridor"
         ) {
           return showDimensions;
         }
@@ -2268,7 +2274,7 @@ export default function FullScreenImageViewer({
   // Build a combined, export-friendly list of detections (AI visible + user annotations)
   const getAllDetectionsForExport = (): Array<{
     id: string;
-    source: "AI" | "User";
+    source: "AI" | "User" | "RoomModel" | string;
     className: string;
     confidence?: number;
     x: number; // center-x in image pixels
@@ -2288,7 +2294,7 @@ export default function FullScreenImageViewer({
       })
       .map((det: any, index: number) => ({
         id: det.id ? String(det.id) : `detection-${index}`,
-        source: "AI" as const,
+        source: det.source || "AI",
         className: det.class || "Unknown",
         confidence: det.confidence,
         x: det.x || 0,
@@ -2588,11 +2594,7 @@ export default function FullScreenImageViewer({
             Detecting rooms and corridors...
           </div>
         )}
-        {showDimensions && !dimensionDetecting && dimensionDetectError && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 rounded-full bg-red-600/90 px-4 py-1.5 text-xs font-semibold text-white shadow">
-            {dimensionDetectError}
-          </div>
-        )}
+
 
         <div
           ref={containerRef}
@@ -3318,7 +3320,9 @@ export default function FullScreenImageViewer({
       {snackbar.visible && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
           <div className="flex items-center gap-3 bg-black text-white px-4 py-2 rounded shadow-lg">
-            <span className="text-sm">{snackbar.message}</span>
+            <span className="text-sm max-w-[20ch] truncate">
+              {snackbar.message}
+            </span>
             <button
               className="text-green-400 hover:text-green-300 font-semibold text-sm"
               onClick={undoLast}
