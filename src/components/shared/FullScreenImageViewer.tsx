@@ -7,7 +7,11 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { analyzeFloorPlan } from "@/services/geminiService";
+import {
+  analyzeFloorPlan,
+  detectRoomsAndCorridors,
+  BlueprintRegionDetection,
+} from "@/services/geminiService";
 import { AIAnalysisResult } from "@/types/gemini";
 import {
   X,
@@ -160,6 +164,13 @@ export default function FullScreenImageViewer({
   const [showDetections, setShowDetections] = useState(true);
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
+  const [dimensionDetections, setDimensionDetections] = useState<
+    BlueprintRegionDetection[]
+  >([]);
+  const [dimensionDetecting, setDimensionDetecting] = useState(false);
+  const [dimensionDetectError, setDimensionDetectError] = useState<string | null>(
+    null,
+  );
   const [useDetectedRoi, setUseDetectedRoi] = useState(true);
   const [detectedRoi, setDetectedRoi] = useState<RoiRect | null>(null);
   const [roiOverlapThreshold, setRoiOverlapThreshold] = useState(0.5);
@@ -222,6 +233,9 @@ export default function FullScreenImageViewer({
   const snackbarTimerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const dimensionCacheRef = useRef<Map<string, BlueprintRegionDetection[]>>(
+    new Map(),
+  );
 
   const [overlayImageId, setOverlayImageId] = useState<string | null>(null);
   const [overlayOpacity, setOverlayOpacity] = useState(0.5);
@@ -268,16 +282,108 @@ export default function FullScreenImageViewer({
   const autoDetectPlanRoi = useCallback(
     (imgW: number, imgH: number): RoiRect | null => {
       if (!imgW || !imgH) return null;
+
+      // If the AI server provides an explicit ROI for this image, use it
+      if (detectionResults?.roi) {
+        return {
+          x: Number(detectionResults.roi.x) || 0,
+          y: Number(detectionResults.roi.y) || 0,
+          width: Number(detectionResults.roi.width) || imgW,
+          height: Number(detectionResults.roi.height) || imgH,
+        };
+      }
+
+      // Heuristic: Dynamic Title Block Removal based on detection clusters
+      // Title blocks are usually separated from the main plan by a significant gap
       const marginX = Math.round(imgW * 0.03);
       const marginY = Math.round(imgH * 0.03);
-      const rightStrip = Math.round(imgW * 0.22); // excludes title block strip on right
-      const x = marginX;
-      const y = marginY;
-      const width = Math.max(1, imgW - marginX * 2 - rightStrip);
-      const height = Math.max(1, imgH - marginY * 2);
-      return { x, y, width, height };
+      let validMaxX = imgW - marginX;
+      let validMinX = marginX;
+      let validMaxY = imgH - marginY;
+      let validMinY = marginY;
+
+      const preds = detectionResults?.predictions || [];
+      if (preds.length > 10) {
+        // Collect all bounding boxes
+        const boxes = preds.map((p: any) => {
+          const w = Number(p.width || 0);
+          const h = Number(p.height || 0);
+          const cx = Number(p.x || 0);
+          const cy = Number(p.y || 0);
+          return {
+            x1: cx - w / 2,
+            x2: cx + w / 2,
+            y1: cy - h / 2,
+            y2: cy + h / 2,
+            cx,
+            cy,
+          };
+        });
+
+        // X-axis gap detection (for right/left title blocks)
+        boxes.sort((a: any, b: any) => a.cx - b.cx);
+        let maxGapX = 0;
+        let splitX = -1;
+        for (let i = 0; i < boxes.length - 1; i++) {
+          const gap = boxes[i + 1].cx - boxes[i].cx;
+          // Only consider gaps in the outer regions (title blocks are at edges)
+          const ratio = boxes[i].cx / imgW;
+          if (
+            gap > maxGapX &&
+            gap > imgW * 0.05 &&
+            (ratio < 0.25 || ratio > 0.75)
+          ) {
+            maxGapX = gap;
+            splitX = (boxes[i].cx + boxes[i + 1].cx) / 2;
+          }
+        }
+
+        if (splitX > -1) {
+          if (splitX > imgW / 2) {
+            // Right side title block
+            validMaxX = splitX;
+          } else {
+            // Left side title block
+            validMinX = splitX;
+          }
+        }
+
+        // Y-axis gap detection (for bottom/top title blocks)
+        boxes.sort((a: any, b: any) => a.cy - b.cy);
+        let maxGapY = 0;
+        let splitY = -1;
+        for (let i = 0; i < boxes.length - 1; i++) {
+          const gap = boxes[i + 1].cy - boxes[i].cy;
+          const ratio = boxes[i].cy / imgH;
+          if (
+            gap > maxGapY &&
+            gap > imgH * 0.05 &&
+            (ratio < 0.25 || ratio > 0.75)
+          ) {
+            maxGapY = gap;
+            splitY = (boxes[i].cy + boxes[i + 1].cy) / 2;
+          }
+        }
+
+        if (splitY > -1) {
+          if (splitY > imgH / 2) {
+            // Bottom title block
+            validMaxY = splitY;
+          } else {
+            // Top title block
+            validMinY = splitY;
+          }
+        }
+      }
+
+      return {
+        x: validMinX,
+        y: validMinY,
+        width: Math.max(1, validMaxX - validMinX),
+        height: Math.max(1, validMaxY - validMinY),
+      };
     },
-    [],
+    [detectionResults?.predictions, detectionResults?.roi],
   );
 
   useEffect(() => {
@@ -352,22 +458,25 @@ export default function FullScreenImageViewer({
     ],
   );
 
+  const getImageDataUrl = useCallback(async (imagePath: string) => {
+    if (imagePath.startsWith("data:")) return imagePath;
+    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(imagePath)}`;
+    const response = await fetch(proxyUrl);
+    if (!response.ok) throw new Error("Failed to fetch image via proxy");
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
   const handleDeepScan = async () => {
     if (!currentImage) return;
     setIsDeepScanning(true);
     try {
-      // Use proxy to avoid CORS issues with S3 images
-      const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(currentImage.path)}`;
-      const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error("Failed to fetch image via proxy");
-      const blob = await response.blob();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-
+      const base64 = await getImageDataUrl(currentImage.path);
       const result = await analyzeFloorPlan(base64);
 
       if (result.autoCalibration) {
@@ -389,6 +498,59 @@ export default function FullScreenImageViewer({
       setIsDeepScanning(false);
     }
   };
+
+  const runDimensionDetection = useCallback(async () => {
+    if (!currentImage) return;
+    const cacheKey = currentImage.id || currentImage.path;
+    const cached = dimensionCacheRef.current.get(cacheKey);
+    if (cached && cached.length) {
+      setDimensionDetections(cached);
+      return;
+    }
+
+    setDimensionDetecting(true);
+    setDimensionDetectError(null);
+
+    try {
+      const base64 = await getImageDataUrl(currentImage.path);
+      const detections = await detectRoomsAndCorridors(base64);
+      setDimensionDetections(detections);
+      dimensionCacheRef.current.set(cacheKey, detections);
+      if (!detections.length) {
+        setSnackbar({
+          visible: true,
+          message: "No room/corridor regions detected for this image.",
+        });
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Room/corridor detection failed.";
+      setDimensionDetectError(message);
+      setDimensionDetections([]);
+      setSnackbar({ visible: true, message });
+    } finally {
+      setDimensionDetecting(false);
+    }
+  }, [currentImage, getImageDataUrl]);
+
+  const handleToggleDimensions = () => {
+    setShowDimensions((prev) => {
+      const next = !prev;
+      if (next) {
+        void runDimensionDetection();
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    setDimensionDetections([]);
+    setDimensionDetectError(null);
+    if (showDimensions) {
+      void runDimensionDetection();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentImage?.id]);
 
   // Auto-close sidebar when overlay is active to prevent clutter
   useEffect(() => {
@@ -1023,19 +1185,19 @@ export default function FullScreenImageViewer({
           meta:
             Array.isArray(pred.points) && pred.points.length > 2
               ? (() => {
-                  const pts = pred.points as MeasurementPoint[];
-                  const areaPx = computePolygonArea(pts);
-                  const areaInfo = convertPixelArea(areaPx);
-                  const centroid = computePolygonCentroid(pts);
-                  return {
-                    areaPx,
-                    areaValue: areaInfo.value,
-                    areaUnit: areaInfo.unit,
-                    areaFormatted: areaInfo.formatted,
-                    areaCalibrated: areaInfo.hasCalibration,
-                    centroid,
-                  };
-                })()
+                const pts = pred.points as MeasurementPoint[];
+                const areaPx = computePolygonArea(pts);
+                const areaInfo = convertPixelArea(areaPx);
+                const centroid = computePolygonCentroid(pts);
+                return {
+                  areaPx,
+                  areaValue: areaInfo.value,
+                  areaUnit: areaInfo.unit,
+                  areaFormatted: areaInfo.formatted,
+                  areaCalibrated: areaInfo.hasCalibration,
+                  centroid,
+                };
+              })()
               : undefined,
         }));
 
@@ -1185,11 +1347,11 @@ export default function FullScreenImageViewer({
           },
           polygon: Array.isArray(pred?.points)
             ? (pred.points as Array<{ x: number; y: number }>)
-                .slice(0, 20)
-                .map((pt) => ({
-                  x: typeof pt?.x === "number" ? pt.x : 0,
-                  y: typeof pt?.y === "number" ? pt.y : 0,
-                }))
+              .slice(0, 20)
+              .map((pt) => ({
+                x: typeof pt?.x === "number" ? pt.x : 0,
+                y: typeof pt?.y === "number" ? pt.y : 0,
+              }))
             : null,
           pageNumber: pred?.pageNumber ?? currentImage.pageNumber ?? null,
         }),
@@ -1225,20 +1387,20 @@ export default function FullScreenImageViewer({
 
     const dimensionShapes = Array.isArray(detectionResults?.shapes)
       ? (detectionResults?.shapes as Array<any>)
-          .slice(0, 80)
-          .map((shape, index) => ({
-            id: shape?.id ?? `shape-${index}`,
-            type: shape?.type ?? "polygon",
-            label: shape?.label ?? shape?.name ?? null,
-            points: Array.isArray(shape?.points)
-              ? (shape.points as Array<{ x: number; y: number }>).slice(0, 40)
+        .slice(0, 80)
+        .map((shape, index) => ({
+          id: shape?.id ?? `shape-${index}`,
+          type: shape?.type ?? "polygon",
+          label: shape?.label ?? shape?.name ?? null,
+          points: Array.isArray(shape?.points)
+            ? (shape.points as Array<{ x: number; y: number }>).slice(0, 40)
+            : null,
+          area:
+            typeof shape?.area === "number"
+              ? Number(shape.area.toFixed(2))
               : null,
-            area:
-              typeof shape?.area === "number"
-                ? Number(shape.area.toFixed(2))
-                : null,
-            meta: shape?.meta ?? null,
-          }))
+          meta: shape?.meta ?? null,
+        }))
       : [];
 
     const classBreakdown: Record<string, number> = {};
@@ -1260,10 +1422,10 @@ export default function FullScreenImageViewer({
       generatedAt: new Date().toISOString(),
       calibration: calibrationInfo
         ? {
-            unit: calibrationInfo.unit,
-            unitsPerPixel: calibrationInfo.unitsPerPixel,
-            pixelsPerUnit: calibrationInfo.pixelsPerUnit,
-          }
+          unit: calibrationInfo.unit,
+          unitsPerPixel: calibrationInfo.unitsPerPixel,
+          pixelsPerUnit: calibrationInfo.pixelsPerUnit,
+        }
         : null,
       stats: {
         totalPredictions: normalizedPredictions.length,
@@ -1468,9 +1630,9 @@ export default function FullScreenImageViewer({
         setMeasurementDraft((prev) =>
           prev
             ? {
-                ...prev,
-                end: { x, y },
-              }
+              ...prev,
+              end: { x, y },
+            }
             : prev,
         );
       }
@@ -1836,7 +1998,8 @@ export default function FullScreenImageViewer({
     let allDetections: Detection[] = [];
 
     // Get original detections
-    if (detectionResults?.predictions && showDetections && !showElectrical) {
+    // Get original detections
+    if (detectionResults?.predictions && showDetections) {
       const originalBoxes = detectionResults.predictions.map(
         (detection: any, index: number): Detection => {
           const className = detection.class || "Unknown";
@@ -1859,19 +2022,19 @@ export default function FullScreenImageViewer({
 
       // Filter by selected classes if any are selected
       if (selectedClasses.size === 0) {
-        allDetections = [...allDetections, ...roiFilteredBoxes];
+        allDetections = [...allDetections, ...(roiFilteredBoxes as any)];
       } else {
         allDetections = [
           ...allDetections,
-          ...roiFilteredBoxes.filter((box: Detection) =>
-            selectedClasses.has(box.class || "Unknown"),
-          ),
+          ...((roiFilteredBoxes.filter((box: any) =>
+            selectedClasses.has(box.class || box.className || "Unknown"),
+          )) as any),
         ];
       }
     }
 
-    // If electrical-only mode is enabled, add only electrical predictions
-    if (showElectrical && detectionResults?.electricalPredictions) {
+    // If detections are enabled, simultaneously overlay all external active API detections natively
+    if (showDetections && detectionResults?.electricalPredictions) {
       const elBoxes = (detectionResults.electricalPredictions || []).map(
         (p: any, i: number): Detection => ({
           x: p.x || 0,
@@ -1879,22 +2042,22 @@ export default function FullScreenImageViewer({
           width: p.width || 0,
           height: p.height || 0,
           class: p.class || "Electrical",
-          confidence: p.confidence,
           color: getColorForClass(`electrical:${p.class || "Electrical"}`),
           id: p.id ? String(p.id) : `electrical-${i}`,
+          confidence: p.confidence,
         }),
       );
 
       const roiFilteredElBoxes = filterByRoi(elBoxes);
 
       if (selectedClasses.size === 0) {
-        allDetections = [...allDetections, ...roiFilteredElBoxes];
+        allDetections = [...allDetections, ...(roiFilteredElBoxes as any)];
       } else {
         allDetections = [
           ...allDetections,
-          ...roiFilteredElBoxes.filter((box: Detection) =>
-            selectedClasses.has(box.class || "Unknown"),
-          ),
+          ...((roiFilteredElBoxes.filter((box: any) =>
+            selectedClasses.has(box.class || box.className || "Unknown"),
+          )) as any),
         ];
       }
     }
@@ -1916,8 +2079,8 @@ export default function FullScreenImageViewer({
            height="${imageDimensions.height}"
            viewBox="0 0 ${imageDimensions.width} ${imageDimensions.height}">
         ${allDetections
-          .map(
-            (detection) => `
+        .map(
+          (detection) => `
           <rect x="${detection.x - detection.width / 2}"
                 y="${detection.y - detection.height / 2}"
                 width="${detection.width}"
@@ -1926,8 +2089,7 @@ export default function FullScreenImageViewer({
                 stroke="${detection.color}"
                 stroke-width="2"
                 opacity="0.8"/>
-          ${
-            detection.class
+          ${detection.class
               ? `
             <text x="${detection.x - detection.width / 2}"
                   y="${detection.y - detection.height / 2 - 5}"
@@ -1939,10 +2101,10 @@ export default function FullScreenImageViewer({
             </text>
           `
               : ""
-          }
+            }
         `,
-          )
-          .join("")}
+        )
+        .join("")}
       </svg>
     `;
 
@@ -2215,7 +2377,7 @@ export default function FullScreenImageViewer({
         onRotate={rotate}
         onResetView={resetView}
         showDimensions={showDimensions}
-        onToggleDimensions={() => setShowDimensions((s) => !s)}
+        onToggleDimensions={handleToggleDimensions}
         onAskAiOpen={() => setAskAiOpen(true)}
         onExportCsv={handleExportCsv}
         onClose={onClose}
@@ -2284,15 +2446,14 @@ export default function FullScreenImageViewer({
 
       {/* Image Container */}
       <div
-        className={`flex-1 flex items-center justify-center relative ${
-          leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
-        }`}
+        className={`flex-1 flex items-center justify-center relative ${leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
+          }`}
         style={{
           cursor:
             activeTool === "annotate" ||
-            activeTool === "polygon" ||
-            activeTool === "linear" ||
-            activeTool === "measure"
+              activeTool === "polygon" ||
+              activeTool === "linear" ||
+              activeTool === "measure"
               ? "crosshair"
               : activeTool === "erase"
                 ? "pointer"
@@ -2306,6 +2467,16 @@ export default function FullScreenImageViewer({
         {/* Fixed Gradient Overlay tied to the viewport, not the image */}
         <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-black/70 to-transparent pointer-events-none z-20"></div>
         <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-black/70 to-transparent pointer-events-none z-20"></div>
+        {showDimensions && dimensionDetecting && (
+          <div className="absolute top-66 left-1/2 -translate-x-1/2 z-30 rounded-full bg-black/70 px-4 py-1.5 text-xs font-semibold text-white shadow">
+            Detecting rooms and corridors...
+          </div>
+        )}
+        {showDimensions && !dimensionDetecting && dimensionDetectError && (
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30 rounded-full bg-red-600/90 px-4 py-1.5 text-xs font-semibold text-white shadow">
+            {dimensionDetectError}
+          </div>
+        )}
 
         <div
           ref={containerRef}
@@ -2321,15 +2492,14 @@ export default function FullScreenImageViewer({
             alt={currentImage.name}
             className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
             style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
-                imagePosition.x / zoom
-              }px, ${imagePosition.y / zoom}px)`,
+              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom
+                }px, ${imagePosition.y / zoom}px)`,
               transformOrigin: "center center",
               cursor:
                 activeTool === "annotate" ||
-                activeTool === "polygon" ||
-                activeTool === "linear" ||
-                activeTool === "measure"
+                  activeTool === "polygon" ||
+                  activeTool === "linear" ||
+                  activeTool === "measure"
                   ? "crosshair"
                   : activeTool === "pan" || zoom > 1
                     ? isDragging
@@ -2341,8 +2511,8 @@ export default function FullScreenImageViewer({
             ref={imageRef}
             onMouseDown={
               activeTool === "annotate" ||
-              activeTool === "polygon" ||
-              activeTool === "crop-overlay"
+                activeTool === "polygon" ||
+                activeTool === "crop-overlay"
                 ? handleMouseDown
                 : undefined
             }
@@ -2391,10 +2561,10 @@ export default function FullScreenImageViewer({
             />
           )}
 
-          {/* Dimension Shapes Overlay */}
+          {/* Room/Corridor Overlay (Dimensions button) */}
           {showDimensions &&
-            detectionResults?.shapes &&
-            imageDimensions.width > 0 && (
+            imageDimensions.width > 0 &&
+            dimensionDetections.length > 0 && (
               <svg
                 className="absolute top-0 left-0"
                 style={{
@@ -2402,82 +2572,30 @@ export default function FullScreenImageViewer({
                   height: "100%",
                   transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
                   transformOrigin: "center center",
-                  pointerEvents: "auto",
+                  pointerEvents: "none",
                 }}
-                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
-                preserveAspectRatio="xMidYMid meet"
-                onMouseLeave={() => {
-                  setHoveredShapeId(null);
-                  setShapeTooltip(null);
-                }}
+                viewBox="0 0 1000 1000"
+                preserveAspectRatio="none"
               >
-                {detectionResults.shapes.map((shape: any, idx: number) => {
-                  const fillColor = shape.color || "#00ff00";
-                  const numericArea =
-                    typeof shape.area === "number"
-                      ? shape.area
-                      : typeof shape.meta?.area === "number"
-                        ? shape.meta.area
-                        : undefined;
-                  const areaLabel =
-                    typeof numericArea === "number"
-                      ? `${areaFormatter.format(numericArea)} sq units`
-                      : undefined;
-                  const displayName =
-                    typeof shape.label === "string" && shape.label.trim()
-                      ? shape.label
-                      : `Dimension ${idx + 1}`;
-                  const shapeId = String(shape.id ?? `dim-shape-${idx}`);
-                  const isHovered = hoveredShapeId === shapeId;
+                {dimensionDetections.map((det, idx) => {
+                  const [ymin, xmin, ymax, xmax] = det.box;
+                  const width = Math.max(0, xmax - xmin);
+                  const height = Math.max(0, ymax - ymin);
+                  const color = getColorForClass(det.label || "dimension");
 
                   return (
-                    <path
-                      key={shapeId}
-                      d={shape.path}
-                      fill={fillColor}
-                      fillOpacity={isHovered ? 0.35 : 0.12}
-                      stroke={fillColor}
-                      strokeWidth={isHovered ? 3 : 2}
-                      strokeOpacity={isHovered ? 1 : 0.85}
-                      style={{
-                        pointerEvents: "visiblePainted",
-                        cursor: areaLabel ? "crosshair" : "pointer",
-                        transition:
-                          "fill-opacity 120ms ease, stroke-opacity 120ms ease, stroke-width 120ms ease",
-                      }}
-                      onMouseEnter={(event) => {
-                        setHoveredShapeId(shapeId);
-                        updateShapeTooltip(
-                          event,
-                          displayName,
-                          areaLabel,
-                          fillColor,
-                        );
-                      }}
-                      onMouseMove={(event) => {
-                        if (hoveredShapeId === shapeId) {
-                          updateShapeTooltip(
-                            event,
-                            displayName,
-                            areaLabel,
-                            fillColor,
-                          );
-                        }
-                      }}
-                      onMouseLeave={() => {
-                        setHoveredShapeId((prev) =>
-                          prev === shapeId ? null : prev,
-                        );
-                        setShapeTooltip(null);
-                      }}
-                      aria-label={
-                        areaLabel
-                          ? `Dimension shape with area ${areaLabel}`
-                          : undefined
-                      }
-                    >
-                      {areaLabel && <title>{`Area: ${areaLabel}`}</title>}
-                    </path>
+                    <rect
+                      key={`${det.label}-${idx}`}
+                      x={xmin}
+                      y={ymin}
+                      width={width}
+                      height={height}
+                      fill={color}
+                      fillOpacity={0.18}
+                      stroke={color}
+                      strokeWidth={2}
+                      vectorEffect="non-scaling-stroke"
+                    />
                   );
                 })}
               </svg>
@@ -2498,11 +2616,10 @@ export default function FullScreenImageViewer({
             >
               {/* Dimmer / Mask */}
               <path
-                d={`M0 0 h${imageDimensions.width} v${imageDimensions.height} h-${imageDimensions.width} z ${
-                  isDrawing && currentBox
-                    ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
-                    : ""
-                }`}
+                d={`M0 0 h${imageDimensions.width} v${imageDimensions.height} h-${imageDimensions.width} z ${isDrawing && currentBox
+                  ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
+                  : ""
+                  }`}
                 fill="rgba(0, 0, 0, 0.6)"
                 fillRule="evenodd"
               />
@@ -2529,11 +2646,10 @@ export default function FullScreenImageViewer({
           {/* User Annotations Overlay */}
           {imageDimensions.width > 0 && (
             <svg
-              className={`absolute inset-0 ${
-                activeTool === "annotate"
-                  ? "pointer-events-none"
-                  : "pointer-events-none"
-              }`}
+              className={`absolute inset-0 ${activeTool === "annotate"
+                ? "pointer-events-none"
+                : "pointer-events-none"
+                }`}
               style={{
                 width: "100%",
                 height: "100%",
@@ -3068,11 +3184,10 @@ export default function FullScreenImageViewer({
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`w-2 h-2 rounded-full transition-all ${
-                  index === currentIndex
-                    ? "bg-white"
-                    : "bg-white bg-opacity-50 hover:bg-opacity-75"
-                }`}
+                className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
+                  ? "bg-white"
+                  : "bg-white bg-opacity-50 hover:bg-opacity-75"
+                  }`}
               />
             ))}
           </div>
