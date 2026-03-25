@@ -284,6 +284,74 @@ const BluePrintDetection = ({ id: propId }: any) => {
       setDetecting(false);
     }
   };
+  const handleDimensionDetectionsChange = React.useCallback((imageId: string, detections: any[]) => {
+    try {
+      const cacheKey = imageId;
+      const existing = detectionCache.get(cacheKey) ?? {};
+      // Cache room/corridor detections specifically so they persist between viewer sessions
+      const updated = {
+        ...existing,
+        roomCorridorDetections: detections
+      };
+      detectionCache.set(cacheKey, updated);
+      
+      // Also update the active detectionResults if this is the current image
+      // to ensure the viewer's cache checks pass on next render
+      setDetectionResults((prev: any) => {
+        if (!prev) return prev;
+        // If it's the same image, update it
+        return prev.id === imageId || prev.path === imageId ? updated : prev;
+      });
+
+      // Update status
+      setDetectedKeys((prev) => new Set(prev).add(cacheKey));
+    } catch (e) {
+      console.error('Failed to store dimension detections:', e);
+    }
+  }, [detectionCache]);
+
+  const handleDetectionsChange = React.useCallback((imageId: string, combinedDetections: Array<any>) => {
+    try {
+      const existing = detectionCache.get(imageId) ?? {};
+      // Normalize combined detections into a predictions array compatible with API shape
+      const normalized = combinedDetections.map((d: any) => ({
+        id: d.id ?? undefined,
+        class: d.className ?? d.class ?? "Unknown",
+        confidence: typeof d.confidence === "number" ? d.confidence : undefined,
+        x: typeof d.x === "number" ? d.x : 0,
+        y: typeof d.y === "number" ? d.y : 0,
+        width: typeof d.width === "number" ? d.width : 0,
+        height: typeof d.height === "number" ? d.height : 0,
+        source: d.source ?? "User",
+        points: d.points ?? undefined,
+      }));
+
+      // store merged data so save can include both api predictions and user annotations
+      const updated = { ...existing, predictions: normalized, combined_export: combinedDetections };
+      detectionCache.set(imageId, updated);
+
+      // mark as detected so Save will include this image
+      setDetectedKeys((prev) => new Set(prev).add(imageId));
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to store combined detections:', e);
+    }
+  }, [detectionCache]);
+
+  const handleViewerImageChange = React.useCallback((image: any, index: number) => {
+    const cacheKey = image.id || image.path;
+    const cached = detectionCache.get(cacheKey);
+    // Sync parent state with what the viewer shows for this image
+    if (cached) {
+      setDetectionResults(cached);
+    } else {
+      setDetectionResults(null);
+    }
+    setViewerIndex(index);
+    // Sync the selected state so the background UI matches the viewer
+    const found = images.find((it) => it.id === image.id || it.url === image.path);
+    if (found) setSelected(found);
+  }, [detectionCache, images]);
 
   return (
     <div className="flex h-[92vh]  overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
@@ -408,73 +476,10 @@ const BluePrintDetection = ({ id: propId }: any) => {
           initialIndex={viewerIndex}
           isOpen={viewerOpen}
           onClose={() => setViewerOpen(false)}
-          onImageChange={(image, index) => {
-            const cacheKey = image.id || image.path;
-            const cached = detectionCache.get(cacheKey);
-            // Sync parent state with what the viewer shows for this image
-            if (cached) {
-              setDetectionResults(cached);
-            } else {
-              setDetectionResults(null); 
-            }
-            setViewerIndex(index);
-            // Sync the selected state so the background UI matches the viewer
-            const found = images.find((it) => it.id === image.id || it.url === image.path);
-            if (found) setSelected(found);
-          }}
+          onImageChange={handleViewerImageChange}
           detectionResults={detectionResults}
-          onDimensionDetectionsChange={React.useCallback((imageId: string, detections: any[]) => {
-            try {
-              const cacheKey = imageId;
-              const existing = detectionCache.get(cacheKey) ?? {};
-              // Cache room/corridor detections specifically so they persist between viewer sessions
-              const updated = {
-                ...existing,
-                roomCorridorDetections: detections
-              };
-              detectionCache.set(cacheKey, updated);
-              
-              // Also update the active detectionResults if this is the current image
-              // to ensure the viewer's cache checks pass on next render
-              setDetectionResults((prev: any) => {
-                if (!prev) return prev;
-                // If it's the same image, update it
-                return prev.id === imageId || prev.path === imageId ? updated : prev;
-              });
-
-              // Update status
-              setDetectedKeys((prev) => new Set(prev).add(cacheKey));
-            } catch (e) {
-              console.error('Failed to store dimension detections:', e);
-            }
-          }, [detectionCache])}
-          onDetectionsChange={React.useCallback((imageId: string, combinedDetections: Array<any>) => {
-            try {
-              const existing = detectionCache.get(imageId) ?? {};
-              // Normalize combined detections into a predictions array compatible with API shape
-              const normalized = combinedDetections.map((d: any) => ({
-                id: d.id ?? undefined,
-                class: d.className ?? d.class ?? "Unknown",
-                confidence: typeof d.confidence === "number" ? d.confidence : undefined,
-                x: typeof d.x === "number" ? d.x : 0,
-                y: typeof d.y === "number" ? d.y : 0,
-                width: typeof d.width === "number" ? d.width : 0,
-                height: typeof d.height === "number" ? d.height : 0,
-                source: d.source ?? "User",
-                points: d.points ?? undefined,
-              }));
-
-              // store merged data so save can include both api predictions and user annotations
-              const updated = { ...existing, predictions: normalized, combined_export: combinedDetections };
-              detectionCache.set(imageId, updated);
-
-              // mark as detected so Save will include this image
-              setDetectedKeys((prev) => new Set(prev).add(imageId));
-            } catch (e) {
-              // eslint-disable-next-line no-console
-              console.error('Failed to store combined detections:', e);
-            }
-          }, [detectionCache])}
+          onDimensionDetectionsChange={handleDimensionDetectionsChange}
+          onDetectionsChange={handleDetectionsChange}
         />
       )}
       {loading && <Loader />}
