@@ -241,6 +241,7 @@ export default function FullScreenImageViewer({
   const dimensionCacheRef = useRef<Map<string, BlueprintRegionDetection[]>>(
     new Map(),
   );
+  const dimensionDetectingRef = useRef(false);
 
   const [overlayImageId, setOverlayImageId] = useState<string | null>(null);
   const [overlayOpacity, setOverlayOpacity] = useState(0.5);
@@ -505,13 +506,13 @@ export default function FullScreenImageViewer({
   };
 
   const runDimensionDetection = useCallback(async () => {
-    if (!currentImage) return;
+    if (!currentImage || dimensionDetectingRef.current) return;
 
     const cacheKey = currentImage.id || currentImage.path;
 
     // 1. Check internal cache
     const cached = dimensionCacheRef.current.get(cacheKey);
-    if (cached && cached.length) {
+    if (cached) {
       setDimensionDetections(cached);
       return;
     }
@@ -519,7 +520,7 @@ export default function FullScreenImageViewer({
     // 2. Check parent cache
     const parentDetections = detectionResults?.roomCorridorDetections;
 
-    if (parentDetections && parentDetections.length > 0) {
+    if (Array.isArray(parentDetections)) {
       setDimensionDetections(parentDetections);
       dimensionCacheRef.current.set(cacheKey, parentDetections);
       return;
@@ -533,12 +534,11 @@ export default function FullScreenImageViewer({
       }
     );
     if (embeddedDimensions.length > 0) {
-      // Dimensions are already stored in the main DB output, skip API call.
-      // We don't need to rebuild dimensionDetections because the SVG overlay handles them natively.
       return;
     }
 
     // 3. Only now call API
+    dimensionDetectingRef.current = true;
     setDimensionDetecting(true);
     setDimensionDetectError(null);
 
@@ -571,31 +571,27 @@ export default function FullScreenImageViewer({
 
       setSnackbar({ visible: true, message });
     } finally {
+      dimensionDetectingRef.current = false;
       setDimensionDetecting(false);
     }
   }, [
-    currentImage,
+    currentImage?.id,
+    currentImage?.path,
     getImageDataUrl,
     detectionResults,
     onDimensionDetectionsChange,
   ]);
+
   const handleToggleDimensions = () => {
-    setShowDimensions((prev) => {
-      const next = !prev;
-      if (next) {
-        void runDimensionDetection();
-      }
-      return next;
-    });
+    setShowDimensions((prev) => !prev);
   };
 
   useEffect(() => {
-    setDimensionDetections([]);
-    setDimensionDetectError(null);
     if (showDimensions) {
       void runDimensionDetection();
+    } else {
+      setDimensionDetections([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentImage?.id, showDimensions, runDimensionDetection]);
 
   // Auto-close sidebar when overlay is active to prevent clutter
@@ -2496,6 +2492,10 @@ export default function FullScreenImageViewer({
 
   return (
     <div className="fixed inset-0 z-[100] bg-white flex items-center justify-center">
+      {/* Fixed Gradient Overlay tied to the viewport, not the image */}
+      <div className="absolute top-0 left-0 w-full h-56 bg-gradient-to-b from-black/50 to-transparent pointer-events-none z-20"></div>
+      <div className="absolute bottom-0 left-0 w-full h-56 bg-gradient-to-t from-black/50 to-transparent pointer-events-none z-20"></div>
+
       {/* Header */}
       <FullScreenImageHeader
         currentImageName={currentImage.name}
@@ -2592,9 +2592,6 @@ export default function FullScreenImageViewer({
                   : "default",
         }}
       >
-        {/* Fixed Gradient Overlay tied to the viewport, not the image */}
-        <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-black/70 to-transparent pointer-events-none z-20"></div>
-        <div className="absolute bottom-0 left-0 w-full h-96 bg-gradient-to-t from-black/70 to-transparent pointer-events-none z-20"></div>
         {showDimensions && dimensionDetecting && (
           <div className="absolute top-66 left-1/2 -translate-x-1/2 z-30 rounded-full bg-black/70 px-4 py-1.5 text-xs font-semibold text-white shadow">
             Detecting rooms and corridors...

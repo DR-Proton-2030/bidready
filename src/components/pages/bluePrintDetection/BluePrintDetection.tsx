@@ -423,22 +423,32 @@ const BluePrintDetection = ({ id: propId }: any) => {
             if (found) setSelected(found);
           }}
           detectionResults={detectionResults}
-          onDimensionDetectionsChange={(imageId, detections) => {
+          onDimensionDetectionsChange={React.useCallback((imageId: string, detections: any[]) => {
             try {
               const cacheKey = imageId;
               const existing = detectionCache.get(cacheKey) ?? {};
               // Cache room/corridor detections specifically so they persist between viewer sessions
-              detectionCache.set(cacheKey, { 
-                ...existing, 
-                roomCorridorDetections: detections 
+              const updated = {
+                ...existing,
+                roomCorridorDetections: detections
+              };
+              detectionCache.set(cacheKey, updated);
+              
+              // Also update the active detectionResults if this is the current image
+              // to ensure the viewer's cache checks pass on next render
+              setDetectionResults((prev: any) => {
+                if (!prev) return prev;
+                // If it's the same image, update it
+                return prev.id === imageId || prev.path === imageId ? updated : prev;
               });
+
               // Update status
               setDetectedKeys((prev) => new Set(prev).add(cacheKey));
             } catch (e) {
               console.error('Failed to store dimension detections:', e);
             }
-          }}
-          onDetectionsChange={(imageId: string, combinedDetections: Array<any>) => {
+          }, [detectionCache])}
+          onDetectionsChange={React.useCallback((imageId: string, combinedDetections: Array<any>) => {
             try {
               const existing = detectionCache.get(imageId) ?? {};
               // Normalize combined detections into a predictions array compatible with API shape
@@ -455,7 +465,8 @@ const BluePrintDetection = ({ id: propId }: any) => {
               }));
 
               // store merged data so save can include both api predictions and user annotations
-              detectionCache.set(imageId, { ...existing, predictions: normalized, combined_export: combinedDetections });
+              const updated = { ...existing, predictions: normalized, combined_export: combinedDetections };
+              detectionCache.set(imageId, updated);
 
               // mark as detected so Save will include this image
               setDetectedKeys((prev) => new Set(prev).add(imageId));
@@ -463,7 +474,7 @@ const BluePrintDetection = ({ id: propId }: any) => {
               // eslint-disable-next-line no-console
               console.error('Failed to store combined detections:', e);
             }
-          }}
+          }, [detectionCache])}
         />
       )}
       {loading && <Loader />}
