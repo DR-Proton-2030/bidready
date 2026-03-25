@@ -2704,23 +2704,62 @@ export default function FullScreenImageViewer({
               >
                 {dimensionDetections.map((det, idx) => {
                   const [ymin, xmin, ymax, xmax] = det.box;
-                  const width = Math.max(0, xmax - xmin);
-                  const height = Math.max(0, ymax - ymin);
+                  const boxWidth = Math.max(0, xmax - xmin);
+                  const boxHeight = Math.max(0, ymax - ymin);
                   const color = getColorForClass(det.label || "dimension");
+                  const hoverId = `dim-det-${idx}`;
+                  const isHovered = hoveredShapeId === hoverId;
+
+                  let areaLabel = "";
+                  if (isHovered && calibrationInfo) {
+                    const actualWidth = (boxWidth / 1000) * imageDimensions.width;
+                    const actualHeight = (boxHeight / 1000) * imageDimensions.height;
+                    areaLabel = convertPixelArea(actualWidth * actualHeight).formatted;
+                  }
 
                   return (
-                    <rect
+                    <g 
                       key={`${det.label}-${idx}`}
-                      x={xmin}
-                      y={ymin}
-                      width={width}
-                      height={height}
-                      fill={color}
-                      fillOpacity={0.18}
-                      stroke={color}
-                      strokeWidth={2}
-                      vectorEffect="non-scaling-stroke"
-                    />
+                      onMouseEnter={() => setHoveredShapeId(hoverId)}
+                      onMouseLeave={() => setHoveredShapeId(null)}
+                      style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                    >
+                      <rect
+                        x={xmin}
+                        y={ymin}
+                        width={boxWidth}
+                        height={boxHeight}
+                        fill={color}
+                        fillOpacity={isHovered ? 0.35 : 0.18}
+                        stroke={color}
+                        strokeWidth={isHovered ? 4 : 2}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                      {areaLabel && (
+                        <g style={{ pointerEvents: 'none' }}>
+                          <rect
+                            x={xmin + boxWidth / 2 - (areaLabel.length * 10)}
+                            y={ymin + boxHeight / 2 - 25}
+                            width={areaLabel.length * 20}
+                            height={50}
+                            rx={10}
+                            fill="rgba(15, 23, 42, 0.85)"
+                            stroke="rgba(255, 255, 255, 0.2)"
+                            strokeWidth={1}
+                          />
+                          <text
+                            x={xmin + boxWidth / 2}
+                            y={ymin + boxHeight / 2 + 10}
+                            fill="#f8fafc"
+                            fontSize={28}
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            {areaLabel}
+                          </text>
+                        </g>
+                      )}
+                    </g>
                   );
                 })}
               </svg>
@@ -2828,6 +2867,18 @@ export default function FullScreenImageViewer({
                     String(detection.class || "").trim().toLowerCase()
                   );
 
+                  let autoAreaLabel = "";
+                  let autoAreaCentroid: MeasurementPoint | null = null;
+                  if (isRoomOrCorridor && hoveredShapeId === detection.id && calibrationInfo) {
+                    const areaPx = detection.points && detection.points.length > 2
+                      ? computePolygonArea(detection.points)
+                      : (detection.width * detection.height);
+                    autoAreaLabel = convertPixelArea(areaPx).formatted;
+                    autoAreaCentroid = detection.points && detection.points.length > 2
+                      ? computePolygonCentroid(detection.points)
+                      : { x: detection.x, y: detection.y };
+                  }
+
                   return (
                     <g
                       key={detection.id}
@@ -2844,7 +2895,9 @@ export default function FullScreenImageViewer({
                               ? "pointer"
                               : "default",
                       }}
-                      onClick={() => {
+                      onMouseEnter={() => setHoveredShapeId(detection.id)}
+                    onMouseLeave={() => setHoveredShapeId(null)}
+                    onClick={() => {
                         if (activeTool === "erase") {
                           removeOverlayWithUndo(
                             detection.id,
@@ -3007,20 +3060,28 @@ export default function FullScreenImageViewer({
                         </g>
                       )}
 
-                      {/* {hasConfidence && (
-                        <text
-                          x={userPolygonCentroid?.x ?? labelX}
-                          y={userPolygonCentroid?.y ?? labelY}
-                          dy={userPolygonCentroid ? -10 : 0}
-                          fill="#0f172a"
-                          fontSize="10"
-                          fontWeight="700"
-                          textAnchor="start"
-                          style={{ paintOrder: "stroke", stroke: "rgba(255,255,255,0.95)", strokeWidth: 2 }}
-                        >
-                          {`${Math.round(detection.confidence * 100)}%`}
-                        </text>
-                      )} */}
+                      {autoAreaLabel && autoAreaCentroid && (
+                        <g style={{ pointerEvents: 'none' }}>
+                          <rect
+                            x={autoAreaCentroid.x - (autoAreaLabel.length * 3.5)}
+                            y={autoAreaCentroid.y - 12}
+                            width={autoAreaLabel.length * 7}
+                            height={20}
+                            rx={4}
+                            fill="rgba(15, 23, 42, 0.85)"
+                          />
+                          <text
+                            x={autoAreaCentroid.x}
+                            y={autoAreaCentroid.y + 4}
+                            fill="#f8fafc"
+                            fontSize={12}
+                            fontWeight="bold"
+                            textAnchor="middle"
+                          >
+                            {autoAreaLabel}
+                          </text>
+                        </g>
+                      )}
                     </g>
                   );
                 })}
