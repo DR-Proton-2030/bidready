@@ -28,13 +28,15 @@ export default function useImageDetect() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`http://localhost:8000/detect`, {
+      const res = await fetch(`https://d1z68al0r0qxyd.cloudfront.net/detect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image_url: imageUrl ,
+        body: JSON.stringify({
+          image_url: imageUrl,
           selected_labels: "Door,Window,Wall",
-  use_tiling: true,
-  per_class_conf: {"Wall": 0.1, "Door": 0.4, "Window": 0.32}}),
+          use_tiling: true,
+          per_class_conf: { "Wall": 0.1, "Door": 1, "Window": 0.32 }
+        }),
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
@@ -67,7 +69,7 @@ export default function useImageDetect() {
           : [];
       const shapes = rawShapeSource
         .map((shape: any, idx: number) => normalizeShape(shape, idx))
-        .filter((shape:any): shape is DetectionShape => !!shape);
+        .filter((shape: any): shape is DetectionShape => !!shape);
 
       const predictions = (data?.detections || []).map((d: any, idx: number) => {
         const x1 = Number(d?.bbox?.x1 ?? 0);
