@@ -106,7 +106,7 @@ export default function CreateBlueprintPage({
       console.log("Sending request to detection API...");
 
       // API endpoint for detection
-      const apiResponse = await fetch("http://localhost:8000/detect", {
+      const apiResponse = await fetch("https://d1z68al0r0qxyd.cloudfront.net/detect", {
         method: "POST",
         body: formData,
       });
