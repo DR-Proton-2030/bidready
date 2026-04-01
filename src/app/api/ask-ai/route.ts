@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenAI } from "@google/genai";
 
 type ChatHistoryEntry = {
   role: "user" | "assistant";
   content: string;
 };
 
-type OpenAIMessage = {
-  role: "system" | "user" | "assistant";
-  content: string;
-};
-
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const DEFAULT_MODEL = process.env.OPENAI_ASSISTANT_MODEL ?? "gpt-4.1-mini";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -71,8 +66,7 @@ const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
     typeof totalMeasurements === "number"
   ) {
     lines.push(
-      `Overall counts → detections: ${totalDetections ?? "n/a"}, annotations: ${
-        totalAnnotations ?? "n/a"
+      `Overall counts → detections: ${totalDetections ?? "n/a"}, annotations: ${totalAnnotations ?? "n/a"
       }, measurements: ${totalMeasurements ?? "n/a"}.`,
     );
   }
@@ -195,7 +189,7 @@ const buildDetectionBrief = (context: unknown, maxLength = 1800): string => {
   return truncateText(lines.join("\n"), maxLength);
 };
 
-const normalizeHistory = (history: unknown): ChatHistoryEntry[] => {
+const normalizeHistory = (history: unknown): { role: string; parts: { text: string }[] }[] => {
   if (!Array.isArray(history)) return [];
   return history
     .filter((entry): entry is ChatHistoryEntry => {
@@ -209,8 +203,8 @@ const normalizeHistory = (history: unknown): ChatHistoryEntry[] => {
     })
     .slice(-6)
     .map((entry) => ({
-      role: entry.role,
-      content: entry.content.slice(0, 4000),
+      role: entry.role === "assistant" ? "model" : "user",
+      parts: [{ text: entry.content.slice(0, 4000) }],
     }));
 };
 
@@ -271,10 +265,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "OpenAI API key is not configured." },
+        { error: "Gemini API key is not configured." },
         { status: 500 },
       );
     }
@@ -303,16 +297,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const messages: OpenAIMessage[] = [
-      {
-        role: "system",
-        content: systemMessageParts.join(" "),
-      },
-      ...conversationHistory.map<OpenAIMessage>((entry) => ({
-        role: entry.role,
-        content: entry.content,
-      })),
-    ];
+    const systemPrompt = systemMessageParts.join(" ");
+
+    const ai = new GoogleGenAI({ apiKey });
 
     const trimmedPrompt = prompt.trim();
     const contextBlocks: string[] = [];
@@ -327,36 +314,24 @@ export async function POST(request: NextRequest) {
       ? `${trimmedPrompt}\n\n${contextBlocks.join("\n\n")}`
       : trimmedPrompt;
 
-    messages.push({
-      role: "user",
-      content: userContent,
-    });
+    // Prepend system prompt to the history to set the assistant's persona
+    const contents = [
+      { role: "user", parts: [{ text: systemPrompt }] },
+      { role: "model", parts: [{ text: "Understood. I am BidReady Copilot, ready to assist with your construction estimation and blueprint analysis." }] },
+      ...conversationHistory,
+      { role: "user", parts: [{ text: userContent }] }
+    ];
 
-    const response = await fetch(OPENAI_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        messages,
+    const result = await ai.models.generateContent({
+      model: DEFAULT_MODEL,
+      contents,
+      config: {
+        maxOutputTokens: 800,
         temperature: 0.2,
-        max_tokens: 800,
-      }),
+      },
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return NextResponse.json(
-        { error: "OpenAI request failed.", details: errorText.slice(0, 500) },
-        { status: response.status },
-      );
-    }
-
-    const data = await response.json();
-    const reply: string | undefined =
-      data?.choices?.[0]?.message?.content?.trim();
+    const reply = result.text;
 
     if (!reply) {
       return NextResponse.json(

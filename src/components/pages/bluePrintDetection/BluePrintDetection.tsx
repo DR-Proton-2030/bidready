@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useBlueprintImages, { BlueprintImage } from "../../../hooks/useBlueprintImages";
 import useDeleteBlueprintImage from "../../../hooks/useDeleteBlueprintImage";
@@ -11,7 +11,6 @@ import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import Loader from "@/components/shared/loader/Loader";
 import useImageDetect from "@/hooks/useImageDetect";
 import axios from "axios";
-import { s } from "node_modules/framer-motion/dist/types.d-Cjd591yU";
 
 const BluePrintDetection = ({ id: propId }: any) => {
   const resolveIdFromWindow = (propId?: string | null): string | null => {
@@ -44,6 +43,34 @@ const BluePrintDetection = ({ id: propId }: any) => {
   const [saving, setSaving] = useState(false);
   const [processedCount, setProcessedCount] = useState(0);
   const { uploadDetections, isUploading: isUploadingDetections } = useBulkDetectionsUpload();
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
+
+  // Auto-populate cache from database when images are first loaded
+  useEffect(() => {
+    if (images.length > 0 && !initialDataLoaded) {
+      const newDetectedKeys = new Set<string>();
+      
+      images.forEach((img) => {
+        const cacheKey = img.id;
+        if (img.detection || img.roomCorridorDetections) {
+          // Merge detection data from DB into cache
+          const toCache = {
+            ...(typeof img.detection === 'object' ? img.detection : {}),
+            // Prioritize explicit roomCorridorDetections if they exist as a top-level field
+            roomCorridorDetections: img.roomCorridorDetections || (img.detection as any)?.roomCorridorDetections || []
+          };
+          
+          detectionCache.set(cacheKey, toCache);
+          newDetectedKeys.add(cacheKey);
+        }
+      });
+
+      if (newDetectedKeys.size > 0) {
+        setDetectedKeys(newDetectedKeys);
+      }
+      setInitialDataLoaded(true);
+    }
+  }, [images, initialDataLoaded]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -86,11 +113,16 @@ const BluePrintDetection = ({ id: propId }: any) => {
       .map((key) => {
         const found = images.find((it) => it.id === key || it.url === key);
         const imgurl = found?.url ?? (typeof key === "string" && (key.startsWith("http://") || key.startsWith("https://")) ? key : undefined);
-        const detection = detectionCache.get(key) ?? null;
+        const cachedData = detectionCache.get(key) ?? null;
         // include _id (image id) when available, otherwise null
-        return imgurl ? { _id: found?.id ?? null, imgurl, detection } : null;
+        return imgurl ? { 
+          _id: found?.id ?? null, 
+          imgurl, 
+          detection: cachedData,
+          roomCorridorDetections: cachedData?.roomCorridorDetections || []
+        } : null;
       })
-      .filter((it): it is { _id: string | null; imgurl: string; detection: any } => it !== null);
+      .filter((it): it is { _id: string | null; imgurl: string; detection: any; roomCorridorDetections: any[] } => it !== null);
 
     console.log("Detected items (batch):", result);
 
@@ -252,6 +284,74 @@ const BluePrintDetection = ({ id: propId }: any) => {
       setDetecting(false);
     }
   };
+  const handleDimensionDetectionsChange = React.useCallback((imageId: string, detections: any[]) => {
+    try {
+      const cacheKey = imageId;
+      const existing = detectionCache.get(cacheKey) ?? {};
+      // Cache room/corridor detections specifically so they persist between viewer sessions
+      const updated = {
+        ...existing,
+        roomCorridorDetections: detections
+      };
+      detectionCache.set(cacheKey, updated);
+      
+      // Also update the active detectionResults if this is the current image
+      // to ensure the viewer's cache checks pass on next render
+      setDetectionResults((prev: any) => {
+        if (!prev) return prev;
+        // If it's the same image, update it
+        return prev.id === imageId || prev.path === imageId ? updated : prev;
+      });
+
+      // Update status
+      setDetectedKeys((prev) => new Set(prev).add(cacheKey));
+    } catch (e) {
+      console.error('Failed to store dimension detections:', e);
+    }
+  }, [detectionCache]);
+
+  const handleDetectionsChange = React.useCallback((imageId: string, combinedDetections: Array<any>) => {
+    try {
+      const existing = detectionCache.get(imageId) ?? {};
+      // Normalize combined detections into a predictions array compatible with API shape
+      const normalized = combinedDetections.map((d: any) => ({
+        id: d.id ?? undefined,
+        class: d.className ?? d.class ?? "Unknown",
+        confidence: typeof d.confidence === "number" ? d.confidence : undefined,
+        x: typeof d.x === "number" ? d.x : 0,
+        y: typeof d.y === "number" ? d.y : 0,
+        width: typeof d.width === "number" ? d.width : 0,
+        height: typeof d.height === "number" ? d.height : 0,
+        source: d.source ?? "User",
+        points: d.points ?? undefined,
+      }));
+
+      // store merged data so save can include both api predictions and user annotations
+      const updated = { ...existing, predictions: normalized, combined_export: combinedDetections };
+      detectionCache.set(imageId, updated);
+
+      // mark as detected so Save will include this image
+      setDetectedKeys((prev) => new Set(prev).add(imageId));
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to store combined detections:', e);
+    }
+  }, [detectionCache]);
+
+  const handleViewerImageChange = React.useCallback((image: any, index: number) => {
+    const cacheKey = image.id || image.path;
+    const cached = detectionCache.get(cacheKey);
+    // Sync parent state with what the viewer shows for this image
+    if (cached) {
+      setDetectionResults(cached);
+    } else {
+      setDetectionResults(null);
+    }
+    setViewerIndex(index);
+    // Sync the selected state so the background UI matches the viewer
+    const found = images.find((it) => it.id === image.id || it.url === image.path);
+    if (found) setSelected(found);
+  }, [detectionCache, images]);
 
   return (
     <div className="flex h-[92vh]  overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200">
@@ -376,34 +476,10 @@ const BluePrintDetection = ({ id: propId }: any) => {
           initialIndex={viewerIndex}
           isOpen={viewerOpen}
           onClose={() => setViewerOpen(false)}
-          onImageChange={() => { }}
+          onImageChange={handleViewerImageChange}
           detectionResults={detectionResults}
-          onDetectionsChange={(imageId: string, combinedDetections: Array<any>) => {
-            try {
-              const existing = detectionCache.get(imageId) ?? {};
-              // Normalize combined detections into a predictions array compatible with API shape
-              const normalized = combinedDetections.map((d: any) => ({
-                id: d.id ?? undefined,
-                class: d.className ?? d.class ?? "Unknown",
-                confidence: typeof d.confidence === "number" ? d.confidence : undefined,
-                x: typeof d.x === "number" ? d.x : 0,
-                y: typeof d.y === "number" ? d.y : 0,
-                width: typeof d.width === "number" ? d.width : 0,
-                height: typeof d.height === "number" ? d.height : 0,
-                source: d.source ?? "User",
-                points: d.points ?? undefined,
-              }));
-
-              // store merged data so save can include both api predictions and user annotations
-              detectionCache.set(imageId, { ...existing, predictions: normalized, combined_export: combinedDetections });
-
-              // mark as detected so Save will include this image
-              setDetectedKeys((prev) => new Set(prev).add(imageId));
-            } catch (e) {
-              // eslint-disable-next-line no-console
-              console.error('Failed to store combined detections:', e);
-            }
-          }}
+          onDimensionDetectionsChange={handleDimensionDetectionsChange}
+          onDetectionsChange={handleDetectionsChange}
         />
       )}
       {loading && <Loader />}

@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export interface BlueprintImage {
   id: string;
   url?: string | null;
+  detection?: any;
+  roomCorridorDetections?: any[];
 }
 
 const resolveIdFromWindow = (propId?: string | null): string | null => {
@@ -65,6 +67,8 @@ export default function useBlueprintImages(propId?: string | null, versionId?: s
         const mapped: BlueprintImage[] = imgs.map((it: any) => ({
           id: it.id ?? it._id ?? String(Math.random()),
           url: it.url ?? it.file_url ?? it.dataUrl ?? it.src ?? null,
+          detection: it.detection ?? null,
+          roomCorridorDetections: it.roomCorridorDetections ?? null,
         }));
 
         setImages(mapped);

@@ -28,7 +28,7 @@ export default function useImageDetect() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`https://d1z68al0r0qxyd.cloudfront.net/detect`, {
+      const res = await fetch(`http://localhost:8000/detect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image_url: imageUrl ,

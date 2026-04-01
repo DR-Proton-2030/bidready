@@ -44,8 +44,8 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
   // Extract project and blueprints from the API response
   const project = projectData;
   // Transform BluePrint[] to Blueprint[] format expected by the component
-  const blueprints = (projectData.blueprint_list || []).map((bp) => ({
-    id: bp.name, // Use name as ID since BluePrint doesn't have id
+  const blueprints: any = (projectData.blueprint_list || []).map((bp) => ({
+    id: bp._id, // Use name as ID since BluePrint doesn't have id
     title: bp.name,
     category: bp.type,
     fileSize: "2.5 MB", // Default size since not in BluePrint interface
@@ -217,8 +217,8 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
               <button
                 onClick={() => setViewMode("grid")}
                 className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === "grid"
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white shadow-sm text-primary"
+                  : "text-gray-500 hover:text-gray-700"
                   }`}
               >
                 <Grid3X3 className="w-4 h-4" />
@@ -226,8 +226,8 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({
               <button
                 onClick={() => setViewMode("list")}
                 className={`p-2.5 rounded-lg transition-all duration-200 ${viewMode === "list"
-                    ? "bg-white shadow-sm text-primary"
-                    : "text-gray-500 hover:text-gray-700"
+                  ? "bg-white shadow-sm text-primary"
+                  : "text-gray-500 hover:text-gray-700"
                   }`}
               >
                 <List className="w-4 h-4" />

@@ -37,50 +37,63 @@ const ProjectCard: React.FC<IProject> = ({
   };
 
   return (
-    <div className="
+    <div
+      className="
       cursor-pointer
       max-w-md
+      w-full
       rounded-2xl
      border-2 border-white/80 bg-white/50 backdrop-blur-xl
       shadow-md
       transition-shadow
-      p-6
-    " onClick={handleCardClick}>
-
+      p-5 sm:p-6
+    "
+      onClick={handleCardClick}
+    >
       {/* Top Row */}
-      <div className="flex justify-between items-center mb-5">
-        <div className="
+      <div className="flex flex-wrap gap-3 justify-between items-center mb-5">
+        <div
+          className="
          p-3
           rounded-2xl
           flex items-center justify-center
         "
           style={{
             background: "linear-gradient(180deg,#ff8a33,#ff6a00)",
-          }}>
-          <FolderClosed className="w-7 h-7 text-white" />
+          }}
+        >
+          <FolderClosed className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
         </div>
 
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusColors[status] || statusColors.default
-          }`}>
+        <span
+          className={`px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold ${
+            statusColors[status] || statusColors.default
+          }`}
+        >
           {status?.toUpperCase() || "N/A"}
         </span>
       </div>
 
       {/* Project ID */}
-      <div className="text-xs text-gray-400 font-mono mb-3">
-        <span className="font-semibold text-gray-500">ID:</span> {_id?.slice(-8) || "N/A"}
+      <div className="text-xs text-gray-400 font-mono mb-3 truncate">
+        <span className="font-semibold text-gray-500">ID:</span>{" "}
+        {_id?.slice(-8) || "N/A"}
       </div>
 
       {/* Title */}
-      <h3 className="text-gray-900 font-semibold text-lg mb-2 line-clamp-2">{title}</h3>
+      <h3 className="text-gray-900 font-semibold text-base sm:text-lg mb-2 line-clamp-2">
+        {title}
+      </h3>
 
       {/* Description */}
-      <p className="text-gray-600 text-sm mb-4 line-clamp-3">{shortDescription}</p>
+      <p className="text-gray-600 text-xs sm:text-sm mb-4 line-clamp-3">
+        {shortDescription}
+      </p>
 
       {/* Creator Info */}
-      <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+      <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm text-gray-600 mb-4">
         <span className="font-medium">Created by:</span>
-        <span className="text-gray-800 font-medium">
+        <span className="text-gray-800 font-medium truncate max-w-[150px] sm:max-w-none">
           {created_by_details?.full_name || createdBy || "Unknown"}
         </span>
       </div>
@@ -88,21 +101,24 @@ const ProjectCard: React.FC<IProject> = ({
       <hr className="border-gray-200/30 mb-4" />
 
       {/* Bottom Row */}
-      <div className="flex items-center justify-between text-sm text-gray-600">
+      <div className="flex flex-wrap gap-3 items-center justify-between text-xs sm:text-sm text-gray-600">
         <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-gray-500" />
+          <Calendar className="w-4 h-4 text-gray-500 shrink-0" />
           <span>{formatDate(createdAt)}</span>
         </div>
 
         <button
-          onClick={handleCardClick}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleCardClick();
+          }}
           className="
             bg-orange-500 hover:bg-orange-600
             text-white
-            px-6 py-3
+            px-4 sm:px-6 py-2 sm:py-3
             rounded-full
             font-medium
-            text-sm
+            text-xs sm:text-sm
             transition-colors
           "
         >
