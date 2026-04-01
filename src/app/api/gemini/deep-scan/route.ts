@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const imagePayload = buildImagePayload(imageDataUrl);
 
     const result = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-flash-lite-latest",
       contents: [
         {
           parts: [{ text: prompt }, { inlineData: imagePayload }],

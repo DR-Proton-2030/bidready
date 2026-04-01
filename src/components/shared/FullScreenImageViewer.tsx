@@ -1001,9 +1001,9 @@ export default function FullScreenImageViewer({
     if (!className) return classColors[0];
     const lowerName = className.toLowerCase();
     if (lowerName.includes("room")) {
-      return "#1a9e21af"; // bright green
+      return "#1a9e216f"; // bright green
     } if (lowerName.includes("corridor")) {
-      return "#ffb74dff"; // bright red
+      return "#ffb84da7"; // bright red
     }
 
     // Create a simple hash from the class name for consistent color assignment
@@ -2718,7 +2718,7 @@ export default function FullScreenImageViewer({
                   }
 
                   return (
-                    <g 
+                    <g
                       key={`${det.label}-${idx}`}
                       onMouseEnter={() => setHoveredShapeId(hoverId)}
                       onMouseLeave={() => setHoveredShapeId(null)}
@@ -2896,8 +2896,8 @@ export default function FullScreenImageViewer({
                               : "default",
                       }}
                       onMouseEnter={() => setHoveredShapeId(detection.id)}
-                    onMouseLeave={() => setHoveredShapeId(null)}
-                    onClick={() => {
+                      onMouseLeave={() => setHoveredShapeId(null)}
+                      onClick={() => {
                         if (activeTool === "erase") {
                           removeOverlayWithUndo(
                             detection.id,

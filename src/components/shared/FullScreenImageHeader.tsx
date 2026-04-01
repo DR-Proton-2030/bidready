@@ -163,13 +163,13 @@ export const FullScreenImageHeader: React.FC<FullScreenImageHeaderProps> = (prop
 
                             <ToggleButton />
 
-                            <button
+                            {/* <button
                                 onClick={onExportCsv}
                                 className="p-2.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50/80 rounded-xl transition-all duration-200 hover:shadow-sm"
                                 title="Export CSV"
                             >
                                 <Download size={18} />
-                            </button>
+                            </button> */}
 
                             <button
                                 onClick={onClose}
