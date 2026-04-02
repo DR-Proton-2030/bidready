@@ -28,18 +28,29 @@ export default function useImageDetect() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`https://d1z68al0r0qxyd.cloudfront.net/detect`, {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout
+
+      const API_URL = "https://d1z68al0r0qxyd.cloudfront.net";
+      // const API_URL = "http://localhost:8000";
+      const res = await fetch(`${API_URL}/detect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image_url: imageUrl,
           selected_labels: "Door,Window,Wall",
           use_tiling: true,
-          per_class_conf: { "Wall": 0.1, "Door": 1, "Window": 0.32 }
+          per_class_conf: { "Wall": 0.01, "Door": 0.5, "Window": 0.05 }
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
+
       if (!res.ok) {
         const text = await res.text().catch(() => "");
+        if (res.status === 504) {
+          throw new Error("Detection timed out (504). The image might be too large or the server is busy.");
+        }
         throw new Error(`Detect API error ${res.status} ${text}`);
       }
       const data = await res.json().catch(() => null);
