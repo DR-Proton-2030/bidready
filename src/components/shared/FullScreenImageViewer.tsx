@@ -1877,23 +1877,30 @@ export default function FullScreenImageViewer({
 
     visibleBoxes = filterByRoi(visibleBoxes);
 
-    const imageArea = imageDimensions.width * imageDimensions.height;
+    const imageW = imageDimensions.width;
+    const imageH = imageDimensions.height;
+    const imageArea = imageW * imageH;
     if (imageArea > 0) {
       visibleBoxes = visibleBoxes.filter((box: any) => {
         const cls = String(box.class || "").toLowerCase();
-        if (cls !== "wall") return true;
+        const isWall = cls.includes("wall");
+        if (!isWall) return true;
         let w = Math.max(0, box.width || 0);
         let h = Math.max(0, box.height || 0);
-        if ((!w || !h) && Array.isArray(box.points) && box.points.length > 2) {
+        if (Array.isArray(box.points) && box.points.length > 2) {
           const xs = box.points.map((p: any) => p.x);
           const ys = box.points.map((p: any) => p.y);
           w = Math.max(0, Math.max(...xs) - Math.min(...xs));
           h = Math.max(0, Math.max(...ys) - Math.min(...ys));
         }
-        const areaRatio = (w * h) / imageArea;
-        const aspect = Math.max(w, h) / Math.max(1, Math.min(w, h));
-        if (areaRatio > 0.08) return false;
-        if (areaRatio > 0.02 && aspect < 20) return false;
+        if (!w || !h) return true;
+        const widthRatio = w / imageW;
+        const heightRatio = h / imageH;
+        const thicknessRatio = Math.min(widthRatio, heightRatio);
+
+        // Reject wide blocks/squares while keeping thin long walls.
+        if (widthRatio >= 0.25 && thicknessRatio >= 0.06) return false;
+        if (thicknessRatio >= 0.12) return false;
         return true;
       });
     }
