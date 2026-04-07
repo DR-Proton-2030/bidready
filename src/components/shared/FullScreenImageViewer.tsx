@@ -169,6 +169,7 @@ export default function FullScreenImageViewer({
   const [showDetections, setShowDetections] = useState(true);
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
+  const hideRoomCorridorBoxes = true;
   const [dimensionDetections, setDimensionDetections] = useState<
     BlueprintRegionDetection[]
   >([]);
@@ -1876,6 +1877,27 @@ export default function FullScreenImageViewer({
 
     visibleBoxes = filterByRoi(visibleBoxes);
 
+    const imageArea = imageDimensions.width * imageDimensions.height;
+    if (imageArea > 0) {
+      visibleBoxes = visibleBoxes.filter((box: any) => {
+        const cls = String(box.class || "").toLowerCase();
+        if (cls !== "wall") return true;
+        let w = Math.max(0, box.width || 0);
+        let h = Math.max(0, box.height || 0);
+        if ((!w || !h) && Array.isArray(box.points) && box.points.length > 2) {
+          const xs = box.points.map((p: any) => p.x);
+          const ys = box.points.map((p: any) => p.y);
+          w = Math.max(0, Math.max(...xs) - Math.min(...xs));
+          h = Math.max(0, Math.max(...ys) - Math.min(...ys));
+        }
+        const areaRatio = (w * h) / imageArea;
+        const aspect = Math.max(w, h) / Math.max(1, Math.min(w, h));
+        if (areaRatio > 0.08) return false;
+        if (areaRatio > 0.02 && aspect < 20) return false;
+        return true;
+      });
+    }
+
     // Filter by selected classes if any are selected
     if (selectedClasses.size === 0) {
       return visibleBoxes; // Show all if none selected
@@ -2698,6 +2720,7 @@ export default function FullScreenImageViewer({
               and drawn by the generateSvgOverlay above. 
           */}
           {showDimensions &&
+            !hideRoomCorridorBoxes &&
             imageDimensions.width > 0 &&
             dimensionDetections.length > 0 && (
               <svg
@@ -2876,6 +2899,9 @@ export default function FullScreenImageViewer({
                   const isRoomOrCorridor = ["rooms", "corridors", "room", "corridor"].includes(
                     String(detection.class || "").trim().toLowerCase()
                   );
+                  if (hideRoomCorridorBoxes && isRoomOrCorridor) {
+                    return null;
+                  }
 
                   let autoAreaLabel = "";
                   let autoAreaCentroid: MeasurementPoint | null = null;
