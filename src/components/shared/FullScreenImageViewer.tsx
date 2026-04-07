@@ -1002,7 +1002,17 @@ export default function FullScreenImageViewer({
     const lowerName = className.toLowerCase();
     if (lowerName.includes("room")) {
       return "#1a9e216f"; // bright green
-    } if (lowerName.includes("corridor")) {
+    } 
+     if (lowerName.includes("wall")) {
+      return "#de0505"; // bright green
+    }
+     if (lowerName.includes("window")) {
+      return "#ebff0b"; // bright green
+    }
+     if (lowerName.includes("door")) {
+      return "#7702ae"; // bright green
+    }
+     if (lowerName.includes("corridor")) {
       return "#ffb84da7"; // bright red
     }
 

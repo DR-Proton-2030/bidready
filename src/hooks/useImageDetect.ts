@@ -31,8 +31,8 @@ export default function useImageDetect() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s timeout
 
-      const API_URL = "https://d1z68al0r0qxyd.cloudfront.net";
-      // const API_URL = "http://localhost:8000";
+      // const API_URL = "https://d1z68al0r0qxyd.cloudfront.net";
+      const API_URL = "http://localhost:8000";
       const res = await fetch(`${API_URL}/detect`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
