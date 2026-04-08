@@ -227,6 +227,14 @@ export default function FullScreenImageViewer({
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(
     null,
   );
+  const [isBoxSelecting, setIsBoxSelecting] = useState(false);
+  const [boxSelectStart, setBoxSelectStart] = useState<MeasurementPoint | null>(
+    null,
+  );
+  const [boxSelectRect, setBoxSelectRect] = useState<RoiRect | null>(null);
+  const [selectedDetectionIds, setSelectedDetectionIds] = useState<Set<string>>(
+    new Set(),
+  );
   const [dismissedDetections, setDismissedDetections] = useState<Set<string>>(
     new Set(),
   );
@@ -438,6 +446,26 @@ export default function FullScreenImageViewer({
     [],
   );
 
+  const getSelectionBounds = useCallback(
+    (detection: Detection) => {
+      if (Array.isArray(detection.points) && detection.points.length > 0) {
+        const xs = detection.points.map((p) => p.x);
+        const ys = detection.points.map((p) => p.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const w = Math.max(0, maxX - minX);
+        const h = Math.max(0, maxY - minY);
+        if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0)
+          return null;
+        return { x1: minX, y1: minY, x2: maxX, y2: maxY, area: w * h };
+      }
+      return getBBoxFromDetection(detection);
+    },
+    [getBBoxFromDetection],
+  );
+
   const filterByRoi = useCallback(
     <T extends any>(detections: T[]): T[] => {
       if (!useDetectedRoi || !detectedRoi) return detections;
@@ -478,6 +506,36 @@ export default function FullScreenImageViewer({
       reader.readAsDataURL(blob);
     });
   }, []);
+
+  const getImagePointFromEvent = useCallback(
+    (event: React.MouseEvent) => {
+      const img = imageRef.current;
+      if (!img || !imageDimensions.width || !imageDimensions.height) return null;
+      const rect = img.getBoundingClientRect();
+      if (!rect.width || !rect.height) return null;
+
+      const renderRatio = Math.min(
+        rect.width / imageDimensions.width,
+        rect.height / imageDimensions.height,
+      );
+      const actualWidth = imageDimensions.width * renderRatio;
+      const actualHeight = imageDimensions.height * renderRatio;
+      const offsetX = (rect.width - actualWidth) / 2;
+      const offsetY = (rect.height - actualHeight) / 2;
+
+      const rawX =
+        (event.clientX - rect.left - offsetX) *
+        (imageDimensions.width / actualWidth);
+      const rawY =
+        (event.clientY - rect.top - offsetY) *
+        (imageDimensions.height / actualHeight);
+
+      const x = Math.max(0, Math.min(imageDimensions.width, rawX));
+      const y = Math.max(0, Math.min(imageDimensions.height, rawY));
+      return { x, y };
+    },
+    [imageDimensions.height, imageDimensions.width],
+  );
 
   const handleDeepScan = async () => {
     if (!currentImage) return;
@@ -601,6 +659,14 @@ export default function FullScreenImageViewer({
       setSidebarOpen(false);
     }
   }, [activeTool]);
+
+  useEffect(() => {
+    if (activeTool !== "box-select" && isBoxSelecting) {
+      setIsBoxSelecting(false);
+      setBoxSelectStart(null);
+      setBoxSelectRect(null);
+    }
+  }, [activeTool, isBoxSelecting]);
 
   const handleOverlayCopyCurrent = () => {
     if (!currentImage) return;
@@ -953,7 +1019,11 @@ export default function FullScreenImageViewer({
     setSnackbar({ visible: false, message: "" });
   };
 
-  const removeOverlayWithUndo = (id: string, isUser: boolean) => {
+  const removeOverlayWithUndo = (
+    id: string,
+    isUser: boolean,
+    options?: { silent?: boolean },
+  ) => {
     if (isUser) {
       setUserAnnotations((prev) => {
         const found = prev.find((a) => a.id === id);
@@ -970,8 +1040,28 @@ export default function FullScreenImageViewer({
       setUndoStack((stack) => [...stack, { kind: "api", id }]);
     }
     setSelectedOverlayId(null);
-    showUndoSnackbar("Deleted. Undo?");
+    if (!options?.silent) {
+      showUndoSnackbar("Deleted. Undo?");
+    }
   };
+
+  const clearSelectedDetections = useCallback(() => {
+    setSelectedDetectionIds(new Set());
+    setSelectedOverlayId(null);
+  }, []);
+
+  const deleteSelectedDetections = useCallback(() => {
+    const ids = Array.from(selectedDetectionIds);
+    if (ids.length === 0) return;
+
+    ids.forEach((id) => {
+      const isUser = userAnnotations.some((a) => a.id === id);
+      removeOverlayWithUndo(id, isUser, { silent: true });
+    });
+
+    setSelectedDetectionIds(new Set());
+    showUndoSnackbar(`${ids.length} deleted. Undo?`);
+  }, [selectedDetectionIds, showUndoSnackbar, userAnnotations, removeOverlayWithUndo]);
 
   // Predefined colors for consistent class mapping
   const classColors = [
@@ -1060,7 +1150,11 @@ export default function FullScreenImageViewer({
 
     if (showElectrical) {
       (detectionResults?.electricalPredictions ?? []).forEach(
-        (prediction: any) => {
+        (prediction: any, index: number) => {
+          const detId = prediction?.id
+            ? String(prediction.id)
+            : `electrical-${index}`;
+          if (dismissedDetections.has(detId)) return;
           if (filterByRoi([prediction]).length === 0) return;
           bump(prediction?.class ?? "Electrical", {
             confidence:
@@ -1148,6 +1242,10 @@ export default function FullScreenImageViewer({
     setMeasurementDraft(null);
     setIsMeasuring(false);
     setAskAiOpen(false);
+    setIsBoxSelecting(false);
+    setBoxSelectStart(null);
+    setBoxSelectRect(null);
+    setSelectedDetectionIds(new Set());
   }, [currentIndex]);
 
   // Update currentIndex when initialIndex changes
@@ -1328,15 +1426,29 @@ export default function FullScreenImageViewer({
   useEffect(() => {
     const onDel = (e: KeyboardEvent) => {
       if (!isOpen) return;
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedOverlayId) {
-        e.preventDefault();
-        const isUser = userAnnotations.some((a) => a.id === selectedOverlayId);
-        removeOverlayWithUndo(selectedOverlayId, isUser);
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (selectedDetectionIds.size > 0) {
+          e.preventDefault();
+          deleteSelectedDetections();
+          return;
+        }
+        if (selectedOverlayId) {
+          e.preventDefault();
+          const isUser = userAnnotations.some((a) => a.id === selectedOverlayId);
+          removeOverlayWithUndo(selectedOverlayId, isUser);
+        }
       }
     };
     window.addEventListener("keydown", onDel);
     return () => window.removeEventListener("keydown", onDel);
-  }, [isOpen, selectedOverlayId, userAnnotations]);
+  }, [
+    deleteSelectedDetections,
+    isOpen,
+    removeOverlayWithUndo,
+    selectedDetectionIds.size,
+    selectedOverlayId,
+    userAnnotations,
+  ]);
 
   // Ctrl/Cmd+Z undo
   useEffect(() => {
@@ -1569,6 +1681,15 @@ export default function FullScreenImageViewer({
       return;
     }
 
+    if (activeTool === "box-select") {
+      const point = getImagePointFromEvent(e);
+      if (!point) return;
+      setIsBoxSelecting(true);
+      setBoxSelectStart(point);
+      setBoxSelectRect({ x: point.x, y: point.y, width: 0, height: 0 });
+      return;
+    }
+
     if (activeTool === "annotate" || activeTool === "crop-overlay") {
       const img = imageRef.current;
       if (!img || !imageDimensions.width) return;
@@ -1658,6 +1779,17 @@ export default function FullScreenImageViewer({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (activeTool === "box-select" && isBoxSelecting && boxSelectStart) {
+      const point = getImagePointFromEvent(e);
+      if (!point) return;
+      setBoxSelectRect({
+        x: Math.min(boxSelectStart.x, point.x),
+        y: Math.min(boxSelectStart.y, point.y),
+        width: Math.abs(point.x - boxSelectStart.x),
+        height: Math.abs(point.y - boxSelectStart.y),
+      });
+      return;
+    }
     if (
       (activeTool === "annotate" || activeTool === "crop-overlay") &&
       isDrawing
@@ -1754,7 +1886,35 @@ export default function FullScreenImageViewer({
     }
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (event?: React.MouseEvent) => {
+    if (isBoxSelecting) {
+      if (boxSelectRect && boxSelectRect.width > 5 && boxSelectRect.height > 5) {
+        const selectionBox = {
+          x1: boxSelectRect.x,
+          y1: boxSelectRect.y,
+          x2: boxSelectRect.x + boxSelectRect.width,
+          y2: boxSelectRect.y + boxSelectRect.height,
+        };
+        const hits = getCombinedDetectionBoxes().filter((detection) => {
+          const bounds = getSelectionBounds(detection);
+          if (!bounds) return false;
+          return intersectionArea(bounds, selectionBox) > 0;
+        });
+        const ids = hits.map((hit) => hit.id);
+        setSelectedDetectionIds((prev) => {
+          const next = event?.shiftKey ? new Set(prev) : new Set();
+          ids.forEach((id) => next.add(id));
+          return next;
+        });
+        setSelectedOverlayId(null);
+      } else if (!event?.shiftKey) {
+        setSelectedDetectionIds(new Set());
+      }
+      setIsBoxSelecting(false);
+      setBoxSelectStart(null);
+      setBoxSelectRect(null);
+      return;
+    }
     if (isDrawing) {
       if (activeTool === "annotate") {
         if (currentBox && currentBox.width > 5 && currentBox.height > 5) {
@@ -2092,6 +2252,10 @@ export default function FullScreenImageViewer({
         }),
       );
 
+      electricalBoxes = electricalBoxes.filter(
+        (box) => !dismissedDetections.has(box.id),
+      );
+
       electricalBoxes = filterByRoi(electricalBoxes);
 
       if (selectedClasses.size > 0) {
@@ -2185,8 +2349,10 @@ export default function FullScreenImageViewer({
           confidence: p.confidence,
         }),
       );
-
-      const roiFilteredElBoxes = filterByRoi(elBoxes);
+      const filteredElBoxes = elBoxes.filter(
+        (box) => !dismissedDetections.has(box.id),
+      );
+      const roiFilteredElBoxes = filterByRoi(filteredElBoxes);
 
       if (selectedClasses.size === 0) {
         allDetections = [...allDetections, ...(roiFilteredElBoxes as any)];
@@ -2254,6 +2420,7 @@ export default function FullScreenImageViewer({
     userAnnotations,
     selectedClasses,
     showDetections,
+    dismissedDetections,
   ]);
 
   // Update SVG overlay when detections change
@@ -2620,7 +2787,8 @@ export default function FullScreenImageViewer({
             activeTool === "annotate" ||
               activeTool === "polygon" ||
               activeTool === "linear" ||
-              activeTool === "measure"
+              activeTool === "measure" ||
+              activeTool === "box-select"
               ? "crosshair"
               : activeTool === "erase"
                 ? "pointer"
@@ -2659,7 +2827,8 @@ export default function FullScreenImageViewer({
                 activeTool === "annotate" ||
                   activeTool === "polygon" ||
                   activeTool === "linear" ||
-                  activeTool === "measure"
+                  activeTool === "measure" ||
+                  activeTool === "box-select"
                   ? "crosshair"
                   : activeTool === "pan" || zoom > 1
                     ? isDragging
@@ -2876,7 +3045,9 @@ export default function FullScreenImageViewer({
 
                   const xRect = detection.x - xShift;
                   const yRect = detection.y - yShift;
-                  const isSelected = selectedOverlayId === detection.id;
+                  const isSelected =
+                    selectedOverlayId === detection.id ||
+                    selectedDetectionIds.has(detection.id);
                   let userPolygonAreaLabel: string | undefined;
                   let userPolygonCentroid: MeasurementPoint | null = null;
 
@@ -2928,13 +3099,19 @@ export default function FullScreenImageViewer({
                       className={isRoomOrCorridor ? "group" : ""}
                       style={{
                         pointerEvents:
-                          isUserAnnotation || activeTool === "erase" || isRoomOrCorridor
-                            ? "auto"
-                            : "none",
+                          activeTool === "box-select"
+                            ? "none"
+                            : isUserAnnotation ||
+                                activeTool === "erase" ||
+                                isRoomOrCorridor
+                              ? "auto"
+                              : "none",
                         cursor:
                           activeTool === "erase"
                             ? "not-allowed"
-                            : isUserAnnotation || isRoomOrCorridor
+                            : activeTool === "box-select"
+                              ? "crosshair"
+                              : isUserAnnotation || isRoomOrCorridor
                               ? "pointer"
                               : "default",
                       }}
@@ -3364,6 +3541,35 @@ export default function FullScreenImageViewer({
                 />
               </svg>
             )}
+
+          {/* Box Select (Marquee) */}
+          {activeTool === "box-select" &&
+            isBoxSelecting &&
+            boxSelectRect &&
+            imageDimensions.width > 0 && (
+              <svg
+                className="absolute top-0 left-0 pointer-events-none"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom}px, ${imagePosition.y / zoom}px)`,
+                  transformOrigin: "center center",
+                }}
+                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+                preserveAspectRatio="xMidYMid meet"
+              >
+                <rect
+                  x={boxSelectRect.x}
+                  y={boxSelectRect.y}
+                  width={boxSelectRect.width}
+                  height={boxSelectRect.height}
+                  fill="rgba(14, 165, 233, 0.12)"
+                  stroke="#0ea5e9"
+                  strokeDasharray="6 4"
+                  strokeWidth={2 / zoom}
+                />
+              </svg>
+            )}
         </div>
       </div>
 
@@ -3409,6 +3615,28 @@ export default function FullScreenImageViewer({
           <span className="text-[10px] uppercase tracking-wide text-slate-500">
             Hover for live values
           </span>
+        </div>
+      )}
+
+      {selectedDetectionIds.size > 0 && (
+        <div className="absolute left-6 bottom-6 z-[60] pointer-events-auto">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/60 bg-white/80 px-4 py-2 shadow-xl backdrop-blur">
+            <span className="text-sm font-semibold text-gray-800">
+              {selectedDetectionIds.size} selected
+            </span>
+            <button
+              onClick={deleteSelectedDetections}
+              className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600"
+            >
+              Delete
+            </button>
+            <button
+              onClick={clearSelectedDetections}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
 

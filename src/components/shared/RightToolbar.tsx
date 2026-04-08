@@ -12,6 +12,7 @@ import {
   Eraser,
   Pentagon,
   Layers,
+  ScanSearch,
 } from "lucide-react";
 
 interface ToolButtonProps {
@@ -103,6 +104,13 @@ const RightToolbar: React.FC<RightToolbarProps> = ({
           activeTool={activeTool}
           onClick={() => setTool("select")}
           tooltip="Select"
+        />
+        <ToolButton
+          icon={ScanSearch}
+          label="box-select"
+          activeTool={activeTool}
+          onClick={() => setTool("box-select")}
+          tooltip="Box Select"
         />
         <ToolButton
           icon={Hand}
