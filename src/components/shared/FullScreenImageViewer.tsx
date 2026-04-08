@@ -169,6 +169,7 @@ export default function FullScreenImageViewer({
   const [showDetections, setShowDetections] = useState(true);
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
+  const hideRoomCorridorBoxes = true;
   const [dimensionDetections, setDimensionDetections] = useState<
     BlueprintRegionDetection[]
   >([]);
@@ -1002,7 +1003,17 @@ export default function FullScreenImageViewer({
     const lowerName = className.toLowerCase();
     if (lowerName.includes("room")) {
       return "#1a9e216f"; // bright green
-    } if (lowerName.includes("corridor")) {
+    } 
+     if (lowerName.includes("wall")) {
+      return "#de0505"; // bright green
+    }
+     if (lowerName.includes("window")) {
+      return "#ebff0b"; // bright green
+    }
+     if (lowerName.includes("door")) {
+      return "#7702ae"; // bright green
+    }
+     if (lowerName.includes("corridor")) {
       return "#ffb84da7"; // bright red
     }
 
@@ -1866,6 +1877,34 @@ export default function FullScreenImageViewer({
 
     visibleBoxes = filterByRoi(visibleBoxes);
 
+    const imageW = imageDimensions.width;
+    const imageH = imageDimensions.height;
+    const imageArea = imageW * imageH;
+    if (imageArea > 0) {
+      visibleBoxes = visibleBoxes.filter((box: any) => {
+        const cls = String(box.class || "").toLowerCase();
+        const isWall = cls.includes("wall");
+        if (!isWall) return true;
+        let w = Math.max(0, box.width || 0);
+        let h = Math.max(0, box.height || 0);
+        if (Array.isArray(box.points) && box.points.length > 2) {
+          const xs = box.points.map((p: any) => p.x);
+          const ys = box.points.map((p: any) => p.y);
+          w = Math.max(0, Math.max(...xs) - Math.min(...xs));
+          h = Math.max(0, Math.max(...ys) - Math.min(...ys));
+        }
+        if (!w || !h) return true;
+        const widthRatio = w / imageW;
+        const heightRatio = h / imageH;
+        const thicknessRatio = Math.min(widthRatio, heightRatio);
+
+        // Reject wide blocks/squares while keeping thin long walls.
+        if (widthRatio >= 0.25 && thicknessRatio >= 0.06) return false;
+        if (thicknessRatio >= 0.12) return false;
+        return true;
+      });
+    }
+
     // Filter by selected classes if any are selected
     if (selectedClasses.size === 0) {
       return visibleBoxes; // Show all if none selected
@@ -2688,6 +2727,7 @@ export default function FullScreenImageViewer({
               and drawn by the generateSvgOverlay above. 
           */}
           {showDimensions &&
+            !hideRoomCorridorBoxes &&
             imageDimensions.width > 0 &&
             dimensionDetections.length > 0 && (
               <svg
@@ -2866,6 +2906,9 @@ export default function FullScreenImageViewer({
                   const isRoomOrCorridor = ["rooms", "corridors", "room", "corridor"].includes(
                     String(detection.class || "").trim().toLowerCase()
                   );
+                  if (hideRoomCorridorBoxes && isRoomOrCorridor) {
+                    return null;
+                  }
 
                   let autoAreaLabel = "";
                   let autoAreaCentroid: MeasurementPoint | null = null;
