@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   X,
   ChevronLeft,
@@ -46,7 +52,10 @@ interface FullScreenImageViewerProps {
   onImageChange?: (image: Image, index: number) => void;
   detectionResults?: any;
   onSvgOverlayUpdate?: (imageId: string, svgData: string | null) => void;
-  onDetectionsChange?: (imageId: string, combinedDetections: Array<any>) => void;
+  onDetectionsChange?: (
+    imageId: string,
+    combinedDetections: Array<any>
+  ) => void;
 }
 
 const areaFormatter = new Intl.NumberFormat("en-US", {
@@ -82,16 +91,13 @@ export default function FullScreenImageViewer({
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
   const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
-  const [shapeTooltip, setShapeTooltip] = useState<
-    | {
-      x: number;
-      y: number;
-      name: string;
-      area?: string;
-      color: string;
-    }
-    | null
-  >(null);
+  const [shapeTooltip, setShapeTooltip] = useState<{
+    x: number;
+    y: number;
+    name: string;
+    area?: string;
+    color: string;
+  } | null>(null);
   const [selectedClasses, setSelectedClasses] = useState<Set<string>>(
     new Set()
   );
@@ -109,24 +115,40 @@ export default function FullScreenImageViewer({
   const [startPoint, setStartPoint] = useState({ x: 0, y: 0 });
   const [currentBox, setCurrentBox] = useState<any>(null);
   const [userAnnotations, setUserAnnotations] = useState<Detection[]>([]);
-  const [polygonPoints, setPolygonPoints] = useState<Array<{ x: number; y: number }>>([]);
-  const [draggingPointIndex, setDraggingPointIndex] = useState<number | null>(null);
-  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null);
+  const [polygonPoints, setPolygonPoints] = useState<
+    Array<{ x: number; y: number }>
+  >([]);
+  const [draggingPointIndex, setDraggingPointIndex] = useState<number | null>(
+    null
+  );
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(
+    null
+  );
   const [showClassSelector, setShowClassSelector] = useState(false);
   const [pendingAnnotation, setPendingAnnotation] = useState<any>(null);
   const [selectedAnnotationClass, setSelectedAnnotationClass] = useState("");
-  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [dismissedDetections, setDismissedDetections] = useState<Set<string>>(new Set());
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(
+    null
+  );
+  const [dismissedDetections, setDismissedDetections] = useState<Set<string>>(
+    new Set()
+  );
   type UndoAction = { kind: "user" | "api"; id: string; payload?: Detection };
   const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
-  const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: "" });
+  const [snackbar, setSnackbar] = useState<{
+    visible: boolean;
+    message: string;
+  }>({ visible: false, message: "" });
   const snackbarTimerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const showUndoSnackbar = (message = "Removed. Undo?") => {
     setSnackbar({ visible: true, message });
     if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
-    snackbarTimerRef.current = setTimeout(() => setSnackbar({ visible: false, message: "" }), 5000);
+    snackbarTimerRef.current = setTimeout(
+      () => setSnackbar({ visible: false, message: "" }),
+      5000
+    );
   };
 
   const undoLast = () => {
@@ -153,7 +175,10 @@ export default function FullScreenImageViewer({
       setUserAnnotations((prev) => {
         const found = prev.find((a) => a.id === id);
         if (found) {
-          setUndoStack((stack) => [...stack, { kind: "user", id, payload: found }]);
+          setUndoStack((stack) => [
+            ...stack,
+            { kind: "user", id, payload: found },
+          ]);
         }
         return prev.filter((a) => a.id !== id);
       });
@@ -486,16 +511,21 @@ export default function FullScreenImageViewer({
 
         if (editingAnnotationId) {
           // Edit a saved annotation's point
-          setUserAnnotations((prev) => prev.map((ann) => {
-            if (ann.id === editingAnnotationId && ann.points) {
-              const newPoints = [...ann.points];
-              if (draggingPointIndex >= 0 && draggingPointIndex < newPoints.length) {
-                newPoints[draggingPointIndex] = { x, y };
+          setUserAnnotations((prev) =>
+            prev.map((ann) => {
+              if (ann.id === editingAnnotationId && ann.points) {
+                const newPoints = [...ann.points];
+                if (
+                  draggingPointIndex >= 0 &&
+                  draggingPointIndex < newPoints.length
+                ) {
+                  newPoints[draggingPointIndex] = { x, y };
+                }
+                return { ...ann, points: newPoints };
               }
-              return { ...ann, points: newPoints };
-            }
-            return ann;
-          }));
+              return ann;
+            })
+          );
         } else {
           // Edit in-progress polygon points
           setPolygonPoints((prev) => {
@@ -571,27 +601,27 @@ export default function FullScreenImageViewer({
     const allBoxes = detectionResults.predictions
       // Filter out user annotations - they're handled separately in userAnnotations state
       .filter((detection: any) => detection.source !== "User")
-      .map(
-        (detection: any, index: number): Detection => {
-          const className = detection.class || "Unknown";
-          const color = getColorForClass(className);
+      .map((detection: any, index: number): Detection => {
+        const className = detection.class || "Unknown";
+        const color = getColorForClass(className);
 
-          return {
-            x: detection.x || 0,
-            y: detection.y || 0,
-            width: detection.width || 0,
-            height: detection.height || 0,
-            class: detection.class,
-            confidence: detection.confidence,
-            color,
-            id: detection.id ? String(detection.id) : `detection-${index}`,
-            points: detection.points || undefined, // Preserve points if present
-          };
-        }
-      );
+        return {
+          x: detection.x || 0,
+          y: detection.y || 0,
+          width: detection.width || 0,
+          height: detection.height || 0,
+          class: detection.class,
+          confidence: detection.confidence,
+          color,
+          id: detection.id ? String(detection.id) : `detection-${index}`,
+          points: detection.points || undefined, // Preserve points if present
+        };
+      });
 
     // Remove dismissed detections
-    const visibleBoxes = allBoxes.filter((box: Detection) => !dismissedDetections.has(box.id));
+    const visibleBoxes = allBoxes.filter(
+      (box: Detection) => !dismissedDetections.has(box.id)
+    );
 
     // Filter by selected classes if any are selected
     if (selectedClasses.size === 0) {
@@ -622,7 +652,9 @@ export default function FullScreenImageViewer({
         // Skip user annotations (they're in userAnnotations state)
         if (detection.source === "User") return;
 
-        const detId = detection.id ? String(detection.id) : `detection-${index}`;
+        const detId = detection.id
+          ? String(detection.id)
+          : `detection-${index}`;
         if (dismissedDetections.has(detId)) return; // skip dismissed
         const className = detection.class || "Unknown";
         counts[className] = (counts[className] || 0) + 1;
@@ -715,7 +747,10 @@ export default function FullScreenImageViewer({
   // Finish polygon: convert polygonPoints into a pendingAnnotation then open class selector
   const finishPolygon = () => {
     if (!polygonPoints || polygonPoints.length < 3) {
-      console.warn('Not enough points to create polygon:', polygonPoints.length);
+      console.warn(
+        "Not enough points to create polygon:",
+        polygonPoints.length
+      );
       return;
     }
     // compute bounding box and centroid
@@ -787,20 +822,24 @@ export default function FullScreenImageViewer({
     // Build electrical boxes
     let electricalBoxes: Detection[] = [];
     if (detectionResults?.electricalPredictions) {
-      electricalBoxes = (detectionResults.electricalPredictions || []).map((p: any, i: number) => ({
-        x: p.x || 0,
-        y: p.y || 0,
-        width: p.width || 0,
-        height: p.height || 0,
-        class: p.class || "Electrical",
-        confidence: p.confidence,
-        color: getColorForClass(`electrical:${p.class || 'Electrical'}`),
-        id: p.id ? String(p.id) : `electrical-${i}`,
-        points: undefined,
-      }));
+      electricalBoxes = (detectionResults.electricalPredictions || []).map(
+        (p: any, i: number) => ({
+          x: p.x || 0,
+          y: p.y || 0,
+          width: p.width || 0,
+          height: p.height || 0,
+          class: p.class || "Electrical",
+          confidence: p.confidence,
+          color: getColorForClass(`electrical:${p.class || "Electrical"}`),
+          id: p.id ? String(p.id) : `electrical-${i}`,
+          points: undefined,
+        })
+      );
 
       if (selectedClasses.size > 0) {
-        electricalBoxes = electricalBoxes.filter((b: Detection) => selectedClasses.has(b.class || "Unknown"));
+        electricalBoxes = electricalBoxes.filter((b: Detection) =>
+          selectedClasses.has(b.class || "Unknown")
+        );
       }
     }
 
@@ -843,29 +882,39 @@ export default function FullScreenImageViewer({
       if (selectedClasses.size === 0) {
         allDetections = [...allDetections, ...originalBoxes];
       } else {
-        allDetections = [...allDetections, ...originalBoxes.filter((box: Detection) =>
-          selectedClasses.has(box.class || "Unknown")
-        )];
+        allDetections = [
+          ...allDetections,
+          ...originalBoxes.filter((box: Detection) =>
+            selectedClasses.has(box.class || "Unknown")
+          ),
+        ];
       }
     }
 
     // If electrical-only mode is enabled, add only electrical predictions
     if (showElectrical && detectionResults?.electricalPredictions) {
-      const elBoxes = (detectionResults.electricalPredictions || []).map((p: any, i: number): Detection => ({
-        x: p.x || 0,
-        y: p.y || 0,
-        width: p.width || 0,
-        height: p.height || 0,
-        class: p.class || "Electrical",
-        confidence: p.confidence,
-        color: getColorForClass(`electrical:${p.class || 'Electrical'}`),
-        id: p.id ? String(p.id) : `electrical-${i}`,
-      }));
+      const elBoxes = (detectionResults.electricalPredictions || []).map(
+        (p: any, i: number): Detection => ({
+          x: p.x || 0,
+          y: p.y || 0,
+          width: p.width || 0,
+          height: p.height || 0,
+          class: p.class || "Electrical",
+          confidence: p.confidence,
+          color: getColorForClass(`electrical:${p.class || "Electrical"}`),
+          id: p.id ? String(p.id) : `electrical-${i}`,
+        })
+      );
 
       if (selectedClasses.size === 0) {
         allDetections = [...allDetections, ...elBoxes];
       } else {
-        allDetections = [...allDetections, ...elBoxes.filter((b: Detection) => selectedClasses.has(b.class || "Unknown"))];
+        allDetections = [
+          ...allDetections,
+          ...elBoxes.filter((b: Detection) =>
+            selectedClasses.has(b.class || "Unknown")
+          ),
+        ];
       }
     }
 
@@ -885,7 +934,9 @@ export default function FullScreenImageViewer({
            width="${imageDimensions.width}" 
            height="${imageDimensions.height}" 
            viewBox="0 0 ${imageDimensions.width} ${imageDimensions.height}">
-        ${allDetections.map(detection => `
+        ${allDetections
+          .map(
+            (detection) => `
           <rect x="${detection.x - detection.width / 2}" 
                 y="${detection.y - detection.height / 2}" 
                 width="${detection.width}" 
@@ -894,22 +945,39 @@ export default function FullScreenImageViewer({
                 stroke="${detection.color}" 
                 stroke-width="2" 
                 opacity="0.8"/>
-          ${detection.class ? `
+          ${
+            detection.class
+              ? `
             <text x="${detection.x - detection.width / 2}" 
                   y="${detection.y - detection.height / 2 - 5}" 
                   font-family="Arial, sans-serif" 
                   font-size="12" 
                   fill="${detection.color}" 
                   font-weight="bold">
-              ${detection.class}${detection.confidence ? ` (${Math.round(detection.confidence * 100)}%)` : ''}
+              ${detection.class}${
+                  detection.confidence
+                    ? ` (${Math.round(detection.confidence * 100)}%)`
+                    : ""
+                }
             </text>
-          ` : ''}
-        `).join('')}
+          `
+              : ""
+          }
+        `
+          )
+          .join("")}
       </svg>
     `;
 
     return svgContent;
-  }, [imageDimensions.width, imageDimensions.height, detectionResults, userAnnotations, selectedClasses, showDetections]);
+  }, [
+    imageDimensions.width,
+    imageDimensions.height,
+    detectionResults,
+    userAnnotations,
+    selectedClasses,
+    showDetections,
+  ]);
 
   // Update SVG overlay when detections change
   useEffect(() => {
@@ -918,7 +986,6 @@ export default function FullScreenImageViewer({
       onSvgOverlayUpdate(currentImage.id, svgData);
     }
   }, [generateSvgOverlay, currentImage?.id, onSvgOverlayUpdate]);
-
 
   // Toolbar action handlers
   const handleDownload = () => {
@@ -1029,7 +1096,13 @@ export default function FullScreenImageViewer({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentImage?.id, userAnnotations, detectionResults, selectedClasses, dismissedDetections]);
+  }, [
+    currentImage?.id,
+    userAnnotations,
+    detectionResults,
+    selectedClasses,
+    dismissedDetections,
+  ]);
 
   // Export: draw base image + overlay to canvas, embed into PDF, download; also allow CSV export
   const handleExportPdf = async () => {
@@ -1074,17 +1147,28 @@ export default function FullScreenImageViewer({
         ctx.globalAlpha = 1;
         ctx.fillStyle = "#111827"; // slate-900 for legibility
         ctx.font = "bold 18px Arial";
-        const label = `${d.className}${typeof d.confidence === "number" ? ` (${Math.round(d.confidence * 100)}%)` : ""}`;
+        const label = `${d.className}${
+          typeof d.confidence === "number"
+            ? ` (${Math.round(d.confidence * 100)}%)`
+            : ""
+        }`;
         ctx.fillText(label, left + 4, Math.max(14, top - 6));
       });
 
       // Create PDF from canvas
       // @ts-ignore - jsPDF types may not be available at runtime until installed
       const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF({ unit: "px", format: [width, height], orientation: width >= height ? "l" : "p" });
+      const doc = new jsPDF({
+        unit: "px",
+        format: [width, height],
+        orientation: width >= height ? "l" : "p",
+      });
       const imgData = canvas.toDataURL("image/png");
       doc.addImage(imgData, "PNG", 0, 0, width, height);
-      const filename = `${(currentImage.name || "blueprint").replace(/\s+/g, "_")}.pdf`;
+      const filename = `${(currentImage.name || "blueprint").replace(
+        /\s+/g,
+        "_"
+      )}.pdf`;
       doc.save(filename);
     } catch (e) {
       console.error("Failed to export PDF:", e);
@@ -1113,25 +1197,32 @@ export default function FullScreenImageViewer({
       };
       const lines = [headers.join(",")];
       rows.forEach((r) => {
-        lines.push([
-          r.id,
-          r.source,
-          r.className,
-          typeof r.confidence === "number" ? r.confidence.toFixed(4) : "",
-          r.x,
-          r.y,
-          r.width,
-          r.height,
-          r.pageNumber ?? "",
-          currentImage.name,
-        ].map(escapeCsv).join(","));
+        lines.push(
+          [
+            r.id,
+            r.source,
+            r.className,
+            typeof r.confidence === "number" ? r.confidence.toFixed(4) : "",
+            r.x,
+            r.y,
+            r.width,
+            r.height,
+            r.pageNumber ?? "",
+            currentImage.name,
+          ]
+            .map(escapeCsv)
+            .join(",")
+        );
       });
       const csv = lines.join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${(currentImage.name || "annotations").replace(/\s+/g, "_")}_annotations.csv`;
+      a.download = `${(currentImage.name || "annotations").replace(
+        /\s+/g,
+        "_"
+      )}_annotations.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1212,18 +1303,39 @@ export default function FullScreenImageViewer({
 
             <button
               onClick={() => setShowElectrical((s) => !s)}
-              className={`px-3 py-2 flex justify-center items-center gap-2 rounded text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showElectrical ? "bg-yellow-500 text-white" : "bg-gray-700 text-white"}`}
-              title={showElectrical ? "Hide Electrical Detections" : "Show Electrical Detections"}
+              className={`px-3 py-2 flex justify-center items-center gap-2 rounded text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${
+                showElectrical
+                  ? "bg-yellow-500 text-white"
+                  : "bg-gray-700 text-white"
+              }`}
+              title={
+                showElectrical
+                  ? "Hide Electrical Detections"
+                  : "Show Electrical Detections"
+              }
             >
               <Zap size={16} /> Electrical Detection
             </button>
 
             <button
               onClick={() => setShowDimensions((s) => !s)}
-              className={`px-3 py-2 flex justify-center items-center gap-2 rounded text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${showDimensions ? "bg-purple-500 text-white" : "bg-gray-700 text-white"}`}
+              className={`px-3 py-2 flex justify-center items-center gap-2 rounded text-md hover:bg-gray-600 hover:bg-opacity-20 transition-colors ${
+                showDimensions
+                  ? "bg-purple-500 text-white"
+                  : "bg-gray-700 text-white"
+              }`}
               title={showDimensions ? "Hide Dimensions" : "Show Dimensions"}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M3 3h18v18H3z" />
                 <path d="M9 3v18" />
                 <path d="M15 3v18" />
@@ -1283,19 +1395,20 @@ export default function FullScreenImageViewer({
 
       {/* Image Container */}
       <div
-        className={`flex-1 flex items-center justify-center relative ${leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
-          }`}
+        className={`flex-1 flex items-center justify-center relative ${
+          leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
+        }`}
         style={{
           cursor:
             activeTool === "annotate"
               ? "crosshair"
               : activeTool === "erase"
-                ? "pointer"
-                : zoom > 1
-                  ? isDragging
-                    ? "grabbing"
-                    : "grab"
-                  : "default",
+              ? "pointer"
+              : zoom > 1
+              ? isDragging
+                ? "grabbing"
+                : "grab"
+              : "default",
         }}
       >
         <div
@@ -1312,20 +1425,23 @@ export default function FullScreenImageViewer({
             alt={currentImage.name}
             className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
             style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom
-                }px, ${imagePosition.y / zoom}px)`,
+              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
+                imagePosition.x / zoom
+              }px, ${imagePosition.y / zoom}px)`,
               cursor:
                 activeTool === "annotate"
                   ? "crosshair"
                   : zoom > 1
-                    ? isDragging
-                      ? "grabbing"
-                      : "grab"
-                    : "default",
+                  ? isDragging
+                    ? "grabbing"
+                    : "grab"
+                  : "default",
             }}
             onLoad={handleImageLoad}
             onMouseDown={
-              activeTool === "annotate" || activeTool === "polygon" ? handleMouseDown : undefined
+              activeTool === "annotate" || activeTool === "polygon"
+                ? handleMouseDown
+                : undefined
             }
             onMouseMove={
               activeTool === "annotate" ? handleMouseMove : undefined
@@ -1340,78 +1456,104 @@ export default function FullScreenImageViewer({
           />
 
           {/* Dimension Shapes Overlay */}
-          {showDimensions && detectionResults?.shapes && imageDimensions.width > 0 && (
-            <svg
-              className="absolute top-0 left-0"
-              style={{
-                width: "100%",
-                height: "100%",
-                transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
-                pointerEvents: "auto",
-              }}
-              viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
-              preserveAspectRatio="xMidYMid meet"
-              onMouseLeave={() => {
-                setHoveredShapeId(null);
-                setShapeTooltip(null);
-              }}
-            >
-              {detectionResults.shapes.map((shape: any, idx: number) => {
-                const fillColor = shape.color || "#00ff00";
-                const numericArea = typeof shape.area === "number"
-                  ? shape.area
-                  : typeof shape.meta?.area === "number"
-                    ? shape.meta.area
-                    : undefined;
-                const areaLabel = typeof numericArea === "number"
-                  ? `${areaFormatter.format(numericArea)} sq units`
-                  : undefined;
-                const displayName =
-                  typeof shape.label === "string" && shape.label.trim()
-                    ? shape.label
-                    : `Dimension ${idx + 1}`;
-                const shapeId = String(shape.id ?? `dim-shape-${idx}`);
-                const isHovered = hoveredShapeId === shapeId;
+          {showDimensions &&
+            detectionResults?.shapes &&
+            imageDimensions.width > 0 && (
+              <svg
+                className="absolute top-0 left-0"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                  pointerEvents: "auto",
+                }}
+                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+                preserveAspectRatio="xMidYMid meet"
+                onMouseLeave={() => {
+                  setHoveredShapeId(null);
+                  setShapeTooltip(null);
+                }}
+              >
+                {detectionResults.shapes.map((shape: any, idx: number) => {
+                  const fillColor = shape.color || "#00ff00";
+                  const numericArea =
+                    typeof shape.area === "number"
+                      ? shape.area
+                      : typeof shape.meta?.area === "number"
+                      ? shape.meta.area
+                      : undefined;
+                  const areaLabel =
+                    typeof numericArea === "number"
+                      ? `${areaFormatter.format(numericArea)} sq units`
+                      : undefined;
+                  const displayName =
+                    typeof shape.label === "string" && shape.label.trim()
+                      ? shape.label
+                      : `Dimension ${idx + 1}`;
+                  const shapeId = String(shape.id ?? `dim-shape-${idx}`);
+                  const isHovered = hoveredShapeId === shapeId;
 
-                return (
-                  <path
-                    key={shapeId}
-                    d={shape.path}
-                    fill={fillColor}
-                    fillOpacity={isHovered ? 0.35 : 0.12}
-                    stroke={fillColor}
-                    strokeWidth={isHovered ? 3 : 2}
-                    strokeOpacity={isHovered ? 1 : 0.85}
-                    style={{ pointerEvents: "visiblePainted", cursor: areaLabel ? "crosshair" : "pointer", transition: "fill-opacity 120ms ease, stroke-opacity 120ms ease, stroke-width 120ms ease" }}
-                    onMouseEnter={(event) => {
-                      setHoveredShapeId(shapeId);
-                      updateShapeTooltip(event, displayName, areaLabel, fillColor);
-                    }}
-                    onMouseMove={(event) => {
-                      if (hoveredShapeId === shapeId) {
-                        updateShapeTooltip(event, displayName, areaLabel, fillColor);
+                  return (
+                    <path
+                      key={shapeId}
+                      d={shape.path}
+                      fill={fillColor}
+                      fillOpacity={isHovered ? 0.35 : 0.12}
+                      stroke={fillColor}
+                      strokeWidth={isHovered ? 3 : 2}
+                      strokeOpacity={isHovered ? 1 : 0.85}
+                      style={{
+                        pointerEvents: "visiblePainted",
+                        cursor: areaLabel ? "crosshair" : "pointer",
+                        transition:
+                          "fill-opacity 120ms ease, stroke-opacity 120ms ease, stroke-width 120ms ease",
+                      }}
+                      onMouseEnter={(event) => {
+                        setHoveredShapeId(shapeId);
+                        updateShapeTooltip(
+                          event,
+                          displayName,
+                          areaLabel,
+                          fillColor
+                        );
+                      }}
+                      onMouseMove={(event) => {
+                        if (hoveredShapeId === shapeId) {
+                          updateShapeTooltip(
+                            event,
+                            displayName,
+                            areaLabel,
+                            fillColor
+                          );
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredShapeId((prev) =>
+                          prev === shapeId ? null : prev
+                        );
+                        setShapeTooltip(null);
+                      }}
+                      aria-label={
+                        areaLabel
+                          ? `Dimension shape with area ${areaLabel}`
+                          : undefined
                       }
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredShapeId((prev) => (prev === shapeId ? null : prev));
-                      setShapeTooltip(null);
-                    }}
-                    aria-label={areaLabel ? `Dimension shape with area ${areaLabel}` : undefined}
-                  >
-                    {areaLabel && <title>{`Area: ${areaLabel}`}</title>}
-                  </path>
-                );
-              })}
-            </svg>
-          )}
+                    >
+                      {areaLabel && <title>{`Area: ${areaLabel}`}</title>}
+                    </path>
+                  );
+                })}
+              </svg>
+            )}
 
           {/* Detection Overlay */}
           {imageDimensions.width > 0 && (
             <svg
-              className={`absolute inset-0 ${activeTool === "annotate"
-                ? "pointer-events-none"
-                : "pointer-events-none"
-                }`}
+              className={`absolute inset-0 ${
+                activeTool === "annotate"
+                  ? "pointer-events-none"
+                  : "pointer-events-none"
+              }`}
               style={{
                 width: "100%",
                 height: "100%",
@@ -1449,10 +1591,26 @@ export default function FullScreenImageViewer({
                   const isSelected = selectedOverlayId === detection.id;
 
                   return (
-                    <g key={detection.id} style={{ pointerEvents: isUserAnnotation || activeTool === "erase" ? "auto" : "none", cursor: activeTool === "erase" ? "not-allowed" : isUserAnnotation ? "pointer" : "default" }}
+                    <g
+                      key={detection.id}
+                      style={{
+                        pointerEvents:
+                          isUserAnnotation || activeTool === "erase"
+                            ? "auto"
+                            : "none",
+                        cursor:
+                          activeTool === "erase"
+                            ? "not-allowed"
+                            : isUserAnnotation
+                            ? "pointer"
+                            : "default",
+                      }}
                       onClick={() => {
                         if (activeTool === "erase") {
-                          removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                          removeOverlayWithUndo(
+                            detection.id,
+                            !!isUserAnnotation
+                          );
                         } else if (isUserAnnotation) {
                           setSelectedOverlayId(detection.id);
                         }
@@ -1460,7 +1618,10 @@ export default function FullScreenImageViewer({
                       onContextMenu={(e) => {
                         if (isUserAnnotation || activeTool === "erase") {
                           e.preventDefault();
-                          removeOverlayWithUndo(detection.id, !!isUserAnnotation);
+                          removeOverlayWithUndo(
+                            detection.id,
+                            !!isUserAnnotation
+                          );
                         }
                       }}
                     >
@@ -1469,7 +1630,9 @@ export default function FullScreenImageViewer({
                         <>
                           {/* Render polygon shape */}
                           <polygon
-                            points={detection.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                            points={detection.points
+                              .map((p) => `${p.x},${p.y}`)
+                              .join(" ")}
                             fill={detection.color}
                             fillOpacity={isSelected ? 0.25 : 0.2}
                             stroke={isSelected ? "#22c55e" : detection.color}
@@ -1477,26 +1640,30 @@ export default function FullScreenImageViewer({
                             strokeOpacity={0.9}
                           />
                           {/* Show corner handles for user annotations */}
-                          {isUserAnnotation && detection.points.map((p, idx) => (
-                            <g key={`handle-${idx}`}>
-                              <circle
-                                cx={p.x}
-                                cy={p.y}
-                                r={6}
-                                fill="white"
-                                stroke={detection.color}
-                                strokeWidth={2}
-                                style={{ pointerEvents: 'auto', cursor: 'move' }}
-                              />
-                              <circle
-                                cx={p.x}
-                                cy={p.y}
-                                r={2.5}
-                                fill={detection.color}
-                                style={{ pointerEvents: 'none' }}
-                              />
-                            </g>
-                          ))}
+                          {isUserAnnotation &&
+                            detection.points.map((p, idx) => (
+                              <g key={`handle-${idx}`}>
+                                <circle
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={6}
+                                  fill="white"
+                                  stroke={detection.color}
+                                  strokeWidth={2}
+                                  style={{
+                                    pointerEvents: "auto",
+                                    cursor: "move",
+                                  }}
+                                />
+                                <circle
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={2.5}
+                                  fill={detection.color}
+                                  style={{ pointerEvents: "none" }}
+                                />
+                              </g>
+                            ))}
                         </>
                       ) : (
                         <>
@@ -1536,7 +1703,10 @@ export default function FullScreenImageViewer({
                                 fill="#ef4444"
                                 opacity="0.9"
                                 style={{ pointerEvents: "auto" }}
-                                onClick={(e) => { e.stopPropagation(); deleteUserAnnotation(detection.id); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteUserAnnotation(detection.id);
+                                }}
                               />
                               <text
                                 x={detection.points[0].x}
@@ -1562,7 +1732,10 @@ export default function FullScreenImageViewer({
                                 fill="#ef4444"
                                 opacity="0.9"
                                 style={{ pointerEvents: "auto" }}
-                                onClick={(e) => { e.stopPropagation(); deleteUserAnnotation(detection.id); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteUserAnnotation(detection.id);
+                                }}
                               />
                               <text
                                 x={xRect + detection.width - 9}
@@ -1579,8 +1752,6 @@ export default function FullScreenImageViewer({
                           )}
                         </g>
                       )}
-
-
                     </g>
                   );
                 })}
@@ -1632,14 +1803,9 @@ export default function FullScreenImageViewer({
                         fill="white"
                         stroke="#60a5fa"
                         strokeWidth={3}
-                        style={{ cursor: 'move' }}
+                        style={{ cursor: "move" }}
                       />
-                      <circle
-                        cx={p.x}
-                        cy={p.y}
-                        r={3}
-                        fill="#60a5fa"
-                      />
+                      <circle cx={p.x} cy={p.y} r={3} fill="#60a5fa" />
                     </g>
                   ))}
                 </g>
@@ -1709,10 +1875,11 @@ export default function FullScreenImageViewer({
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
-                  ? "bg-white"
-                  : "bg-white bg-opacity-50 hover:bg-opacity-75"
-                  }`}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  index === currentIndex
+                    ? "bg-white"
+                    : "bg-white bg-opacity-50 hover:bg-opacity-75"
+                }`}
               />
             ))}
           </div>
@@ -1823,17 +1990,18 @@ export default function FullScreenImageViewer({
                               {className}
                               <span
                                 className="text-xs font-bold px-1 py-0.5 rounded-full bg-gray-100 ml-2 border border-gray-300 text-black "
-                              // style={{ backgroundColor: classColor }}
+                                // style={{ backgroundColor: classColor }}
                               >
                                 {count}
                               </span>
                             </span>
                           </div>
                           <div
-                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${isSelected
-                              ? "border-blue-500 bg-blue-500"
-                              : "border-gray-300 bg-white"
-                              }`}
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
+                              isSelected
+                                ? "border-blue-500 bg-blue-500"
+                                : "border-gray-300 bg-white"
+                            }`}
                           >
                             {isSelected && (
                               <svg
@@ -1891,7 +2059,7 @@ export default function FullScreenImageViewer({
                         src={detectionResults.annotated_image}
                         alt="AI Annotated"
                         className="w-full h-auto rounded border border-gray-300"
-                        style={{ maxHeight: '200px', objectFit: 'contain' }}
+                        style={{ maxHeight: "200px", objectFit: "contain" }}
                       />
                       <div className="absolute top-1 right-1 bg-green-600 text-white px-2 py-1 rounded text-xs font-medium">
                         AI Processed

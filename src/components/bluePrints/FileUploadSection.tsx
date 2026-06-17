@@ -45,11 +45,7 @@ export default function FileUploadSection({
         className={`
           relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer
           transition-all duration-200 hover:border-blue-500 hover:bg-blue-50
-          ${
-            isUploading
-              ? "pointer-events-none opacity-50"
-              : "border-gray-300"
-          }
+          ${isUploading ? "pointer-events-none opacity-50" : "border-gray-300"}
         `}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -83,8 +79,7 @@ export default function FileUploadSection({
                 Drop your blueprint files here or click to browse
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                Supports images (PNG, JPG, GIF, WebP, SVG) and PDF files up to
-                10MB each
+                Supports images (PNG, JPG, GIF, WebP, SVG) and PDF files
               </p>
               <p className="text-xs text-gray-400 mt-1">
                 • PDFs open in annotation editor

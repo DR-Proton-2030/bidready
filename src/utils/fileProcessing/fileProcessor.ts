@@ -25,7 +25,7 @@ const initializePdfjs = async (): Promise<typeof pdfjsLibType> => {
 
       // Set the first URL as default - it will be used
       pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrls[0];
-      
+
       console.log(`PDF.js worker source set to: ${workerUrls[0]}`);
 
       isInitialized = true;
@@ -325,12 +325,7 @@ export const validateFile = (
 ): { valid: boolean; error?: string } => {
   const maxSizeBytes = maxSizeMB * 1024 * 1024;
 
-  if (file.size > maxSizeBytes) {
-    return {
-      valid: false,
-      error: `File size must be less than ${maxSizeMB}MB`,
-    };
-  }
+  // File size check removed - no size limit
 
   if (file.size === 0) {
     return { valid: false, error: "File appears to be empty" };
