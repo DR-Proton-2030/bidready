@@ -20,6 +20,7 @@ import {
   Eye,
   Clock,
 } from "lucide-react";
+import { API_URL } from "@/config/config";
 
 interface ProcessedImage {
   id: string;
@@ -53,7 +54,9 @@ export default function CreateBlueprintPage({
   const [fullScreenIndex, setFullScreenIndex] = useState(0);
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectionResults, setDetectionResults] = useState<any>(null);
-  const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(new Map());
+  const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(
+    new Map(),
+  );
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [showPdfEditor, setShowPdfEditor] = useState(false);
   const { handleNewBlueprint } = useBlueprints();
@@ -72,7 +75,7 @@ export default function CreateBlueprintPage({
   }, [searchParams]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -106,7 +109,7 @@ export default function CreateBlueprintPage({
       console.log("Sending request to detection API...");
 
       // API endpoint for detection
-      const apiResponse = await fetch("https://d1z68al0r0qxyd.cloudfront.net/detect", {
+      const apiResponse = await fetch(`${API_URL}/detect`, {
         method: "POST",
         body: formData,
       });
@@ -115,7 +118,7 @@ export default function CreateBlueprintPage({
 
       if (!apiResponse.ok) {
         throw new Error(
-          `API request failed with status: ${apiResponse.status}`
+          `API request failed with status: ${apiResponse.status}`,
         );
       }
 
@@ -130,7 +133,7 @@ export default function CreateBlueprintPage({
     } catch (error) {
       console.error("Error detecting image:", error);
       setError(
-        error instanceof Error ? error.message : "Failed to detect image"
+        error instanceof Error ? error.message : "Failed to detect image",
       );
     } finally {
       setIsDetecting(false);
@@ -148,22 +151,23 @@ export default function CreateBlueprintPage({
   };
 
   // Handle SVG overlay updates from FullScreenImageViewer
-  const handleSvgOverlayUpdate = useCallback((imageId: string, svgData: string | null) => {
-    setSvgOverlays(prev => {
-      const current = prev.get(imageId);
-      if (current === svgData) return prev; // No change, avoid update
-      return new Map(prev.set(imageId, svgData));
-    });
+  const handleSvgOverlayUpdate = useCallback(
+    (imageId: string, svgData: string | null) => {
+      setSvgOverlays((prev) => {
+        const current = prev.get(imageId);
+        if (current === svgData) return prev; // No change, avoid update
+        return new Map(prev.set(imageId, svgData));
+      });
 
-    // Also update the processedImages array to include SVG overlay info
-    setProcessedImages(prev =>
-      prev.map(img =>
-        img.id === imageId
-          ? { ...img, svgOverlay: svgData }
-          : img
-      )
-    );
-  }, []);
+      // Also update the processedImages array to include SVG overlay info
+      setProcessedImages((prev) =>
+        prev.map((img) =>
+          img.id === imageId ? { ...img, svgOverlay: svgData } : img,
+        ),
+      );
+    },
+    [],
+  );
 
   const handleFileUpload = async (files: FileList) => {
     if (!files || files.length === 0) return;
@@ -175,7 +179,7 @@ export default function CreateBlueprintPage({
       const filesArray = Array.from(files);
 
       // Check if any file is a PDF
-      const hasPDF = filesArray.some(file => file.type === "application/pdf");
+      const hasPDF = filesArray.some((file) => file.type === "application/pdf");
 
       if (hasPDF) {
         // If PDF, handle PDF upload separately and redirect to PDF annotation page
@@ -202,12 +206,12 @@ export default function CreateBlueprintPage({
 
         // Pass form data as URL parameters when redirecting to PDF annotation page
         const formParams = new URLSearchParams({
-          name: form.name || 'Untitled Blueprint',
-          description: form.description || 'Blueprint from PDF',
-          version: form.version || 'v1',
-          status: form.status || 'active',
-          type: form.type || 'floor_plan',
-          project_object_id: form.project_object_id || ''
+          name: form.name || "Untitled Blueprint",
+          description: form.description || "Blueprint from PDF",
+          version: form.version || "v1",
+          status: form.status || "active",
+          type: form.type || "floor_plan",
+          project_object_id: form.project_object_id || "",
         });
 
         // Redirect to PDF annotation page
@@ -234,20 +238,22 @@ export default function CreateBlueprintPage({
 
       // Pass form data as URL parameters when redirecting to processing page
       const formParams = new URLSearchParams({
-        name: form.name || 'Untitled Blueprint',
-        description: form.description || 'Blueprint from uploaded files',
-        version: form.version || 'v1',
-        status: form.status || 'active',
-        type: form.type || 'floor_plan',
-        project_object_id: form.project_object_id || ''
+        name: form.name || "Untitled Blueprint",
+        description: form.description || "Blueprint from uploaded files",
+        version: form.version || "v1",
+        status: form.status || "active",
+        type: form.type || "floor_plan",
+        project_object_id: form.project_object_id || "",
       });
 
       // Redirect to processing page with form data
-      router.push(`/blueprint-processing/${result.jobId}?${formParams.toString()}`);
+      router.push(
+        `/blueprint-processing/${result.jobId}?${formParams.toString()}`,
+      );
     } catch (error) {
       console.error("Error uploading files:", error);
       setError(
-        error instanceof Error ? error.message : "Failed to upload files"
+        error instanceof Error ? error.message : "Failed to upload files",
       );
     } finally {
       setIsUploading(false);
@@ -293,19 +299,22 @@ export default function CreateBlueprintPage({
           // Fetch the image file from the server
           const imageResponse = await fetch(image.path);
           const imageBlob = await imageResponse.blob();
-          const imageFile = new File([imageBlob], image.name, { type: imageBlob.type });
+          const imageFile = new File([imageBlob], image.name, {
+            type: imageBlob.type,
+          });
 
           // Get SVG overlay for this image (null if no detection/annotation was done)
-          const svgOverlay = svgOverlays.get(image.id) || image.svgOverlay || null;
+          const svgOverlay =
+            svgOverlays.get(image.id) || image.svgOverlay || null;
 
           return {
             image: imageFile,
             svg_overlay: svgOverlay,
             imageId: image.id,
             imageName: image.name,
-            pageNumber: image.pageNumber
+            pageNumber: image.pageNumber,
           };
-        })
+        }),
       );
 
       // Add image files to FormData
@@ -322,7 +331,7 @@ export default function CreateBlueprintPage({
         imageId: pair.imageId,
         imageName: pair.imageName,
         pageNumber: pair.pageNumber,
-        hasSvgOverlay: !!pair.svg_overlay
+        hasSvgOverlay: !!pair.svg_overlay,
       }));
 
       fd.append("image_pairs", JSON.stringify(imagePairsMetadata));
@@ -335,7 +344,7 @@ export default function CreateBlueprintPage({
         status: form.status,
         type: form.type,
         project_object_id: form.project_object_id,
-        image_pairs: imagePairsMetadata
+        image_pairs: imagePairsMetadata,
       });
 
       await handleNewBlueprint(fd);
@@ -448,9 +457,10 @@ export default function CreateBlueprintPage({
                 disabled={isUploading || processedImages.length === 0}
                 className={`
                   px-6 py-2 rounded-md flex items-center space-x-2
-                  ${isUploading || processedImages.length === 0
-                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
+                  ${
+                    isUploading || processedImages.length === 0
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
                   }
                 `}
               >
