@@ -45,6 +45,15 @@ const BluePrintDetection = ({ id: propId }: any) => {
   const { uploadDetections, isUploading: isUploadingDetections } = useBulkDetectionsUpload();
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
 
+  // Collaboration room for this plan. Scoped by version so annotations made on
+  // one version never bleed into another. Uses `propId` rather than the window
+  // fallback to keep the value identical on server and client.
+  const collabRoomKey = propId
+    ? versionId
+      ? `bp-${propId}-v-${versionId}`
+      : `bp-${propId}`
+    : null;
+
   // Auto-populate cache from database when images are first loaded
   useEffect(() => {
     if (images.length > 0 && !initialDataLoaded) {
@@ -480,6 +489,9 @@ const BluePrintDetection = ({ id: propId }: any) => {
           detectionResults={detectionResults}
           onDimensionDetectionsChange={handleDimensionDetectionsChange}
           onDetectionsChange={handleDetectionsChange}
+          collab={
+            collabRoomKey ? { roomKey: collabRoomKey } : undefined
+          }
         />
       )}
       {loading && <Loader />}

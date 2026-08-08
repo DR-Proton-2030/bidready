@@ -4,6 +4,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useContext,
   useRef,
   useMemo,
 } from "react";
@@ -28,6 +29,17 @@ import AskAISidePanel from "./AskAISidePanel";
 import { FullScreenImageHeader } from "./FullScreenImageHeader";
 import { OverlayLayer } from "./OverlayLayer";
 import { OverlayControlPanel } from "./OverlayControlPanel";
+import AuthContext from "@/contexts/authContext/authContext";
+import useCollaboration, { colorForUserId } from "@/hooks/useCollaboration";
+import PresenceBar from "./collab/PresenceBar";
+import RemoteCursors from "./collab/RemoteCursors";
+import type {
+  CollabAnnotation,
+  CollabMeasurement,
+  CollabSnapshot,
+  CollabUser,
+  StampedOp,
+} from "@/@types/collab/collab.types";
 
 interface Image {
   id: string;
@@ -125,6 +137,18 @@ interface FullScreenImageViewerProps {
     imageId: string,
     detections: BlueprintRegionDetection[],
   ) => void;
+  /**
+   * Opt-in realtime collaboration. Omit it and the viewer behaves exactly as
+   * before — no socket, no presence, no remote state.
+   *
+   * `roomKey` should be stable for the plan being reviewed (typically the
+   * blueprint id); the current image id is appended automatically so each page
+   * gets its own room.
+   */
+  collab?: {
+    roomKey: string;
+    enabled?: boolean;
+  };
 }
 
 const areaFormatter = new Intl.NumberFormat("en-US", {
@@ -148,6 +172,7 @@ export default function FullScreenImageViewer({
   onSvgOverlayUpdate,
   onDetectionsChange,
   onDimensionDetectionsChange,
+  collab,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(0.5);
@@ -291,6 +316,214 @@ export default function FullScreenImageViewer({
 
   const [isDeepScanning, setIsDeepScanning] = useState(false);
   const [aiCalibrationData, setAiCalibrationData] = useState<any>(null);
+
+  /* ── Realtime collaboration ─────────────────────────────────────────────
+   * Entirely opt-in: without a `collab` prop every value below is inert and
+   * the viewer runs exactly as it did before.
+   * ------------------------------------------------------------------- */
+  const { user: authUser } = useContext(AuthContext);
+
+  const collabUser = useMemo<CollabUser | null>(() => {
+    if (!collab?.roomKey) return null;
+    const id = authUser?.email || authUser?.emp_id;
+    if (!id) return null;
+    return {
+      id,
+      name: authUser?.full_name || authUser?.email || "Teammate",
+      email: authUser?.email,
+      color: colorForUserId(id),
+      avatar: authUser?.profile_picture,
+    };
+  }, [collab?.roomKey, authUser]);
+
+  // One room per page of the plan, so annotations never bleed across images.
+  const collabRoomId = useMemo(() => {
+    if (!collab?.roomKey || !currentImage?.id) return null;
+    return `${collab.roomKey}:${currentImage.id}`;
+  }, [collab?.roomKey, currentImage?.id]);
+
+  // Latest local state, read by collab callbacks without re-subscribing them.
+  const userAnnotationsRef = useRef<Detection[]>(userAnnotations);
+  useEffect(() => {
+    userAnnotationsRef.current = userAnnotations;
+  }, [userAnnotations]);
+
+  const measurementsRef = useRef<MeasurementOverlay[]>(measurements);
+  useEffect(() => {
+    measurementsRef.current = measurements;
+  }, [measurements]);
+
+  const dismissedDetectionsRef = useRef<Set<string>>(dismissedDetections);
+  useEffect(() => {
+    dismissedDetectionsRef.current = dismissedDetections;
+  }, [dismissedDetections]);
+
+  const applyRemoteOp = useCallback((op: StampedOp) => {
+    switch (op.kind) {
+      case "annotation.upsert": {
+        const incoming = op.data as Detection;
+        setUserAnnotations((prev) => {
+          const index = prev.findIndex((a) => a.id === op.id);
+          if (index === -1) return [...prev, incoming];
+          const next = prev.slice();
+          next[index] = incoming;
+          return next;
+        });
+        break;
+      }
+      case "annotation.delete":
+        setUserAnnotations((prev) => prev.filter((a) => a.id !== op.id));
+        setSelectedOverlayId((prev) => (prev === op.id ? null : prev));
+        break;
+      case "measurement.upsert": {
+        const incoming = op.data as MeasurementOverlay;
+        setMeasurements((prev) => {
+          const index = prev.findIndex((m) => m.id === op.id);
+          if (index === -1) return [...prev, incoming];
+          const next = prev.slice();
+          next[index] = incoming;
+          return next;
+        });
+        break;
+      }
+      case "measurement.delete":
+        setMeasurements((prev) => prev.filter((m) => m.id !== op.id));
+        break;
+      case "detection.dismiss":
+        setDismissedDetections((prev) => {
+          if (prev.has(op.id)) return prev;
+          return new Set([...prev, op.id]);
+        });
+        break;
+      case "detection.restore":
+        setDismissedDetections((prev) => {
+          if (!prev.has(op.id)) return prev;
+          const next = new Set(prev);
+          next.delete(op.id);
+          return next;
+        });
+        break;
+      default:
+        break;
+    }
+  }, []);
+
+  /** Local-only work found at join time, queued for upload to the room. */
+  const pendingSeedRef = useRef<{
+    annotations: Detection[];
+    measurements: MeasurementOverlay[];
+    dismissed: string[];
+  } | null>(null);
+
+  /**
+   * Reconciles the authoritative room state with whatever this client holds.
+   *
+   * Runs on first join *and* on every reconnect, so it merges rather than
+   * replaces: annotations already saved against the image, or drawn while the
+   * socket was down, are kept and pushed up instead of being wiped by the
+   * incoming snapshot.
+   */
+  const applySnapshot = useCallback((snapshot: CollabSnapshot) => {
+    const remoteAnnotationIds = new Set(snapshot.annotations.map((a) => a.id));
+    const localOnlyAnnotations = userAnnotationsRef.current.filter(
+      (a) => !remoteAnnotationIds.has(a.id),
+    );
+
+    const remoteMeasurementIds = new Set(snapshot.measurements.map((m) => m.id));
+    const localOnlyMeasurements = measurementsRef.current.filter(
+      (m) => !remoteMeasurementIds.has(m.id),
+    );
+
+    const remoteDismissed = new Set(snapshot.dismissed);
+    const localOnlyDismissed = Array.from(dismissedDetectionsRef.current).filter(
+      (id) => !remoteDismissed.has(id),
+    );
+
+    setUserAnnotations([
+      ...(snapshot.annotations as Detection[]),
+      ...localOnlyAnnotations,
+    ]);
+    setMeasurements([
+      ...(snapshot.measurements as MeasurementOverlay[]),
+      ...localOnlyMeasurements,
+    ]);
+    setDismissedDetections(new Set([...snapshot.dismissed, ...localOnlyDismissed]));
+
+    pendingSeedRef.current =
+      localOnlyAnnotations.length ||
+      localOnlyMeasurements.length ||
+      localOnlyDismissed.length
+        ? {
+          annotations: localOnlyAnnotations,
+          measurements: localOnlyMeasurements,
+          dismissed: localOnlyDismissed,
+        }
+        : null;
+  }, []);
+
+  const {
+    status: collabStatus,
+    peers: collabPeers,
+    presence: collabPresence,
+    publish: publishCollabOp,
+    publishCursor: publishCollabCursor,
+    publishDraft: publishCollabDraft,
+  } = useCollaboration({
+    roomId: collabRoomId,
+    user: collabUser,
+    enabled: collab?.enabled !== false,
+    onRemoteOp: applyRemoteOp,
+    onSnapshot: applySnapshot,
+  });
+
+  // Push local-only work up once the socket is live (publish no-ops before that).
+  useEffect(() => {
+    if (collabStatus !== "connected") return;
+    const seed = pendingSeedRef.current;
+    if (!seed) return;
+
+    pendingSeedRef.current = null;
+
+    for (const annotation of seed.annotations) {
+      publishCollabOp({
+        kind: "annotation.upsert",
+        id: annotation.id,
+        data: annotation as CollabAnnotation,
+      });
+    }
+    for (const measurement of seed.measurements) {
+      publishCollabOp({
+        kind: "measurement.upsert",
+        id: measurement.id,
+        data: measurement as CollabMeasurement,
+      });
+    }
+    for (const id of seed.dismissed) {
+      publishCollabOp({ kind: "detection.dismiss", id });
+    }
+  }, [collabStatus, publishCollabOp]);
+
+  const collabActive = Boolean(collabRoomId && collabUser);
+
+  /**
+   * Per-tab suffix for generated ids. Timestamps alone collide when two people
+   * finish a shape in the same millisecond, which would make their annotations
+   * overwrite each other in the shared room.
+   */
+  const clientTagRef = useRef<string>("");
+  if (!clientTagRef.current) {
+    clientTagRef.current = Math.random().toString(36).slice(2, 8);
+  }
+
+  // Keeps the `user-annotation-` prefix other code matches on.
+  const makeAnnotationId = useCallback(
+    () => `user-annotation-${Date.now()}-${clientTagRef.current}`,
+    [],
+  );
+  const makeMeasurementId = useCallback(
+    () => `measurement-${Date.now()}-${clientTagRef.current}`,
+    [],
+  );
 
   const clamp01 = useCallback((n: number) => Math.max(0, Math.min(1, n)), []);
 
@@ -1007,12 +1240,18 @@ export default function FullScreenImageViewer({
       const last = next.pop()!;
       if (last.kind === "user" && last.payload) {
         setUserAnnotations((anns) => [...anns, last.payload as Detection]);
+        publishCollabOp({
+          kind: "annotation.upsert",
+          id: last.id,
+          data: last.payload as CollabAnnotation,
+        });
       } else if (last.kind === "api") {
         setDismissedDetections((d) => {
           const nd = new Set(d);
           nd.delete(last.id);
           return nd;
         });
+        publishCollabOp({ kind: "detection.restore", id: last.id });
       }
       return next;
     });
@@ -1035,9 +1274,11 @@ export default function FullScreenImageViewer({
         }
         return prev.filter((a) => a.id !== id);
       });
+      publishCollabOp({ kind: "annotation.delete", id });
     } else {
       setDismissedDetections((prev) => new Set([...prev, id]));
       setUndoStack((stack) => [...stack, { kind: "api", id }]);
+      publishCollabOp({ kind: "detection.dismiss", id });
     }
     setSelectedOverlayId(null);
     if (!options?.silent) {
@@ -1373,7 +1614,18 @@ export default function FullScreenImageViewer({
         }));
 
       if (userAnns.length > 0) {
-        setUserAnnotations(userAnns);
+        if (collabActive) {
+          // The shared room is authoritative once collaborating: merge in only
+          // saved annotations the room doesn't already know about, so a late
+          // `detectionResults` update can't wipe out a teammate's live work.
+          setUserAnnotations((prev) => {
+            const known = new Set(prev.map((a) => a.id));
+            const additions = userAnns.filter((a: Detection) => !known.has(a.id));
+            return additions.length > 0 ? [...prev, ...additions] : prev;
+          });
+        } else {
+          setUserAnnotations(userAnns);
+        }
       }
     }
   }, [
@@ -1382,6 +1634,7 @@ export default function FullScreenImageViewer({
     computePolygonArea,
     convertPixelArea,
     computePolygonCentroid,
+    collabActive,
   ]);
 
   // Keyboard navigation
@@ -1648,7 +1901,7 @@ export default function FullScreenImageViewer({
         if (!isMeasuring || !measurementDraft) {
           const startPoint = { x, y };
           setMeasurementDraft({
-            id: `measurement-${Date.now()}`,
+            id: makeMeasurementId(),
             start: startPoint,
             end: startPoint,
           });
@@ -1672,10 +1925,16 @@ export default function FullScreenImageViewer({
               hasCalibration: conversion.hasCalibration,
             };
             setMeasurements((prev) => [...prev, measurement]);
+            publishCollabOp({
+              kind: "measurement.upsert",
+              id: measurement.id,
+              data: measurement as CollabMeasurement,
+            });
           }
 
           setMeasurementDraft(null);
           setIsMeasuring(false);
+          publishCollabDraft(null);
         }
       }
       return;
@@ -1745,7 +2004,9 @@ export default function FullScreenImageViewer({
         if (hitIndex !== -1) {
           setDraggingPointIndex(hitIndex);
         } else {
-          setPolygonPoints((prev) => [...prev, { x, y }]);
+          const nextPoints = [...polygonPoints, { x, y }];
+          setPolygonPoints(nextPoints);
+          publishCollabDraft({ tool: "polygon", points: nextPoints });
         }
       }
     } else {
@@ -1779,6 +2040,13 @@ export default function FullScreenImageViewer({
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    if (collabActive) {
+      // Only real positions go out here — the throttle deliberately lets null
+      // ("cursor left") through unthrottled, and onMouseLeave owns that signal.
+      const cursorPoint = getImagePointFromEvent(e);
+      if (cursorPoint) publishCollabCursor(cursorPoint, activeTool);
+    }
+
     if (activeTool === "box-select" && isBoxSelecting && boxSelectStart) {
       const point = getImagePointFromEvent(e);
       if (!point) return;
@@ -1814,12 +2082,17 @@ export default function FullScreenImageViewer({
         (e.clientY - rect.top - offsetY) *
         (imageDimensions.height / actualHeight);
 
-      setCurrentBox({
+      const nextBox = {
         x: Math.min(startPoint.x, currentX),
         y: Math.min(startPoint.y, currentY),
         width: Math.abs(currentX - startPoint.x),
         height: Math.abs(currentY - startPoint.y),
-      });
+      };
+      setCurrentBox(nextBox);
+
+      if (activeTool === "annotate") {
+        publishCollabDraft({ tool: "annotate", rect: nextBox });
+      }
     } else if (
       (activeTool === "linear" || activeTool === "measure") &&
       isMeasuring &&
@@ -1840,6 +2113,12 @@ export default function FullScreenImageViewer({
             }
             : prev,
         );
+
+        publishCollabDraft({
+          tool: "measure",
+          start: measurementDraft.start,
+          end: { x, y },
+        });
       }
     } else if (draggingPointIndex !== null) {
       // move the dragged polygon point
@@ -1867,15 +2146,32 @@ export default function FullScreenImageViewer({
               return ann;
             }),
           );
+
+          // Mirror the reshape to peers as a draft until the mouse is released.
+          const editing = userAnnotationsRef.current.find(
+            (a) => a.id === editingAnnotationId,
+          );
+          if (editing?.points) {
+            const preview = editing.points.slice();
+            if (
+              draggingPointIndex >= 0 &&
+              draggingPointIndex < preview.length
+            ) {
+              preview[draggingPointIndex] = { x, y };
+            }
+            publishCollabDraft({ tool: "polygon", points: preview });
+          }
         } else {
           // Edit in-progress polygon points
-          setPolygonPoints((prev) => {
-            const next = prev.slice();
-            if (draggingPointIndex! >= 0 && draggingPointIndex! < next.length) {
-              next[draggingPointIndex!] = { x, y };
-            }
-            return next;
-          });
+          const nextPoints = polygonPoints.slice();
+          if (
+            draggingPointIndex! >= 0 &&
+            draggingPointIndex! < nextPoints.length
+          ) {
+            nextPoints[draggingPointIndex!] = { x, y };
+          }
+          setPolygonPoints(nextPoints);
+          publishCollabDraft({ tool: "polygon", points: nextPoints });
         }
       }
     } else if (isDragging && (activeTool === "pan" || zoom > 1)) {
@@ -1953,9 +2249,25 @@ export default function FullScreenImageViewer({
     }
     // stop dragging polygon points when mouse is released
     if (draggingPointIndex !== null) {
+      // Reshaping is published once on release rather than per mousemove frame;
+      // peers see the live outline via the draft channel until then.
+      if (editingAnnotationId) {
+        const edited = userAnnotationsRef.current.find(
+          (a) => a.id === editingAnnotationId,
+        );
+        if (edited) {
+          publishCollabOp({
+            kind: "annotation.upsert",
+            id: edited.id,
+            data: edited as CollabAnnotation,
+          });
+        }
+      }
       setDraggingPointIndex(null);
       setEditingAnnotationId(null);
     }
+
+    publishCollabDraft(null);
   };
 
   const updateShapeTooltip = useCallback(
@@ -2139,12 +2451,17 @@ export default function FullScreenImageViewer({
         class: className,
         confidence: 1.0,
         color: getColorForClass(className),
-        id: `user-annotation-${Date.now()}`,
+        id: makeAnnotationId(),
         // Explicitly preserve points if they exist
         points: pendingAnnotation.points || undefined,
       };
 
       setUserAnnotations((prev) => [...prev, newAnnotation]);
+      publishCollabOp({
+        kind: "annotation.upsert",
+        id: newAnnotation.id,
+        data: newAnnotation as CollabAnnotation,
+      });
       setPendingAnnotation(null);
       setShowClassSelector(false);
       setSelectedAnnotationClass("");
@@ -2192,10 +2509,12 @@ export default function FullScreenImageViewer({
     setPendingAnnotation(ann);
     setShowClassSelector(true);
     setPolygonPoints([]);
+    publishCollabDraft(null);
   };
 
   const cancelPolygon = () => {
     setPolygonPoints([]);
+    publishCollabDraft(null);
   };
 
   // Handle creating new class for annotation
@@ -2211,12 +2530,17 @@ export default function FullScreenImageViewer({
         class: selectedAnnotationClass.trim(),
         confidence: 1.0,
         color: getColorForClass(selectedAnnotationClass.trim()),
-        id: `user-annotation-${Date.now()}`,
+        id: makeAnnotationId(),
         // Explicitly preserve points if they exist
         points: pendingAnnotation.points || undefined,
       };
 
       setUserAnnotations((prev) => [...prev, newAnnotation]);
+      publishCollabOp({
+        kind: "annotation.upsert",
+        id: newAnnotation.id,
+        data: newAnnotation as CollabAnnotation,
+      });
       setPendingAnnotation(null);
       setShowClassSelector(false);
       setSelectedAnnotationClass("");
@@ -2722,6 +3046,17 @@ export default function FullScreenImageViewer({
         isScanning={isDeepScanning}
       />
 
+      {/* Who else is on this plan right now */}
+      {collabActive && (
+        <div className="absolute top-24 right-6 z-30">
+          <PresenceBar
+            status={collabStatus}
+            peers={collabPeers}
+            self={collabUser}
+          />
+        </div>
+      )}
+
       {/* Left Toolbar */}
       {leftToolbarOpen && (
         <div className="absolute left-6 top-44 bottom-0  z-20">
@@ -2812,7 +3147,11 @@ export default function FullScreenImageViewer({
           onMouseDown={activeTool !== "annotate" ? handleMouseDown : undefined}
           onMouseMove={activeTool !== "annotate" ? handleMouseMove : undefined}
           onMouseUp={activeTool !== "annotate" ? handleMouseUp : undefined}
-          onMouseLeave={activeTool !== "annotate" ? handleMouseUp : undefined}
+          onMouseLeave={(e) => {
+            // Retract our cursor for peers as soon as it leaves the plan.
+            if (collabActive) publishCollabCursor(null);
+            if (activeTool !== "annotate") handleMouseUp(e);
+          }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -2866,6 +3205,17 @@ export default function FullScreenImageViewer({
             }}
             draggable={false}
           />
+
+          {/* Remote teammates' cursors and in-progress shapes */}
+          {collabActive && (
+            <RemoteCursors
+              presence={collabPresence}
+              imageDimensions={imageDimensions}
+              zoom={zoom}
+              rotation={rotation}
+              imagePosition={imagePosition}
+            />
+          )}
 
           {/* Overlay Layer */}
           {overlayImage && (
@@ -3322,6 +3672,10 @@ export default function FullScreenImageViewer({
                         setMeasurements((prev) =>
                           prev.filter((m) => m.id !== measurement.id),
                         );
+                        publishCollabOp({
+                          kind: "measurement.delete",
+                          id: measurement.id,
+                        });
                         showUndoSnackbar("Measurement deleted.");
                       }
                     }}
