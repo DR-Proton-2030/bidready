@@ -5,6 +5,7 @@ export const ProtectedRoutes = [
   "/projects",
   "/users",
   "/blueprints",
+  "/blueprint_detection",
   "/access-management",
   "/project-details"
 ];
