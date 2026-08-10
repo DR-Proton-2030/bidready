@@ -44,7 +44,10 @@ export default function useImageDetect() {
             // 3x3 grid tiling: the model "zooms in" enough to catch interior
             // partition walls and small windows that a 2x2 grid misses.
             tile_grid: 3,
-            class_confidence: { Wall: 0.15, Door: 0.5, Window: 0.12 },
+            // Wall was at 0.15, which let dimension strings, column grid lines
+            // and leader lines through as "walls". 0.3 keeps the interior
+            // partitions that the 3x3 tiling is there to catch.
+            class_confidence: { Wall: 0.3, Door: 0.5, Window: 0.12 },
           }),
           signal: controller.signal,
         });

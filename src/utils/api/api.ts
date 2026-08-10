@@ -8,8 +8,13 @@ import axios, {
   AxiosError,
 } from "axios";
 
+// Fall back to the local backend so requests never resolve against the Next
+// origin (which 404s) when NEXT_PUBLIC_BASE_URL is missing from the bundle.
+const BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8989/api/v1";
+
 const API: AxiosInstance = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BASE_URL,
+  baseURL: BASE_URL,
   headers,
   // Only use credentials if we are on the same domain or explicitly needed.
   // For Bearer auth, this is usually not needed and can cause cookie domain errors.

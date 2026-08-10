@@ -138,6 +138,76 @@ const lengthFormatter = new Intl.NumberFormat("en-US", {
 const measurementColor = "#38bdf8";
 const measurementDraftColor = "#60a5fa";
 
+type RoomRegion = {
+  id: string;
+  label: string;
+  points?: Array<{ x: number; y: number }>;
+  rect: { x0: number; y0: number; x1: number; y1: number };
+  source: "shape" | "box";
+};
+
+/**
+ * Rejects the things a low-confidence wall detector mistakes for walls:
+ * dimension strings, column grid lines and leader lines. Those run a long way
+ * across the sheet while staying hairline-thin; a real wall is far thicker for
+ * its length. Deliberately conservative - it only catches the extreme cases.
+ */
+const isLikelyWall = (
+  box: { width?: number; height?: number; points?: Array<{ x: number; y: number }> },
+  imageW: number,
+  imageH: number,
+) => {
+  if (!imageW || !imageH) return true;
+
+  let w = Math.max(0, box.width || 0);
+  let h = Math.max(0, box.height || 0);
+  if (Array.isArray(box.points) && box.points.length > 2) {
+    const xs = box.points.map((p) => p.x);
+    const ys = box.points.map((p) => p.y);
+    w = Math.max(0, Math.max(...xs) - Math.min(...xs));
+    h = Math.max(0, Math.max(...ys) - Math.min(...ys));
+  }
+  if (!w || !h) return true;
+
+  const widthRatio = w / imageW;
+  const thicknessRatio = Math.min(widthRatio, h / imageH);
+
+  // Reject wide blocks/squares while keeping thin long walls.
+  if (widthRatio >= 0.25 && thicknessRatio >= 0.06) return false;
+  if (thicknessRatio >= 0.12) return false;
+
+  const longSide = Math.max(w, h);
+  const shortSide = Math.max(1, Math.min(w, h));
+  const aspect = longSide / shortSide;
+  const thicknessPx = shortSide / Math.min(imageW, imageH);
+  if (aspect > 60 && thicknessPx < 0.0015) return false;
+
+  return true;
+};
+
+const normalizeRegionLabel = (label: string) => {
+  const cls = String(label || "").trim().toLowerCase();
+  return cls.startsWith("corridor") || cls === "hallway" || cls === "hall"
+    ? "corridors"
+    : "rooms";
+};
+
+/**
+ * The detect API returns contours as SVG path data ("M10,10L20,10L20,20Z").
+ * Pull the raw coordinate pairs back out; they're already in image pixels.
+ */
+const parseShapePath = (path: unknown): Array<{ x: number; y: number }> => {
+  if (typeof path !== "string" || !path) return [];
+  const points: Array<{ x: number; y: number }> = [];
+  const pairs = path.matchAll(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/g);
+  for (const match of pairs) {
+    const x = Number(match[1]);
+    const y = Number(match[2]);
+    if (Number.isFinite(x) && Number.isFinite(y)) points.push({ x, y });
+  }
+  return points;
+};
+
 export default function FullScreenImageViewer({
   images,
   initialIndex = 0,
@@ -169,7 +239,6 @@ export default function FullScreenImageViewer({
   const [showDetections, setShowDetections] = useState(true);
   const [showElectrical, setShowElectrical] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
-  const hideRoomCorridorBoxes = true;
   const [dimensionDetections, setDimensionDetections] = useState<
     BlueprintRegionDetection[]
   >([]);
@@ -1116,6 +1185,260 @@ export default function FullScreenImageViewer({
     return classColors[colorIndex];
   };
 
+  // Wall centerlines from the local detection model, split by orientation.
+  // Each line carries the span it actually covers so a room only snaps to a
+  // wall that runs alongside it, not to a distant parallel wall.
+  const wallLines = useMemo(() => {
+    const vertical: Array<{ pos: number; from: number; to: number }> = [];
+    const horizontal: Array<{ pos: number; from: number; to: number }> = [];
+
+    (detectionResults?.predictions ?? []).forEach((p: any) => {
+      const cls = String(p?.class || "").toLowerCase();
+      if (!cls.includes("wall")) return;
+      // Never snap a room edge onto a dimension string or a grid line.
+      if (!isLikelyWall(p, imageDimensions.width, imageDimensions.height)) return;
+
+      let minX: number;
+      let maxX: number;
+      let minY: number;
+      let maxY: number;
+
+      if (Array.isArray(p.points) && p.points.length > 1) {
+        const xs = p.points.map((pt: any) => pt.x);
+        const ys = p.points.map((pt: any) => pt.y);
+        minX = Math.min(...xs);
+        maxX = Math.max(...xs);
+        minY = Math.min(...ys);
+        maxY = Math.max(...ys);
+      } else {
+        const w = p.width || 0;
+        const h = p.height || 0;
+        minX = (p.x || 0) - w / 2;
+        maxX = (p.x || 0) + w / 2;
+        minY = (p.y || 0) - h / 2;
+        maxY = (p.y || 0) + h / 2;
+      }
+
+      const w = maxX - minX;
+      const h = maxY - minY;
+      if (w <= 0 && h <= 0) return;
+
+      if (h >= w) {
+        vertical.push({ pos: (minX + maxX) / 2, from: minY, to: maxY });
+      } else {
+        horizontal.push({ pos: (minY + maxY) / 2, from: minX, to: maxX });
+      }
+    });
+
+    return { vertical, horizontal };
+  }, [
+    detectionResults?.predictions,
+    imageDimensions.width,
+    imageDimensions.height,
+  ]);
+
+  /**
+   * Gemini's boxes land close to the right place but rarely on a wall. Pull
+   * each edge onto the nearest detected wall centerline that runs along it.
+   */
+  const snappedDimensionDetections = useMemo<BlueprintRegionDetection[]>(() => {
+    const imgW = imageDimensions.width;
+    const imgH = imageDimensions.height;
+    if (!imgW || !imgH || dimensionDetections.length === 0) {
+      return dimensionDetections;
+    }
+    if (!wallLines.vertical.length && !wallLines.horizontal.length) {
+      return dimensionDetections;
+    }
+
+    // Roughly the magnitude of the model's coordinate error.
+    const baseTolerance = 0.015 * Math.max(imgW, imgH);
+
+    const snapEdge = (
+      value: number,
+      lines: Array<{ pos: number; from: number; to: number }>,
+      spanStart: number,
+      spanEnd: number,
+      tolerance: number,
+    ) => {
+      let best = value;
+      let bestDist = tolerance;
+      for (const line of lines) {
+        // Only consider walls that overlap the box along the other axis.
+        if (line.to < spanStart || line.from > spanEnd) continue;
+        const dist = Math.abs(line.pos - value);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = line.pos;
+        }
+      }
+      return best;
+    };
+
+    return dimensionDetections.map((det) => {
+      const [ymin, xmin, ymax, xmax] = det.box;
+      const x0 = (Math.min(xmin, xmax) / 1000) * imgW;
+      const x1 = (Math.max(xmin, xmax) / 1000) * imgW;
+      const y0 = (Math.min(ymin, ymax) / 1000) * imgH;
+      const y1 = (Math.max(ymin, ymax) / 1000) * imgH;
+
+      // Never let a snap pull an edge past the middle of the box, which would
+      // grab a neighbouring room's wall.
+      const tolX = Math.min(baseTolerance, (x1 - x0) * 0.4);
+      const tolY = Math.min(baseTolerance, (y1 - y0) * 0.4);
+
+      const sx0 = snapEdge(x0, wallLines.vertical, y0, y1, tolX);
+      const sx1 = snapEdge(x1, wallLines.vertical, y0, y1, tolX);
+      const sy0 = snapEdge(y0, wallLines.horizontal, x0, x1, tolY);
+      const sy1 = snapEdge(y1, wallLines.horizontal, x0, x1, tolY);
+
+      // Both edges can chase the same wall; keep the original if that happens.
+      const nx0 = sx1 > sx0 ? sx0 : x0;
+      const nx1 = sx1 > sx0 ? sx1 : x1;
+      const ny0 = sy1 > sy0 ? sy0 : y0;
+      const ny1 = sy1 > sy0 ? sy1 : y1;
+
+      return {
+        label: det.label,
+        box: [
+          (ny0 / imgH) * 1000,
+          (nx0 / imgW) * 1000,
+          (ny1 / imgH) * 1000,
+          (nx1 / imgW) * 1000,
+        ] as [number, number, number, number],
+      };
+    });
+  }, [
+    dimensionDetections,
+    wallLines,
+    imageDimensions.width,
+    imageDimensions.height,
+  ]);
+
+  /**
+   * Room outlines traced from the blueprint itself. The detect API closes the
+   * wall lines morphologically and returns the contour of each enclosed blob,
+   * so these boundaries sit exactly on the walls - unlike the model's boxes,
+   * which only approximate them. Gemini is used purely to label each outline.
+   */
+  const roomRegions = useMemo<RoomRegion[]>(() => {
+    const imgW = imageDimensions.width;
+    const imgH = imageDimensions.height;
+
+    const boxRegions = (): RoomRegion[] =>
+      snappedDimensionDetections.map((det, index) => {
+        const [ymin, xmin, ymax, xmax] = det.box;
+        return {
+          id: `room-${index}`,
+          label: normalizeRegionLabel(det.label),
+          rect: {
+            x0: (Math.min(xmin, xmax) / 1000) * imgW,
+            y0: (Math.min(ymin, ymax) / 1000) * imgH,
+            x1: (Math.max(xmin, xmax) / 1000) * imgW,
+            y1: (Math.max(ymin, ymax) / 1000) * imgH,
+          },
+          source: "box" as const,
+        };
+      });
+
+    if (!imgW || !imgH) return [];
+
+    const shapes = Array.isArray(detectionResults?.shapes)
+      ? (detectionResults.shapes as Array<any>)
+      : [];
+    if (!shapes.length || !dimensionDetections.length) return boxRegions();
+
+    // The model's boxes in image pixels, used only to decide room vs corridor.
+    const labelBoxes = dimensionDetections.map((det) => {
+      const [ymin, xmin, ymax, xmax] = det.box;
+      return {
+        label: normalizeRegionLabel(det.label),
+        rect: {
+          x0: (Math.min(xmin, xmax) / 1000) * imgW,
+          y0: (Math.min(ymin, ymax) / 1000) * imgH,
+          x1: (Math.max(xmin, xmax) / 1000) * imgW,
+          y1: (Math.max(ymin, ymax) / 1000) * imgH,
+        },
+      };
+    });
+
+    // Only keep contours inside the area the model considered part of the plan,
+    // so title blocks and legend cells don't become rooms.
+    const planBounds = labelBoxes.reduce(
+      (acc, b) => ({
+        x0: Math.min(acc.x0, b.rect.x0),
+        y0: Math.min(acc.y0, b.rect.y0),
+        x1: Math.max(acc.x1, b.rect.x1),
+        y1: Math.max(acc.y1, b.rect.y1),
+      }),
+      { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity },
+    );
+
+    const regions: RoomRegion[] = [];
+
+    shapes.forEach((shape: any, index: number) => {
+      const points = parseShapePath(shape?.path);
+      if (points.length < 3) return;
+
+      const xs = points.map((p) => p.x);
+      const ys = points.map((p) => p.y);
+      const rect = {
+        x0: Math.min(...xs),
+        y0: Math.min(...ys),
+        x1: Math.max(...xs),
+        y1: Math.max(...ys),
+      };
+
+      const centroid = computePolygonCentroid(points);
+      if (
+        centroid.x < planBounds.x0 ||
+        centroid.x > planBounds.x1 ||
+        centroid.y < planBounds.y0 ||
+        centroid.y > planBounds.y1
+      ) {
+        return;
+      }
+
+      // Label from whichever box covers the most of this outline.
+      let bestLabel: string | null = null;
+      let bestCoverage = 0;
+      const shapeArea = Math.max(
+        1,
+        (rect.x1 - rect.x0) * (rect.y1 - rect.y0),
+      );
+      labelBoxes.forEach((box) => {
+        const w = Math.min(rect.x1, box.rect.x1) - Math.max(rect.x0, box.rect.x0);
+        const h = Math.min(rect.y1, box.rect.y1) - Math.max(rect.y0, box.rect.y0);
+        if (w <= 0 || h <= 0) return;
+        const coverage = (w * h) / shapeArea;
+        if (coverage > bestCoverage) {
+          bestCoverage = coverage;
+          bestLabel = box.label;
+        }
+      });
+
+      if (!bestLabel || bestCoverage < 0.15) return;
+
+      regions.push({
+        id: shape?.id ? `shape-${shape.id}` : `shape-${index}`,
+        label: bestLabel,
+        points,
+        rect,
+        source: "shape",
+      });
+    });
+
+    // If the contours didn't survive filtering, fall back to the boxes rather
+    // than showing nothing.
+    return regions.length ? regions : boxRegions();
+  }, [
+    detectionResults?.shapes,
+    dimensionDetections,
+    snappedDimensionDetections,
+    imageDimensions.width,
+    imageDimensions.height,
+  ]);
+
   const classStats = useMemo<Record<string, ClassStat>>(() => {
     const accumulator: Record<
       string,
@@ -1201,6 +1524,13 @@ export default function FullScreenImageViewer({
       userAnnotations.forEach((annotation) => {
         bump(annotation.class ?? "Unknown");
       });
+
+      // Freshly detected room/corridor regions live outside predictions until saved
+      if (showDimensions) {
+        roomRegions.forEach((region) => {
+          bump(region.label, { confidence: 0.9, trackConfidence: true });
+        });
+      }
     }
 
     return Object.fromEntries(
@@ -1217,6 +1547,8 @@ export default function FullScreenImageViewer({
     );
   }, [
     showElectrical,
+    showDimensions,
+    roomRegions,
     detectionResults?.predictions,
     detectionResults?.electricalPredictions,
     userAnnotations,
@@ -2043,25 +2375,8 @@ export default function FullScreenImageViewer({
     if (imageArea > 0) {
       visibleBoxes = visibleBoxes.filter((box: any) => {
         const cls = String(box.class || "").toLowerCase();
-        const isWall = cls.includes("wall");
-        if (!isWall) return true;
-        let w = Math.max(0, box.width || 0);
-        let h = Math.max(0, box.height || 0);
-        if (Array.isArray(box.points) && box.points.length > 2) {
-          const xs = box.points.map((p: any) => p.x);
-          const ys = box.points.map((p: any) => p.y);
-          w = Math.max(0, Math.max(...xs) - Math.min(...xs));
-          h = Math.max(0, Math.max(...ys) - Math.min(...ys));
-        }
-        if (!w || !h) return true;
-        const widthRatio = w / imageW;
-        const heightRatio = h / imageH;
-        const thicknessRatio = Math.min(widthRatio, heightRatio);
-
-        // Reject wide blocks/squares while keeping thin long walls.
-        if (widthRatio >= 0.25 && thicknessRatio >= 0.06) return false;
-        if (thicknessRatio >= 0.12) return false;
-        return true;
+        if (!cls.includes("wall")) return true;
+        return isLikelyWall(box, imageW, imageH);
       });
     }
 
@@ -2527,24 +2842,22 @@ export default function FullScreenImageViewer({
       points: a.points ?? undefined,
     }));
 
-    const rooms = dimensionDetections.map((det, index) => {
-      // Convert 0-1000 normalized coordinates to image pixels
-      const [ymin, xmin, ymax, xmax] = det.box;
-      const w_px = (Math.abs(xmax - xmin) / 1000) * (imageDimensions.width || 1000);
-      const h_px = (Math.abs(ymax - ymin) / 1000) * (imageDimensions.height || 1000);
-      const cx_px = ((xmin + xmax) / 2 / 1000) * (imageDimensions.width || 1000);
-      const cy_px = ((ymin + ymax) / 2 / 1000) * (imageDimensions.height || 1000);
+    const rooms = roomRegions.map((region) => {
+      const w_px = region.rect.x1 - region.rect.x0;
+      const h_px = region.rect.y1 - region.rect.y0;
 
       return {
-        id: `room-${index}`,
+        id: region.id,
         source: "RoomModel" as const,
-        className: det.label || "Room",
+        className: region.label,
         confidence: 0.9, // Default confidence for room detections
-        x: Number(cx_px.toFixed(2)),
-        y: Number(cy_px.toFixed(2)),
+        x: Number((region.rect.x0 + w_px / 2).toFixed(2)),
+        y: Number((region.rect.y0 + h_px / 2).toFixed(2)),
         width: Number(w_px.toFixed(2)),
         height: Number(h_px.toFixed(2)),
         pageNumber: currentImage?.pageNumber,
+        // Wall-traced outline, so downstream area maths uses the real shape.
+        points: region.points,
       };
     });
 
@@ -2570,7 +2883,7 @@ export default function FullScreenImageViewer({
     detectionResults,
     selectedClasses,
     dismissedDetections,
-    dimensionDetections,
+    roomRegions,
     imageDimensions.width,
     imageDimensions.height,
   ]);
@@ -2896,11 +3209,10 @@ export default function FullScreenImageViewer({
               and drawn by the generateSvgOverlay above. 
           */}
           {showDimensions &&
-            !hideRoomCorridorBoxes &&
             imageDimensions.width > 0 &&
-            dimensionDetections.length > 0 && (
+            roomRegions.length > 0 && (
               <svg
-                className="absolute top-0 left-0"
+                className="absolute inset-0"
                 style={{
                   width: "100%",
                   height: "100%",
@@ -2908,59 +3220,95 @@ export default function FullScreenImageViewer({
                   transformOrigin: "center center",
                   pointerEvents: "none",
                 }}
-                viewBox="0 0 1000 1000"
-                preserveAspectRatio="none"
+                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+                preserveAspectRatio="xMidYMid meet"
               >
-                {dimensionDetections.map((det, idx) => {
-                  const [ymin, xmin, ymax, xmax] = det.box;
-                  const boxWidth = Math.max(0, xmax - xmin);
-                  const boxHeight = Math.max(0, ymax - ymin);
-                  const color = getColorForClass(det.label || "dimension");
-                  const hoverId = `dim-det-${idx}`;
-                  const isHovered = hoveredShapeId === hoverId;
+                {roomRegions.map((region) => {
+                  if (
+                    selectedClasses.size > 0 &&
+                    !selectedClasses.has(region.label)
+                  ) {
+                    return null;
+                  }
+
+                  const color = getColorForClass(region.label);
+                  const isHovered = hoveredShapeId === region.id;
+                  const boxWidth = region.rect.x1 - region.rect.x0;
+                  const boxHeight = region.rect.y1 - region.rect.y0;
 
                   let areaLabel = "";
                   if (isHovered && calibrationInfo) {
-                    const actualWidth = (boxWidth / 1000) * imageDimensions.width;
-                    const actualHeight = (boxHeight / 1000) * imageDimensions.height;
-                    areaLabel = convertPixelArea(actualWidth * actualHeight).formatted;
+                    // Contour outlines give a true floor area; boxes only an
+                    // approximation from their extents.
+                    const areaPx =
+                      region.points && region.points.length > 2
+                        ? computePolygonArea(region.points)
+                        : boxWidth * boxHeight;
+                    areaLabel = convertPixelArea(areaPx).formatted;
                   }
+
+                  const center =
+                    region.points && region.points.length > 2
+                      ? computePolygonCentroid(region.points)
+                      : {
+                        x: region.rect.x0 + boxWidth / 2,
+                        y: region.rect.y0 + boxHeight / 2,
+                      };
+
+                  // Label geometry was authored for a 1000x1000 canvas; scale it
+                  // to the image so it stays readable on large blueprints.
+                  const labelScale =
+                    Math.max(imageDimensions.width, imageDimensions.height) / 1000;
 
                   return (
                     <g
-                      key={`${det.label}-${idx}`}
-                      onMouseEnter={() => setHoveredShapeId(hoverId)}
+                      key={region.id}
+                      onMouseEnter={() => setHoveredShapeId(region.id)}
                       onMouseLeave={() => setHoveredShapeId(null)}
                       style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                     >
-                      <rect
-                        x={xmin}
-                        y={ymin}
-                        width={boxWidth}
-                        height={boxHeight}
-                        fill={color}
-                        fillOpacity={isHovered ? 0.35 : 0.18}
-                        stroke={color}
-                        strokeWidth={isHovered ? 4 : 2}
-                        vectorEffect="non-scaling-stroke"
-                      />
+                      {region.points && region.points.length > 2 ? (
+                        <polygon
+                          points={region.points
+                            .map((p) => `${p.x},${p.y}`)
+                            .join(" ")}
+                          fill={color}
+                          fillOpacity={isHovered ? 0.35 : 0.18}
+                          stroke={color}
+                          strokeWidth={isHovered ? 4 : 2}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      ) : (
+                        <rect
+                          x={region.rect.x0}
+                          y={region.rect.y0}
+                          width={boxWidth}
+                          height={boxHeight}
+                          fill={color}
+                          fillOpacity={isHovered ? 0.35 : 0.18}
+                          stroke={color}
+                          strokeWidth={isHovered ? 4 : 2}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      )}
                       {areaLabel && (
                         <g style={{ pointerEvents: 'none' }}>
                           <rect
-                            x={xmin + boxWidth / 2 - (areaLabel.length * 10)}
-                            y={ymin + boxHeight / 2 - 25}
-                            width={areaLabel.length * 20}
-                            height={50}
-                            rx={10}
+                            x={center.x - areaLabel.length * 10 * labelScale}
+                            y={center.y - 25 * labelScale}
+                            width={areaLabel.length * 20 * labelScale}
+                            height={50 * labelScale}
+                            rx={10 * labelScale}
                             fill="rgba(15, 23, 42, 0.85)"
                             stroke="rgba(255, 255, 255, 0.2)"
                             strokeWidth={1}
+                            vectorEffect="non-scaling-stroke"
                           />
                           <text
-                            x={xmin + boxWidth / 2}
-                            y={ymin + boxHeight / 2 + 10}
+                            x={center.x}
+                            y={center.y + 10 * labelScale}
                             fill="#f8fafc"
-                            fontSize={28}
+                            fontSize={28 * labelScale}
                             fontWeight="bold"
                             textAnchor="middle"
                           >
@@ -3077,10 +3425,6 @@ export default function FullScreenImageViewer({
                   const isRoomOrCorridor = ["rooms", "corridors", "room", "corridor"].includes(
                     String(detection.class || "").trim().toLowerCase()
                   );
-                  if (hideRoomCorridorBoxes && isRoomOrCorridor) {
-                    return null;
-                  }
-
                   let autoAreaLabel = "";
                   let autoAreaCentroid: MeasurementPoint | null = null;
                   if (isRoomOrCorridor && hoveredShapeId === detection.id && calibrationInfo) {
