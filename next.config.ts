@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     domains: [
       "bidready.s3.ap-south-1.amazonaws.com",
       "bidreadyimage.s3.us-east-1.amazonaws.com",
+      "bidready2.s3.us-east-1.amazonaws.com",
       "upload.wikimedia.org",
       "cdn.shopify.com",
       "encrypted-tbn0.gstatic.com",
