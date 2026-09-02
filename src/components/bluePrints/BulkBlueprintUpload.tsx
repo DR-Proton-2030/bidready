@@ -16,7 +16,9 @@ interface BulkBlueprintUploadProps {
   version: string;
   status: string;
   project_object_id: string;
-  onAllDone: () => void;
+  // firstBlueprintId is the created blueprint for the first file (in selection
+  // order), so the caller can open its editor once everything finishes.
+  onAllDone: (firstBlueprintId?: string) => void;
 }
 
 interface ItemState {
@@ -39,6 +41,9 @@ export default function BulkBlueprintUpload({
   // would re-run the effect and clear its own pending timer before it fires.
   const doneScheduledRef = useRef(false);
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Created blueprint id per file, so we can open the first file's editor when
+  // the whole batch finishes.
+  const blueprintIdsRef = useRef<Record<string, string>>({});
 
   const handleStatusChange = (
     fileKey: string,
@@ -49,6 +54,19 @@ export default function BulkBlueprintUpload({
       ...prev,
       [fileKey]: { status: itemStatus, progress },
     }));
+  };
+
+  const handleBlueprintCreated = (fileKey: string, blueprintId: string) => {
+    blueprintIdsRef.current[fileKey] = blueprintId;
+  };
+
+  // First blueprint id in file-selection order (fall back to any that exists).
+  const getFirstBlueprintId = () => {
+    for (const f of files) {
+      const id = blueprintIdsRef.current[fileKeyFor(f)];
+      if (id) return id;
+    }
+    return undefined;
   };
 
   useEffect(() => {
@@ -65,7 +83,10 @@ export default function BulkBlueprintUpload({
     // effect must not clear its own timer on a later re-render; the ref guard
     // guarantees single scheduling and the unmount effect below clears it.
     doneScheduledRef.current = true;
-    redirectTimerRef.current = setTimeout(() => onAllDone(), 800);
+    redirectTimerRef.current = setTimeout(
+      () => onAllDone(getFirstBlueprintId()),
+      800
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemStates, files]);
 
@@ -126,6 +147,7 @@ export default function BulkBlueprintUpload({
             status={status}
             project_object_id={project_object_id}
             onStatusChange={handleStatusChange}
+            onBlueprintCreated={handleBlueprintCreated}
           />
         ))}
       </div>

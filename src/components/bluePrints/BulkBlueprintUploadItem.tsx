@@ -20,6 +20,7 @@ interface BulkBlueprintUploadItemProps {
     progress: number,
     errorMessage?: string
   ) => void;
+  onBlueprintCreated?: (fileKey: string, blueprintId: string) => void;
 }
 
 export default function BulkBlueprintUploadItem({
@@ -31,6 +32,7 @@ export default function BulkBlueprintUploadItem({
   project_object_id,
   name,
   onStatusChange,
+  onBlueprintCreated,
 }: BulkBlueprintUploadItemProps) {
   const fileKey = `${file.name}_${file.size}_${file.lastModified}`;
   const { createBlueprintWithStreaming, streamingProgress } = useCreateBlueprint();
@@ -39,6 +41,8 @@ export default function BulkBlueprintUploadItem({
   const [attempt, setAttempt] = useState(0);
   const onStatusChangeRef = useRef(onStatusChange);
   onStatusChangeRef.current = onStatusChange;
+  const onBlueprintCreatedRef = useRef(onBlueprintCreated);
+  onBlueprintCreatedRef.current = onBlueprintCreated;
   // Guards against React Strict Mode's dev-only double-invoke of this effect
   // (mount -> cleanup -> mount), which would otherwise fire the real upload
   // POST twice and race two blueprints for the same underlying WebSocket ref.
@@ -134,7 +138,10 @@ export default function BulkBlueprintUploadItem({
             data?.blueprint?._id ||
             data?.data?.blueprint?._id ||
             data?.data?._id;
-          if (blueprintId) startPolling(String(blueprintId));
+          if (blueprintId) {
+            onBlueprintCreatedRef.current?.(fileKey, String(blueprintId));
+            startPolling(String(blueprintId));
+          }
         },
         onImageProcessed: (data) => {
           if (settledRef.current) return;

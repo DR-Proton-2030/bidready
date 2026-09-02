@@ -367,10 +367,14 @@ export default function CreateBlueprint({
             version={form.version}
             status={form.status}
             project_object_id={form.project_object_id}
-            onAllDone={() => {
-              // Land on the project the blueprints were actually assigned to
-              // (form value is the selected project; initialProjectId can be
-              // empty), falling back to the global blueprints list.
+            onAllDone={(firstBlueprintId) => {
+              // Open the first uploaded blueprint's editor so the user can start
+              // annotating right away. Fall back to the project (or global list)
+              // if we somehow didn't capture a blueprint id.
+              if (firstBlueprintId) {
+                router.push(`/blueprints/${firstBlueprintId}`);
+                return;
+              }
               const targetProjectId = form.project_object_id || initialProjectId;
               router.push(
                 targetProjectId
