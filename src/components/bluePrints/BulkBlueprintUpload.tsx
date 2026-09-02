@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import BulkBlueprintUploadItem, {
   BulkUploadItemStatus,
 } from "./BulkBlueprintUploadItem";
+import BulkBlueprintEditOverlay from "./BulkBlueprintEditOverlay";
+import BulkBlueprintDetectionOverlay from "./BulkBlueprintDetectionOverlay";
 import {
   deriveBlueprintNameFromFilename,
   inferBlueprintTypeFromFilename,
@@ -16,14 +18,17 @@ interface BulkBlueprintUploadProps {
   version: string;
   status: string;
   project_object_id: string;
-  // firstBlueprintId is the created blueprint for the first file (in selection
-  // order), so the caller can open its editor once everything finishes.
-  onAllDone: (firstBlueprintId?: string) => void;
+  onAllDone: () => void;
 }
 
 interface ItemState {
   status: BulkUploadItemStatus;
   progress: number;
+}
+
+interface ActiveOverlay {
+  type: "edit" | "detect";
+  fileKey: string;
 }
 
 const fileKeyFor = (file: File) => `${file.name}_${file.size}_${file.lastModified}`;
@@ -37,13 +42,10 @@ export default function BulkBlueprintUpload({
   onAllDone,
 }: BulkBlueprintUploadProps) {
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
-  // Ref (not state) so scheduling the redirect doesn't trigger a re-render that
-  // would re-run the effect and clear its own pending timer before it fires.
-  const doneScheduledRef = useRef(false);
-  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Created blueprint id per file, so we can open the first file's editor when
-  // the whole batch finishes.
-  const blueprintIdsRef = useRef<Record<string, string>>({});
+  // Created blueprint id per file, populated as each upload's create call
+  // resolves, so Edit/Detect can be opened for that specific blueprint.
+  const [blueprintIds, setBlueprintIds] = useState<Record<string, string>>({});
+  const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay | null>(null);
 
   const handleStatusChange = (
     fileKey: string,
@@ -57,46 +59,8 @@ export default function BulkBlueprintUpload({
   };
 
   const handleBlueprintCreated = (fileKey: string, blueprintId: string) => {
-    blueprintIdsRef.current[fileKey] = blueprintId;
+    setBlueprintIds((prev) => ({ ...prev, [fileKey]: blueprintId }));
   };
-
-  // First blueprint id in file-selection order (fall back to any that exists).
-  const getFirstBlueprintId = () => {
-    for (const f of files) {
-      const id = blueprintIdsRef.current[fileKeyFor(f)];
-      if (id) return id;
-    }
-    return undefined;
-  };
-
-  useEffect(() => {
-    if (doneScheduledRef.current) return;
-    const allSettled =
-      files.length > 0 &&
-      files.every((f) => {
-        const s = itemStates[fileKeyFor(f)]?.status;
-        return s === "done" || s === "error";
-      });
-    if (!allSettled) return;
-
-    // Schedule the redirect exactly once. No cleanup here on purpose — this
-    // effect must not clear its own timer on a later re-render; the ref guard
-    // guarantees single scheduling and the unmount effect below clears it.
-    doneScheduledRef.current = true;
-    redirectTimerRef.current = setTimeout(
-      () => onAllDone(getFirstBlueprintId()),
-      800
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemStates, files]);
-
-  // Clear the pending redirect only on real unmount.
-  useEffect(
-    () => () => {
-      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
-    },
-    []
-  );
 
   const completedCount = useMemo(
     () =>
@@ -113,19 +77,45 @@ export default function BulkBlueprintUpload({
     [files, itemStates]
   );
 
+  const allSettled = files.length > 0 && completedCount === files.length;
+
+  // Overlays are rendered ADDITIONALLY (not instead of the hub below) — both
+  // use fixed/full-screen positioning, so they visually cover the hub without
+  // unmounting the upload items underneath. Unmounting them would tear down
+  // each item's in-flight/completed upload state and remount fresh instances,
+  // which would re-fire the upload POST and create duplicate blueprints.
+  const activeFile = activeOverlay
+    ? files.find((f) => fileKeyFor(f) === activeOverlay.fileKey)
+    : undefined;
+  const activeBlueprintId = activeOverlay
+    ? blueprintIds[activeOverlay.fileKey]
+    : undefined;
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900">
           Uploading {files.length} Blueprint{files.length === 1 ? "" : "s"}
         </h2>
-        <span className="text-sm text-gray-500 flex items-center gap-2">
-          {completedCount < files.length && (
-            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-500 flex items-center gap-2">
+            {completedCount < files.length && (
+              <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+            )}
+            {completedCount} of {files.length} complete
+            {errorCount > 0 ? ` (${errorCount} failed)` : ""}
+          </span>
+          {allSettled && (
+            <button
+              type="button"
+              onClick={onAllDone}
+              className="px-4 py-1.5 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+            >
+              Close
+            </button>
           )}
-          {completedCount} of {files.length} complete
-          {errorCount > 0 ? ` (${errorCount} failed)` : ""}
-        </span>
+        </div>
       </div>
 
       <div className="w-full bg-gray-100 rounded-full h-2 mb-6">
@@ -148,9 +138,29 @@ export default function BulkBlueprintUpload({
             project_object_id={project_object_id}
             onStatusChange={handleStatusChange}
             onBlueprintCreated={handleBlueprintCreated}
+            onAction={(action) =>
+              setActiveOverlay({ type: action, fileKey: fileKeyFor(file) })
+            }
           />
         ))}
       </div>
     </div>
+
+    {activeOverlay && activeFile && activeBlueprintId && (
+      activeOverlay.type === "edit" ? (
+        <BulkBlueprintEditOverlay
+          file={activeFile}
+          blueprintId={activeBlueprintId}
+          name={deriveBlueprintNameFromFilename(activeFile.name)}
+          onDone={() => setActiveOverlay(null)}
+        />
+      ) : (
+        <BulkBlueprintDetectionOverlay
+          blueprintId={activeBlueprintId}
+          onDone={() => setActiveOverlay(null)}
+        />
+      )
+    )}
+    </>
   );
 }
