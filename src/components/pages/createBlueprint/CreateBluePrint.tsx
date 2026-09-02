@@ -8,6 +8,7 @@ import BlueprintFormFields from "@/components/bluePrints/BlueprintFormFields";
 import ErrorMessage from "@/components/bluePrints/ErrorMessage";
 import FullScreenImageViewer from "@/components/shared/FullScreenImageViewer";
 import FileUploadSection from "@/components/bluePrints/FileUploadSection";
+import BulkBlueprintUpload from "@/components/bluePrints/BulkBlueprintUpload";
 import ProcessedImagesSection from "@/components/bluePrints/ProcessedImagesSection";
 import PDFViewerSection from "@/components/pages/blueprintProcessing/PDFViewerSection";
 import { ProcessedImage, BlueprintFormData } from "@/@types/interface/blueprint.interface";
@@ -50,6 +51,9 @@ export default function CreateBlueprint({
   const [svgOverlays, setSvgOverlays] = useState<Map<string, string | null>>(new Map());
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfFiles, setPdfFiles] = useState<File[]>([]);
+  const [bulkSubmitted, setBulkSubmitted] = useState(false);
+  const isBulkPdfMode = pdfFiles.length > 1;
   const { handleNewBlueprint } = useBlueprints();
 
   // Field-level validation
@@ -139,20 +143,20 @@ export default function CreateBlueprint({
 
     try {
       const filesArray = Array.from(files);
-      const hasPDF = filesArray.some(file => file.type === "application/pdf");
+      const pdfsOnly = filesArray.filter(file => file.type === "application/pdf");
 
-      if (hasPDF) {
-        // If PDF, open PDF editor immediately (no server upload yet)
-        if (filesArray.length > 1) {
-          setError("Please upload only one PDF file at a time");
+      if (pdfsOnly.length > 0) {
+        if (pdfsOnly.length > 1) {
+          // Multiple PDFs: queue them up for bulk upload (one blueprint per file).
+          setPdfFiles(pdfsOnly);
+          setBulkSubmitted(false);
+          setPdfFile(null);
           return;
         }
 
-        const pdfFile = filesArray[0];
-        // Keep the PDF in state but DO NOT navigate/open the editor automatically.
-        // The user can choose to open the PDF editor manually if desired.
-        setPdfFile(pdfFile);
-        // Do not auto-open editor on upload
+        // Single PDF: keep the existing one-at-a-time flow (opens PDF editor manually).
+        setPdfFile(pdfsOnly[0]);
+        setPdfFiles([]);
         return;
       }
     } catch (error) {
@@ -193,6 +197,20 @@ export default function CreateBlueprint({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isBulkPdfMode) {
+      // Bulk mode: each file becomes its own blueprint with an auto-derived
+      // name, so only the shared project selection is required here.
+      if (!form.project_object_id) {
+        setTouched((prev) => ({ ...prev, project_object_id: true }));
+        setFieldErrors((prev) => ({ ...prev, project_object_id: "Please select a project" }));
+        setError("Please select a project.");
+        return;
+      }
+      setError("");
+      setBulkSubmitted(true);
+      return;
+    }
 
     // Mark all fields as touched and validate
     const allTouched: TouchedFields = {
@@ -338,6 +356,28 @@ export default function CreateBlueprint({
   };
 
 
+  // If bulk PDFs were submitted, show the bulk upload progress list instead of the form
+  if (bulkSubmitted && isBulkPdfMode) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <BulkBlueprintUpload
+            files={pdfFiles}
+            description={form.description}
+            version={form.version}
+            status={form.status}
+            project_object_id={form.project_object_id}
+            onAllDone={() => {
+              router.push(
+                initialProjectId ? `/projects/${initialProjectId}` : "/blueprints"
+              );
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // If showing PDF handler, render that instead
   if (showPdfHandler && pdfFile) {
     return (
@@ -423,11 +463,41 @@ export default function CreateBlueprint({
           />
 
           {/* File Upload / PDF Preview Section */}
-          {processedImages.length === 0 && !pdfFile ? (
+          {processedImages.length === 0 && !pdfFile && pdfFiles.length === 0 ? (
             <FileUploadSection
               isUploading={isUploading}
               onFileUpload={handleFileUpload}
             />
+          ) : pdfFiles.length > 0 ? (
+            /* Multiple PDFs selected: preview list before submitting as bulk */
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-gray-900">
+                  {pdfFiles.length} PDF files selected
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPdfFiles([])}
+                  className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all"
+                >
+                  Clear all
+                </button>
+              </div>
+              <ul className="divide-y divide-gray-100">
+                {pdfFiles.map((file, index) => (
+                  <li key={`${file.name}_${file.size}_${index}`} className="py-2 flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                    <span className="text-xs text-gray-400 flex-shrink-0">
+                      {(file.size / (1024 * 1024)).toFixed(2)} MB
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-gray-500 leading-relaxed">
+                Each file will be created as its own blueprint in this project. Click{" "}
+                <strong>Create {pdfFiles.length} Blueprints</strong> to upload and process them all.
+              </p>
+            </div>
           ) : processedImages.length > 0 ? (
             /* Processed Images Preview */
             <ProcessedImagesSection
@@ -489,10 +559,10 @@ export default function CreateBlueprint({
             </button>
             <button
               type="submit"
-              disabled={isUploading || (processedImages.length === 0 && !pdfFile)}
+              disabled={isUploading || (processedImages.length === 0 && !pdfFile && !isBulkPdfMode)}
               className={`
                 px-6 py-2.5 rounded-xl flex items-center gap-2 text-sm font-semibold transition-all shadow-sm
-                ${isUploading || (processedImages.length === 0 && !pdfFile)
+                ${isUploading || (processedImages.length === 0 && !pdfFile && !isBulkPdfMode)
                   ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                   : "bg-primary text-white hover:opacity-90 shadow-primary/25"
                 }
@@ -502,6 +572,11 @@ export default function CreateBlueprint({
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Processing...
+                </>
+              ) : isBulkPdfMode ? (
+                <>
+                  Create {pdfFiles.length} Blueprints
+                  <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>

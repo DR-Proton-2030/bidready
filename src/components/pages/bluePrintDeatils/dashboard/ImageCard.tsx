@@ -179,6 +179,9 @@ const ImageCard: React.FC<ImageCardProps> = ({
 
     // If we already have a plan/overlay, view it inline
     if (p.overlay) {
+      // Seed the cache with the full saved blob so later edits (detections,
+      // calibration, takeoff settings) merge onto it instead of replacing it.
+      detectionCacheRef.current[imageId] = p.overlayData;
       setViewerImages([{ id: imageId, name: p.name || "image", path: p.src }]);
       setViewerDetectionResults(p.overlayData);
       setViewerImageId(imageId);
@@ -477,6 +480,10 @@ const ImageCard: React.FC<ImageCardProps> = ({
               } catch (e) {
                 console.error("Failed to store combined detections:", e);
               }
+            }}
+            onTakeoffChange={(imageId: string, takeoff: any) => {
+              const existing = detectionCacheRef.current[imageId] ?? {};
+              detectionCacheRef.current[imageId] = { ...existing, takeoff };
             }}
           />,
           document.body,

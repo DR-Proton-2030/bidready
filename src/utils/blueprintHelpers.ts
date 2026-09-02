@@ -114,6 +114,37 @@ export const buildPdfBlueprintFormData = (
 };
 
 /**
+ * Derives a human-readable blueprint name from a PDF filename.
+ * e.g. "floor_plan-level_2.pdf" -> "Floor Plan Level 2"
+ */
+export const deriveBlueprintNameFromFilename = (filename: string): string => {
+  const withoutExtension = filename.replace(/\.[^/.]+$/, "");
+  const spaced = withoutExtension.replace(/[_-]+/g, " ").trim();
+  if (!spaced) return "Untitled Blueprint";
+  return spaced
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+/**
+ * Infers a blueprint type from keywords found in a PDF filename.
+ * `type` is a free-text field server-side, so this is just a helpful default.
+ */
+export const inferBlueprintTypeFromFilename = (filename: string): string => {
+  const lower = filename.toLowerCase();
+  const keywordToType: Array<[RegExp, string]> = [
+    [/schedule/, "schedule"],
+    [/elevation/, "elevation"],
+    [/site/, "site_plan"],
+    [/(electrical|mep|plumbing|hvac)/, "mep"],
+    [/structural/, "structural"],
+  ];
+  const match = keywordToType.find(([pattern]) => pattern.test(lower));
+  return match ? match[1] : "floor_plan";
+};
+
+/**
  * Builds form parameters for URL
  */
 export const buildFormParams = (form: BlueprintFormData): URLSearchParams => {

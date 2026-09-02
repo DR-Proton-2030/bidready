@@ -37,8 +37,10 @@ export default function FileUploadSection({
         Upload Blueprint Files
       </h2>
       <p className="text-gray-600 mb-6">
-        Upload blueprint images or PDF files. PDFs will open in our annotation
-        editor, images will be processed for AI detection.
+        Upload blueprint images or PDF files. A single PDF opens in our
+        annotation editor; select multiple PDFs at once to create a blueprint
+        for each one in this project. Images will be processed for AI
+        detection.
       </p>
 
       <div
@@ -87,7 +89,8 @@ export default function FileUploadSection({
                 10MB each
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                • PDFs open in annotation editor
+                • A single PDF opens in the annotation editor
+                <br />• Multiple PDFs upload in bulk, one blueprint each
                 <br />• Images processed with AI detection
               </p>
             </div>

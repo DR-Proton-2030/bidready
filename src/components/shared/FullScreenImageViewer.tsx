@@ -23,6 +23,12 @@ import {
 } from "lucide-react";
 import RightToolbar from "./RightToolbar";
 import { AiDetectionSidebar } from "./AiDetectionSidebar";
+import {
+  DrywallTakeoffPanel,
+  DrywallGeometry,
+  DrywallSettings,
+  DEFAULT_DRYWALL_SETTINGS,
+} from "./DrywallTakeoffPanel";
 import CompanyLogo from "./companyLogo/CompanyLogo";
 import AskAISidePanel from "./AskAISidePanel";
 import { FullScreenImageHeader } from "./FullScreenImageHeader";
@@ -125,6 +131,10 @@ interface FullScreenImageViewerProps {
     imageId: string,
     detections: BlueprintRegionDetection[],
   ) => void;
+  onTakeoffChange?: (
+    imageId: string,
+    takeoff: { aiCalibration: any; drywall: DrywallSettings },
+  ) => void;
 }
 
 const areaFormatter = new Intl.NumberFormat("en-US", {
@@ -153,7 +163,11 @@ type RoomRegion = {
  * its length. Deliberately conservative - it only catches the extreme cases.
  */
 const isLikelyWall = (
-  box: { width?: number; height?: number; points?: Array<{ x: number; y: number }> },
+  box: {
+    width?: number;
+    height?: number;
+    points?: Array<{ x: number; y: number }>;
+  },
   imageW: number,
   imageH: number,
 ) => {
@@ -186,7 +200,9 @@ const isLikelyWall = (
 };
 
 const normalizeRegionLabel = (label: string) => {
-  const cls = String(label || "").trim().toLowerCase();
+  const cls = String(label || "")
+    .trim()
+    .toLowerCase();
   return cls.startsWith("corridor") || cls === "hallway" || cls === "hall"
     ? "corridors"
     : "rooms";
@@ -218,6 +234,7 @@ export default function FullScreenImageViewer({
   onSvgOverlayUpdate,
   onDetectionsChange,
   onDimensionDetectionsChange,
+  onTakeoffChange,
 }: FullScreenImageViewerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(0.5);
@@ -243,9 +260,9 @@ export default function FullScreenImageViewer({
     BlueprintRegionDetection[]
   >([]);
   const [dimensionDetecting, setDimensionDetecting] = useState(false);
-  const [dimensionDetectError, setDimensionDetectError] = useState<string | null>(
-    null,
-  );
+  const [dimensionDetectError, setDimensionDetectError] = useState<
+    string | null
+  >(null);
   const [useDetectedRoi, setUseDetectedRoi] = useState(true);
   const [detectedRoi, setDetectedRoi] = useState<RoiRect | null>(null);
   const [roiOverlapThreshold, setRoiOverlapThreshold] = useState(0.5);
@@ -360,6 +377,12 @@ export default function FullScreenImageViewer({
 
   const [isDeepScanning, setIsDeepScanning] = useState(false);
   const [aiCalibrationData, setAiCalibrationData] = useState<any>(null);
+  const [drywallSettings, setDrywallSettings] = useState<DrywallSettings>(
+    DEFAULT_DRYWALL_SETTINGS,
+  );
+  // Tracks which image's persisted takeoff has been hydrated, so we don't
+  // report (and overwrite) settings back up before loading them in.
+  const takeoffHydratedFor = useRef<string | null>(null);
 
   const clamp01 = useCallback((n: number) => Math.max(0, Math.min(1, n)), []);
 
@@ -579,7 +602,8 @@ export default function FullScreenImageViewer({
   const getImagePointFromEvent = useCallback(
     (event: React.MouseEvent) => {
       const img = imageRef.current;
-      if (!img || !imageDimensions.width || !imageDimensions.height) return null;
+      if (!img || !imageDimensions.width || !imageDimensions.height)
+        return null;
       const rect = img.getBoundingClientRect();
       if (!rect.width || !rect.height) return null;
 
@@ -657,9 +681,14 @@ export default function FullScreenImageViewer({
     // fallback: check if dimensions are already embedded in the main predictions
     const embeddedDimensions = (detectionResults?.predictions || []).filter(
       (p: any) => {
-        const cls = String(p.class || p.className || "").trim().toLowerCase();
-        return p.source === "RoomModel" || ["rooms", "corridors", "room", "corridor"].includes(cls);
-      }
+        const cls = String(p.class || p.className || "")
+          .trim()
+          .toLowerCase();
+        return (
+          p.source === "RoomModel" ||
+          ["rooms", "corridors", "room", "corridor"].includes(cls)
+        );
+      },
     );
     if (embeddedDimensions.length > 0) {
       return;
@@ -690,9 +719,7 @@ export default function FullScreenImageViewer({
       }
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Room/corridor detection failed.";
+        err instanceof Error ? err.message : "Room/corridor detection failed.";
 
       setDimensionDetectError(message);
       setDimensionDetections([]);
@@ -1130,7 +1157,12 @@ export default function FullScreenImageViewer({
 
     setSelectedDetectionIds(new Set());
     showUndoSnackbar(`${ids.length} deleted. Undo?`);
-  }, [selectedDetectionIds, showUndoSnackbar, userAnnotations, removeOverlayWithUndo]);
+  }, [
+    selectedDetectionIds,
+    showUndoSnackbar,
+    userAnnotations,
+    removeOverlayWithUndo,
+  ]);
 
   // Predefined colors for consistent class mapping
   const classColors = [
@@ -1162,17 +1194,17 @@ export default function FullScreenImageViewer({
     const lowerName = className.toLowerCase();
     if (lowerName.includes("room")) {
       return "#1a9e216f"; // bright green
-    } 
-     if (lowerName.includes("wall")) {
+    }
+    if (lowerName.includes("wall")) {
       return "#de0505"; // bright green
     }
-     if (lowerName.includes("window")) {
+    if (lowerName.includes("window")) {
       return "#ebff0b"; // bright green
     }
-     if (lowerName.includes("door")) {
+    if (lowerName.includes("door")) {
       return "#7702ae"; // bright green
     }
-     if (lowerName.includes("corridor")) {
+    if (lowerName.includes("corridor")) {
       return "#ffb84da7"; // bright red
     }
 
@@ -1196,7 +1228,8 @@ export default function FullScreenImageViewer({
       const cls = String(p?.class || "").toLowerCase();
       if (!cls.includes("wall")) return;
       // Never snap a room edge onto a dimension string or a grid line.
-      if (!isLikelyWall(p, imageDimensions.width, imageDimensions.height)) return;
+      if (!isLikelyWall(p, imageDimensions.width, imageDimensions.height))
+        return;
 
       let minX: number;
       let maxX: number;
@@ -1236,6 +1269,139 @@ export default function FullScreenImageViewer({
     imageDimensions.width,
     imageDimensions.height,
   ]);
+
+  // Drywall takeoff geometry: total wall run (deduplicating overlapping/colinear
+  // detections on the same wall) plus door/window opening widths. Lengths are
+  // converted to real-world units via calibration; the panel turns them into SF.
+  const drywallGeometry = useMemo<DrywallGeometry>(() => {
+    const imgW = imageDimensions.width || 0;
+    const imgH = imageDimensions.height || 0;
+
+    // Merge colinear spans that share a position so two detections covering the
+    // same physical wall are counted once, not twice.
+    const mergeSpans = (
+      lines: Array<{ pos: number; from: number; to: number }>,
+      posTol: number,
+    ) => {
+      const sorted = [...lines].sort(
+        (a, b) => a.pos - b.pos || a.from - b.from,
+      );
+      let totalPx = 0;
+      let i = 0;
+      while (i < sorted.length) {
+        const groupPos = sorted[i].pos;
+        const intervals: Array<[number, number]> = [];
+        let j = i;
+        while (j < sorted.length && Math.abs(sorted[j].pos - groupPos) <= posTol) {
+          intervals.push([sorted[j].from, sorted[j].to]);
+          j += 1;
+        }
+        intervals.sort((a, b) => a[0] - b[0]);
+        let [curStart, curEnd] = intervals[0];
+        for (let k = 1; k < intervals.length; k += 1) {
+          const [s, e] = intervals[k];
+          if (s <= curEnd) {
+            curEnd = Math.max(curEnd, e);
+          } else {
+            totalPx += curEnd - curStart;
+            curStart = s;
+            curEnd = e;
+          }
+        }
+        totalPx += curEnd - curStart;
+        i = j;
+      }
+      return totalPx;
+    };
+
+    const posTol = Math.max(3, 0.003 * Math.max(imgW, imgH, 1));
+    const wallPx =
+      mergeSpans(wallLines.vertical, posTol) +
+      mergeSpans(wallLines.horizontal, posTol);
+    const wallCount = wallLines.vertical.length + wallLines.horizontal.length;
+
+    // Opening widths: for a door/window the opening spans its longer side.
+    let doorCount = 0;
+    let windowCount = 0;
+    let doorPx = 0;
+    let windowPx = 0;
+    (detectionResults?.predictions ?? []).forEach((p: any) => {
+      const cls = String(p?.class || "").toLowerCase();
+      const isDoor = cls.includes("door");
+      const isWindow = cls.includes("window");
+      if (!isDoor && !isWindow) return;
+
+      let widthPx: number;
+      if (Array.isArray(p.points) && p.points.length > 1) {
+        const xs = p.points.map((pt: any) => pt.x);
+        const ys = p.points.map((pt: any) => pt.y);
+        widthPx = Math.max(
+          Math.max(...xs) - Math.min(...xs),
+          Math.max(...ys) - Math.min(...ys),
+        );
+      } else {
+        widthPx = Math.max(p.width || 0, p.height || 0);
+      }
+
+      if (isDoor) {
+        doorCount += 1;
+        doorPx += widthPx;
+      } else {
+        windowCount += 1;
+        windowPx += widthPx;
+      }
+    });
+
+    const upp = calibrationInfo?.unitsPerPixel ?? 1;
+    const hasCalibration = Boolean(calibrationInfo);
+    const unit = hasCalibration ? calibrationInfo!.unit : "px";
+    const scale = hasCalibration ? upp : 1;
+
+    return {
+      hasCalibration,
+      unit,
+      wallLength: wallPx * scale,
+      wallCount,
+      doorCount,
+      windowCount,
+      doorOpeningWidth: doorPx * scale,
+      windowOpeningWidth: windowPx * scale,
+    };
+  }, [
+    wallLines,
+    detectionResults?.predictions,
+    calibrationInfo,
+    imageDimensions.width,
+    imageDimensions.height,
+  ]);
+
+  // Rehydrate persisted calibration + drywall settings when the image changes.
+  // Runs once per image; a fresh Run Calibration on the same image won't retrigger it.
+  useEffect(() => {
+    const imageId = currentImage?.id;
+    if (!imageId) return;
+    const takeoff = (detectionResults as any)?.takeoff;
+    setAiCalibrationData(takeoff?.aiCalibration ?? null);
+    setDrywallSettings(
+      takeoff?.drywall
+        ? { ...DEFAULT_DRYWALL_SETTINGS, ...takeoff.drywall }
+        : DEFAULT_DRYWALL_SETTINGS,
+    );
+    takeoffHydratedFor.current = imageId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentImage?.id]);
+
+  // Report calibration + drywall settings up so they persist with the detection
+  // blob. Guarded until hydration completes to avoid clobbering saved values.
+  useEffect(() => {
+    const imageId = currentImage?.id;
+    if (!imageId || !onTakeoffChange) return;
+    if (takeoffHydratedFor.current !== imageId) return;
+    onTakeoffChange(imageId, {
+      aiCalibration: aiCalibrationData ?? null,
+      drywall: drywallSettings,
+    });
+  }, [aiCalibrationData, drywallSettings, currentImage?.id, onTakeoffChange]);
 
   /**
    * Gemini's boxes land close to the right place but rarely on a wall. Pull
@@ -1402,13 +1568,12 @@ export default function FullScreenImageViewer({
       // Label from whichever box covers the most of this outline.
       let bestLabel: string | null = null;
       let bestCoverage = 0;
-      const shapeArea = Math.max(
-        1,
-        (rect.x1 - rect.x0) * (rect.y1 - rect.y0),
-      );
+      const shapeArea = Math.max(1, (rect.x1 - rect.x0) * (rect.y1 - rect.y0));
       labelBoxes.forEach((box) => {
-        const w = Math.min(rect.x1, box.rect.x1) - Math.max(rect.x0, box.rect.x0);
-        const h = Math.min(rect.y1, box.rect.y1) - Math.max(rect.y0, box.rect.y0);
+        const w =
+          Math.min(rect.x1, box.rect.x1) - Math.max(rect.x0, box.rect.x0);
+        const h =
+          Math.min(rect.y1, box.rect.y1) - Math.max(rect.y0, box.rect.y0);
         if (w <= 0 || h <= 0) return;
         const coverage = (w * h) / shapeArea;
         if (coverage > bestCoverage) {
@@ -1498,7 +1663,9 @@ export default function FullScreenImageViewer({
           if (dismissedDetections.has(detId)) return;
 
           // Filter out RoomModel detections unless showDimensions is on
-          const cls = String(prediction?.class || "").trim().toLowerCase();
+          const cls = String(prediction?.class || "")
+            .trim()
+            .toLowerCase();
           if (prediction?.source === "RoomModel") {
             if (!showDimensions) return;
           } else if (
@@ -1688,19 +1855,19 @@ export default function FullScreenImageViewer({
           meta:
             Array.isArray(pred.points) && pred.points.length > 2
               ? (() => {
-                const pts = pred.points as MeasurementPoint[];
-                const areaPx = computePolygonArea(pts);
-                const areaInfo = convertPixelArea(areaPx);
-                const centroid = computePolygonCentroid(pts);
-                return {
-                  areaPx,
-                  areaValue: areaInfo.value,
-                  areaUnit: areaInfo.unit,
-                  areaFormatted: areaInfo.formatted,
-                  areaCalibrated: areaInfo.hasCalibration,
-                  centroid,
-                };
-              })()
+                  const pts = pred.points as MeasurementPoint[];
+                  const areaPx = computePolygonArea(pts);
+                  const areaInfo = convertPixelArea(areaPx);
+                  const centroid = computePolygonCentroid(pts);
+                  return {
+                    areaPx,
+                    areaValue: areaInfo.value,
+                    areaUnit: areaInfo.unit,
+                    areaFormatted: areaInfo.formatted,
+                    areaCalibrated: areaInfo.hasCalibration,
+                    centroid,
+                  };
+                })()
               : undefined,
         }));
 
@@ -1766,7 +1933,9 @@ export default function FullScreenImageViewer({
         }
         if (selectedOverlayId) {
           e.preventDefault();
-          const isUser = userAnnotations.some((a) => a.id === selectedOverlayId);
+          const isUser = userAnnotations.some(
+            (a) => a.id === selectedOverlayId,
+          );
           removeOverlayWithUndo(selectedOverlayId, isUser);
         }
       }
@@ -1864,11 +2033,11 @@ export default function FullScreenImageViewer({
           },
           polygon: Array.isArray(pred?.points)
             ? (pred.points as Array<{ x: number; y: number }>)
-              .slice(0, 20)
-              .map((pt) => ({
-                x: typeof pt?.x === "number" ? pt.x : 0,
-                y: typeof pt?.y === "number" ? pt.y : 0,
-              }))
+                .slice(0, 20)
+                .map((pt) => ({
+                  x: typeof pt?.x === "number" ? pt.x : 0,
+                  y: typeof pt?.y === "number" ? pt.y : 0,
+                }))
             : null,
           pageNumber: pred?.pageNumber ?? currentImage.pageNumber ?? null,
         }),
@@ -1904,20 +2073,20 @@ export default function FullScreenImageViewer({
 
     const dimensionShapes = Array.isArray(detectionResults?.shapes)
       ? (detectionResults?.shapes as Array<any>)
-        .slice(0, 80)
-        .map((shape, index) => ({
-          id: shape?.id ?? `shape-${index}`,
-          type: shape?.type ?? "polygon",
-          label: shape?.label ?? shape?.name ?? null,
-          points: Array.isArray(shape?.points)
-            ? (shape.points as Array<{ x: number; y: number }>).slice(0, 40)
-            : null,
-          area:
-            typeof shape?.area === "number"
-              ? Number(shape.area.toFixed(2))
+          .slice(0, 80)
+          .map((shape, index) => ({
+            id: shape?.id ?? `shape-${index}`,
+            type: shape?.type ?? "polygon",
+            label: shape?.label ?? shape?.name ?? null,
+            points: Array.isArray(shape?.points)
+              ? (shape.points as Array<{ x: number; y: number }>).slice(0, 40)
               : null,
-          meta: shape?.meta ?? null,
-        }))
+            area:
+              typeof shape?.area === "number"
+                ? Number(shape.area.toFixed(2))
+                : null,
+            meta: shape?.meta ?? null,
+          }))
       : [];
 
     const classBreakdown: Record<string, number> = {};
@@ -1939,10 +2108,10 @@ export default function FullScreenImageViewer({
       generatedAt: new Date().toISOString(),
       calibration: calibrationInfo
         ? {
-          unit: calibrationInfo.unit,
-          unitsPerPixel: calibrationInfo.unitsPerPixel,
-          pixelsPerUnit: calibrationInfo.pixelsPerUnit,
-        }
+            unit: calibrationInfo.unit,
+            unitsPerPixel: calibrationInfo.unitsPerPixel,
+            pixelsPerUnit: calibrationInfo.pixelsPerUnit,
+          }
         : null,
       stats: {
         totalPredictions: normalizedPredictions.length,
@@ -2167,9 +2336,9 @@ export default function FullScreenImageViewer({
         setMeasurementDraft((prev) =>
           prev
             ? {
-              ...prev,
-              end: { x, y },
-            }
+                ...prev,
+                end: { x, y },
+              }
             : prev,
         );
       }
@@ -2220,7 +2389,11 @@ export default function FullScreenImageViewer({
 
   const handleMouseUp = (event?: React.MouseEvent) => {
     if (isBoxSelecting) {
-      if (boxSelectRect && boxSelectRect.width > 5 && boxSelectRect.height > 5) {
+      if (
+        boxSelectRect &&
+        boxSelectRect.width > 5 &&
+        boxSelectRect.height > 5
+      ) {
         const selectionBox = {
           x1: boxSelectRect.x,
           y1: boxSelectRect.y,
@@ -2333,7 +2506,9 @@ export default function FullScreenImageViewer({
           return showDimensions;
         }
         // Fallback for classes that might be rooms/corridors
-        const cls = String(detection.class || "").trim().toLowerCase();
+        const cls = String(detection.class || "")
+          .trim()
+          .toLowerCase();
         if (
           cls === "rooms" ||
           cls === "corridors" ||
@@ -2623,7 +2798,9 @@ export default function FullScreenImageViewer({
           return showDimensions;
         }
         // Fallback for classes that might be rooms/corridors
-        const cls = String(box.class || "").trim().toLowerCase();
+        const cls = String(box.class || "")
+          .trim()
+          .toLowerCase();
         if (
           cls === "rooms" ||
           cls === "corridors" ||
@@ -2643,9 +2820,9 @@ export default function FullScreenImageViewer({
       } else {
         allDetections = [
           ...allDetections,
-          ...((roiFilteredBoxes.filter((box: any) =>
+          ...(roiFilteredBoxes.filter((box: any) =>
             selectedClasses.has(box.class || box.className || "Unknown"),
-          )) as any),
+          ) as any),
         ];
       }
     }
@@ -2674,9 +2851,9 @@ export default function FullScreenImageViewer({
       } else {
         allDetections = [
           ...allDetections,
-          ...((roiFilteredElBoxes.filter((box: any) =>
+          ...(roiFilteredElBoxes.filter((box: any) =>
             selectedClasses.has(box.class || box.className || "Unknown"),
-          )) as any),
+          ) as any),
         ];
       }
     }
@@ -2698,8 +2875,8 @@ export default function FullScreenImageViewer({
            height="${imageDimensions.height}"
            viewBox="0 0 ${imageDimensions.width} ${imageDimensions.height}">
         ${allDetections
-        .map(
-          (detection) => `
+          .map(
+            (detection) => `
           <rect x="${detection.x - detection.width / 2}"
                 y="${detection.y - detection.height / 2}"
                 width="${detection.width}"
@@ -2708,7 +2885,8 @@ export default function FullScreenImageViewer({
                 stroke="${detection.color}"
                 stroke-width="2"
                 opacity="0.8"/>
-          ${detection.class
+          ${
+            detection.class
               ? `
             <text x="${detection.x - detection.width / 2}"
                   y="${detection.y - detection.height / 2 - 5}"
@@ -2720,10 +2898,10 @@ export default function FullScreenImageViewer({
             </text>
           `
               : ""
-            }
+          }
         `,
-        )
-        .join("")}
+          )
+          .join("")}
       </svg>
     `;
 
@@ -3093,15 +3271,16 @@ export default function FullScreenImageViewer({
 
       {/* Image Container */}
       <div
-        className={`flex-1 flex items-center justify-center relative ${leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
-          }`}
+        className={`flex-1 flex items-center justify-center relative ${
+          leftToolbarOpen ? "-pl-56 -ml-56 pr-16 mt-10" : "p-16"
+        }`}
         style={{
           cursor:
             activeTool === "annotate" ||
-              activeTool === "polygon" ||
-              activeTool === "linear" ||
-              activeTool === "measure" ||
-              activeTool === "box-select"
+            activeTool === "polygon" ||
+            activeTool === "linear" ||
+            activeTool === "measure" ||
+            activeTool === "box-select"
               ? "crosshair"
               : activeTool === "erase"
                 ? "pointer"
@@ -3118,7 +3297,6 @@ export default function FullScreenImageViewer({
           </div>
         )}
 
-
         <div
           ref={containerRef}
           className="relative"
@@ -3133,15 +3311,16 @@ export default function FullScreenImageViewer({
             alt={currentImage.name}
             className="max-w-full max-h-full object-contain transition-transform duration-200 select-none"
             style={{
-              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${imagePosition.x / zoom
-                }px, ${imagePosition.y / zoom}px)`,
+              transform: `scale(${zoom}) rotate(${rotation}deg) translate(${
+                imagePosition.x / zoom
+              }px, ${imagePosition.y / zoom}px)`,
               transformOrigin: "center center",
               cursor:
                 activeTool === "annotate" ||
-                  activeTool === "polygon" ||
-                  activeTool === "linear" ||
-                  activeTool === "measure" ||
-                  activeTool === "box-select"
+                activeTool === "polygon" ||
+                activeTool === "linear" ||
+                activeTool === "measure" ||
+                activeTool === "box-select"
                   ? "crosshair"
                   : activeTool === "pan" || zoom > 1
                     ? isDragging
@@ -3153,8 +3332,8 @@ export default function FullScreenImageViewer({
             ref={imageRef}
             onMouseDown={
               activeTool === "annotate" ||
-                activeTool === "polygon" ||
-                activeTool === "crop-overlay"
+              activeTool === "polygon" ||
+              activeTool === "crop-overlay"
                 ? handleMouseDown
                 : undefined
             }
@@ -3251,21 +3430,24 @@ export default function FullScreenImageViewer({
                     region.points && region.points.length > 2
                       ? computePolygonCentroid(region.points)
                       : {
-                        x: region.rect.x0 + boxWidth / 2,
-                        y: region.rect.y0 + boxHeight / 2,
-                      };
+                          x: region.rect.x0 + boxWidth / 2,
+                          y: region.rect.y0 + boxHeight / 2,
+                        };
 
                   // Label geometry was authored for a 1000x1000 canvas; scale it
                   // to the image so it stays readable on large blueprints.
-                  const labelScale =
-                    Math.max(imageDimensions.width, imageDimensions.height) / 1000;
+                  const labelScale = Math.min(
+                    Math.max(imageDimensions.width, imageDimensions.height) /
+                      1000,
+                    1.1,
+                  );
 
                   return (
                     <g
                       key={region.id}
                       onMouseEnter={() => setHoveredShapeId(region.id)}
                       onMouseLeave={() => setHoveredShapeId(null)}
-                      style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                      style={{ pointerEvents: "auto", cursor: "pointer" }}
                     >
                       {region.points && region.points.length > 2 ? (
                         <polygon
@@ -3292,13 +3474,13 @@ export default function FullScreenImageViewer({
                         />
                       )}
                       {areaLabel && (
-                        <g style={{ pointerEvents: 'none' }}>
+                        <g style={{ pointerEvents: "none" }}>
                           <rect
-                            x={center.x - areaLabel.length * 10 * labelScale}
-                            y={center.y - 25 * labelScale}
-                            width={areaLabel.length * 20 * labelScale}
-                            height={50 * labelScale}
-                            rx={10 * labelScale}
+                            x={center.x - areaLabel.length * 6.5 * labelScale}
+                            y={center.y - 18 * labelScale}
+                            width={areaLabel.length * 13 * labelScale}
+                            height={34 * labelScale}
+                            rx={8 * labelScale}
                             fill="rgba(15, 23, 42, 0.85)"
                             stroke="rgba(255, 255, 255, 0.2)"
                             strokeWidth={1}
@@ -3306,9 +3488,9 @@ export default function FullScreenImageViewer({
                           />
                           <text
                             x={center.x}
-                            y={center.y + 10 * labelScale}
+                            y={center.y + 6 * labelScale}
                             fill="#f8fafc"
-                            fontSize={28 * labelScale}
+                            fontSize={15 * labelScale}
                             fontWeight="bold"
                             textAnchor="middle"
                           >
@@ -3337,10 +3519,11 @@ export default function FullScreenImageViewer({
             >
               {/* Dimmer / Mask */}
               <path
-                d={`M0 0 h${imageDimensions.width} v${imageDimensions.height} h-${imageDimensions.width} z ${isDrawing && currentBox
-                  ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
-                  : ""
-                  }`}
+                d={`M0 0 h${imageDimensions.width} v${imageDimensions.height} h-${imageDimensions.width} z ${
+                  isDrawing && currentBox
+                    ? `M${currentBox.x} ${currentBox.y} h${currentBox.width} v${currentBox.height} h-${currentBox.width} z`
+                    : ""
+                }`}
                 fill="rgba(0, 0, 0, 0.6)"
                 fillRule="evenodd"
               />
@@ -3367,10 +3550,11 @@ export default function FullScreenImageViewer({
           {/* User Annotations Overlay */}
           {imageDimensions.width > 0 && (
             <svg
-              className={`absolute inset-0 ${activeTool === "annotate"
-                ? "pointer-events-none"
-                : "pointer-events-none"
-                }`}
+              className={`absolute inset-0 ${
+                activeTool === "annotate"
+                  ? "pointer-events-none"
+                  : "pointer-events-none"
+              }`}
               style={{
                 width: "100%",
                 height: "100%",
@@ -3422,19 +3606,32 @@ export default function FullScreenImageViewer({
                   const labelY = yRect - 6;
                   const hasConfidence =
                     typeof detection.confidence === "number";
-                  const isRoomOrCorridor = ["rooms", "corridors", "room", "corridor"].includes(
-                    String(detection.class || "").trim().toLowerCase()
+                  const isRoomOrCorridor = [
+                    "rooms",
+                    "corridors",
+                    "room",
+                    "corridor",
+                  ].includes(
+                    String(detection.class || "")
+                      .trim()
+                      .toLowerCase(),
                   );
                   let autoAreaLabel = "";
                   let autoAreaCentroid: MeasurementPoint | null = null;
-                  if (isRoomOrCorridor && hoveredShapeId === detection.id && calibrationInfo) {
-                    const areaPx = detection.points && detection.points.length > 2
-                      ? computePolygonArea(detection.points)
-                      : (detection.width * detection.height);
+                  if (
+                    isRoomOrCorridor &&
+                    hoveredShapeId === detection.id &&
+                    calibrationInfo
+                  ) {
+                    const areaPx =
+                      detection.points && detection.points.length > 2
+                        ? computePolygonArea(detection.points)
+                        : detection.width * detection.height;
                     autoAreaLabel = convertPixelArea(areaPx).formatted;
-                    autoAreaCentroid = detection.points && detection.points.length > 2
-                      ? computePolygonCentroid(detection.points)
-                      : { x: detection.x, y: detection.y };
+                    autoAreaCentroid =
+                      detection.points && detection.points.length > 2
+                        ? computePolygonCentroid(detection.points)
+                        : { x: detection.x, y: detection.y };
                   }
 
                   return (
@@ -3456,8 +3653,8 @@ export default function FullScreenImageViewer({
                             : activeTool === "box-select"
                               ? "crosshair"
                               : isUserAnnotation || isRoomOrCorridor
-                              ? "pointer"
-                              : "default",
+                                ? "pointer"
+                                : "default",
                       }}
                       onMouseEnter={() => setHoveredShapeId(detection.id)}
                       onMouseLeave={() => setHoveredShapeId(null)}
@@ -3543,7 +3740,11 @@ export default function FullScreenImageViewer({
                       ) : (
                         <>
                           <rect
-                            className={isRoomOrCorridor ? "transition-all duration-300 group-hover:stroke-[3px]" : ""}
+                            className={
+                              isRoomOrCorridor
+                                ? "transition-all duration-300 group-hover:stroke-[3px]"
+                                : ""
+                            }
                             x={xRect}
                             y={yRect}
                             width={detection.width}
@@ -3554,13 +3755,19 @@ export default function FullScreenImageViewer({
                             strokeOpacity="0.7"
                           />
                           <rect
-                            className={isRoomOrCorridor ? "transition-all duration-300 group-hover:opacity-75" : ""}
+                            className={
+                              isRoomOrCorridor
+                                ? "transition-all duration-300 group-hover:opacity-75"
+                                : ""
+                            }
                             x={xRect}
                             y={yRect}
                             width={detection.width}
                             height={detection.height}
                             fill={detection.color}
-                            fillOpacity={isSelected ? 0.2 : (isRoomOrCorridor ? 0.4 : 0.3)}
+                            fillOpacity={
+                              isSelected ? 0.2 : isRoomOrCorridor ? 0.4 : 0.3
+                            }
                           />
                         </>
                       )}
@@ -3625,9 +3832,9 @@ export default function FullScreenImageViewer({
                       )}
 
                       {autoAreaLabel && autoAreaCentroid && (
-                        <g style={{ pointerEvents: 'none' }}>
+                        <g style={{ pointerEvents: "none" }}>
                           <rect
-                            x={autoAreaCentroid.x - (autoAreaLabel.length * 3.5)}
+                            x={autoAreaCentroid.x - autoAreaLabel.length * 3.5}
                             y={autoAreaCentroid.y - 12}
                             width={autoAreaLabel.length * 7}
                             height={20}
@@ -3992,10 +4199,11 @@ export default function FullScreenImageViewer({
               <button
                 key={index}
                 onClick={() => setCurrentIndex(index)}
-                className={`w-2 h-2 rounded-full transition-all ${index === currentIndex
-                  ? "bg-white"
-                  : "bg-white bg-opacity-50 hover:bg-opacity-75"
-                  }`}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  index === currentIndex
+                    ? "bg-white"
+                    : "bg-white bg-opacity-50 hover:bg-opacity-75"
+                }`}
               />
             ))}
           </div>
@@ -4052,6 +4260,17 @@ export default function FullScreenImageViewer({
         classCounts={getClassCounts()}
         customClasses={customClasses}
         getColorForClass={getColorForClass}
+        footerSlot={
+          drywallGeometry.wallCount > 0 ? (
+            <DrywallTakeoffPanel
+              geometry={drywallGeometry}
+              settings={drywallSettings}
+              onSettingsChange={(patch) =>
+                setDrywallSettings((prev) => ({ ...prev, ...patch }))
+              }
+            />
+          ) : null
+        }
       />
 
       <AskAISidePanel

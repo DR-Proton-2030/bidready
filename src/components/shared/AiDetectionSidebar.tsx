@@ -16,6 +16,7 @@ interface AiDetectionSidebarProps {
     classCounts: Record<string, number>;
     customClasses: string[];
     getColorForClass: (className: string) => string;
+    footerSlot?: React.ReactNode;
 }
 
 export const AiDetectionSidebar: React.FC<AiDetectionSidebarProps> = ({
@@ -33,6 +34,7 @@ export const AiDetectionSidebar: React.FC<AiDetectionSidebarProps> = ({
     classCounts,
     customClasses,
     getColorForClass,
+    footerSlot,
 }) => {
     if (!detectionResults || !sidebarOpen) return null;
     // console.log("====detectionResults ai", detectionResults?.dimension_calibration)
@@ -168,6 +170,9 @@ export const AiDetectionSidebar: React.FC<AiDetectionSidebarProps> = ({
                             </div>
                         </div>
                     </div>
+
+                    {/* Takeoff / extra tools slot */}
+                    {footerSlot}
 
                     {/* Annotated Preview Card */}
                     {detectionResults.annotated_image && (
