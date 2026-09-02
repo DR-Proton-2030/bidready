@@ -373,7 +373,9 @@ export default function CreateBlueprint({
               // empty), falling back to the global blueprints list.
               const targetProjectId = form.project_object_id || initialProjectId;
               router.push(
-                targetProjectId ? `/projects/${targetProjectId}` : "/blueprints"
+                targetProjectId
+                  ? `/project-details/${targetProjectId}`
+                  : "/blueprints"
               );
             }}
           />
