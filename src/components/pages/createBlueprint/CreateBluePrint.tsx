@@ -368,8 +368,12 @@ export default function CreateBlueprint({
             status={form.status}
             project_object_id={form.project_object_id}
             onAllDone={() => {
+              // Land on the project the blueprints were actually assigned to
+              // (form value is the selected project; initialProjectId can be
+              // empty), falling back to the global blueprints list.
+              const targetProjectId = form.project_object_id || initialProjectId;
               router.push(
-                initialProjectId ? `/projects/${initialProjectId}` : "/blueprints"
+                targetProjectId ? `/projects/${targetProjectId}` : "/blueprints"
               );
             }}
           />

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import BulkBlueprintUploadItem, {
   BulkUploadItemStatus,
@@ -35,7 +35,10 @@ export default function BulkBlueprintUpload({
   onAllDone,
 }: BulkBlueprintUploadProps) {
   const [itemStates, setItemStates] = useState<Record<string, ItemState>>({});
-  const [hasCalledDone, setHasCalledDone] = useState(false);
+  // Ref (not state) so scheduling the redirect doesn't trigger a re-render that
+  // would re-run the effect and clear its own pending timer before it fires.
+  const doneScheduledRef = useRef(false);
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleStatusChange = (
     fileKey: string,
@@ -49,18 +52,30 @@ export default function BulkBlueprintUpload({
   };
 
   useEffect(() => {
-    if (hasCalledDone) return;
-    const allSettled = files.every((f) => {
-      const s = itemStates[fileKeyFor(f)]?.status;
-      return s === "done" || s === "error";
-    });
+    if (doneScheduledRef.current) return;
+    const allSettled =
+      files.length > 0 &&
+      files.every((f) => {
+        const s = itemStates[fileKeyFor(f)]?.status;
+        return s === "done" || s === "error";
+      });
     if (!allSettled) return;
 
-    setHasCalledDone(true);
-    const timer = setTimeout(() => onAllDone(), 800);
-    return () => clearTimeout(timer);
+    // Schedule the redirect exactly once. No cleanup here on purpose — this
+    // effect must not clear its own timer on a later re-render; the ref guard
+    // guarantees single scheduling and the unmount effect below clears it.
+    doneScheduledRef.current = true;
+    redirectTimerRef.current = setTimeout(() => onAllDone(), 800);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemStates, files, hasCalledDone]);
+  }, [itemStates, files]);
+
+  // Clear the pending redirect only on real unmount.
+  useEffect(
+    () => () => {
+      if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current);
+    },
+    []
+  );
 
   const completedCount = useMemo(
     () =>

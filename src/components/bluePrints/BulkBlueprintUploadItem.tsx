@@ -39,57 +39,130 @@ export default function BulkBlueprintUploadItem({
   const [attempt, setAttempt] = useState(0);
   const onStatusChangeRef = useRef(onStatusChange);
   onStatusChangeRef.current = onStatusChange;
+  // Guards against React Strict Mode's dev-only double-invoke of this effect
+  // (mount -> cleanup -> mount), which would otherwise fire the real upload
+  // POST twice and race two blueprints for the same underlying WebSocket ref.
+  const startedRef = useRef(false);
+  // True once this item has reached a terminal state (done/error), so late
+  // WebSocket messages or poll ticks can't move it backwards.
+  const settledRef = useRef(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const fd = new FormData();
-    fd.append("name", name);
-    fd.append("description", description || "");
-    fd.append("version", version || "");
-    fd.append("status", status || "");
-    fd.append("type", type || "");
-    fd.append("project_object_id", project_object_id);
-    fd.append("blueprint_file", file);
-
-    setItemStatus("uploading");
-    setErrorMessage(null);
-    onStatusChangeRef.current(fileKey, "uploading", 0);
-
-    createBlueprintWithStreaming(fd, {
-      onFirstResponse: () => {
-        if (cancelled) return;
-        setItemStatus("processing");
-        onStatusChangeRef.current(fileKey, "processing", 0);
-      },
-      onImageProcessed: (data) => {
-        if (cancelled) return;
-        const progress = typeof data?.progress === "number" ? data.progress : 0;
-        onStatusChangeRef.current(fileKey, "processing", progress);
-      },
-      onComplete: () => {
-        if (cancelled) return;
-        setItemStatus("done");
-        onStatusChangeRef.current(fileKey, "done", 100);
-      },
-      onError: (err) => {
-        if (cancelled) return;
-        const message = err instanceof Error ? err.message : "Upload failed";
-        setItemStatus("error");
-        setErrorMessage(message);
-        onStatusChangeRef.current(fileKey, "error", 0, message);
-      },
-    }).catch(() => {
-      // handled via onError callback
-    });
-
-    return () => {
-      cancelled = true;
+    const clearPoll = () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     };
+
+    const settleDone = () => {
+      if (settledRef.current) return;
+      settledRef.current = true;
+      clearPoll();
+      setItemStatus("done");
+      onStatusChangeRef.current(fileKey, "done", 100);
+    };
+
+    const settleError = (message: string) => {
+      if (settledRef.current) return;
+      settledRef.current = true;
+      clearPoll();
+      setItemStatus("error");
+      setErrorMessage(message);
+      onStatusChangeRef.current(fileKey, "error", 0, message);
+    };
+
+    // REST fallback for completion. The progress WebSocket is fire-and-forget
+    // and can finish (small PDFs convert in ~1s) before this item's socket even
+    // subscribes, so we can't rely on the WS "done" message alone. The worker
+    // only sets a version's images_count in its finalize step, so images_count
+    // > 0 is an authoritative "conversion finished" signal available over REST.
+    const startPolling = (blueprintId: string) => {
+      if (pollRef.current || settledRef.current) return;
+      const BASE =
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        process.env.NEXT_PUBLIC_BLUEPRINTS_API_URL ||
+        "http://localhost:8989/api/v1";
+      const token =
+        typeof window !== "undefined" ? localStorage.getItem("@token") : null;
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await fetch(
+            `${BASE}/blueprints/get-blueprint-details/${blueprintId}`,
+            { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+          );
+          if (!res.ok) return;
+          const json = await res.json();
+          const versions = json?.data?.versions || [];
+          const finished = versions.some(
+            (v: { images_count?: number }) => (v?.images_count || 0) > 0
+          );
+          if (finished) settleDone();
+        } catch {
+          // ignore transient poll errors; next tick retries
+        }
+      }, 2500);
+    };
+
+    // startedRef ensures exactly one upload per component instance, so we do NOT
+    // cancel the in-flight upload on Strict Mode's dev cleanup. We still return a
+    // cleanup that clears the poll interval so it can't leak on real unmount.
+    if (!startedRef.current) {
+      startedRef.current = true;
+
+      const fd = new FormData();
+      fd.append("name", name);
+      fd.append("description", description || "");
+      fd.append("version", version || "");
+      fd.append("status", status || "");
+      fd.append("type", type || "");
+      fd.append("project_object_id", project_object_id);
+      fd.append("blueprint_file", file);
+
+      setItemStatus("uploading");
+      setErrorMessage(null);
+      onStatusChangeRef.current(fileKey, "uploading", 0);
+
+      createBlueprintWithStreaming(fd, {
+        onFirstResponse: (data) => {
+          setItemStatus("processing");
+          onStatusChangeRef.current(fileKey, "processing", 0);
+          const blueprintId =
+            data?.blueprint_id ||
+            data?.blueprint?._id ||
+            data?.data?.blueprint?._id ||
+            data?.data?._id;
+          if (blueprintId) startPolling(String(blueprintId));
+        },
+        onImageProcessed: (data) => {
+          if (settledRef.current) return;
+          const progress =
+            typeof data?.progress === "number" ? data.progress : 0;
+          onStatusChangeRef.current(fileKey, "processing", progress);
+        },
+        onComplete: () => {
+          settleDone();
+        },
+        onError: (err) => {
+          const message = err instanceof Error ? err.message : "Upload failed";
+          settleError(message);
+        },
+      }).catch(() => {
+        // handled via onError callback
+      });
+    }
+
+    return clearPoll;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
 
-  const handleRetry = () => setAttempt((a) => a + 1);
+  const handleRetry = () => {
+    startedRef.current = false;
+    settledRef.current = false;
+    setAttempt((a) => a + 1);
+  };
 
   return (
     <div className="border border-gray-200 rounded-lg p-4 bg-white">
