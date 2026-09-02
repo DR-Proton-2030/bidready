@@ -44,7 +44,7 @@ const Dasboard = ({ blueprintDetails }: any) => {
         {/* Top Cards / Quick stats */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
           <StatCard
-            title="Total Floors"
+            title="Total Pages"
             value={blueprintDetails?.total_images}
             delta="↑ 5 Increased from last month"
             gradient
