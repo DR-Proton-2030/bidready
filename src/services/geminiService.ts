@@ -3,6 +3,12 @@ import { AIAnalysisResult } from "../types/gemini";
 
 //services
 
+// These Gemini vision calls run on the Node backend (bidready-server) behind
+// nginx, not the Next.js API routes — Amplify's SSR gateway caps responses at
+// ~30s and full-sheet analysis runs longer.
+const API_BASE =
+  process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:8989/api/v1";
+
 export type BlueprintRegionDetection = {
   label: string;
   box: [number, number, number, number];
@@ -10,7 +16,7 @@ export type BlueprintRegionDetection = {
 
 export const analyzeFloorPlan = async (base64Image: string): Promise<AIAnalysisResult> => {
   try {
-    const res = await fetch("/api/gemini/deep-scan", {
+    const res = await fetch(`${API_BASE}/gemini/deep-scan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageDataUrl: base64Image }),
@@ -33,7 +39,7 @@ export const detectRoomsAndCorridors = async (
   detectionQuery = "rooms, corridors",
 ): Promise<BlueprintRegionDetection[]> => {
   try {
-    const res = await fetch("/api/gemini/room-corridor", {
+    const res = await fetch(`${API_BASE}/gemini/room-corridor`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageDataUrl: base64Image, detectionQuery }),
