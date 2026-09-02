@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { AIAnalysisResult } from "@/types/gemini";
 
+// Gemini analysis of full-size floor plans can take well over the default
+// function timeout; allow up to 5 minutes (matches the room-corridor route).
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
 const prompt = `
   URGENT: PERFORM DEEP SPATIAL ANALYSIS.
   The goal is to calculate a pixel-to-real-world scale factor with near-perfect accuracy.
