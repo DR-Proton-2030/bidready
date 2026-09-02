@@ -14,6 +14,11 @@ type ImageCardProps = {
   onChange?: (files: File[]) => void;
   onUpload?: (files: File[]) => Promise<void> | void;
   blueprint_images?: any[];
+  // Opens the "Floor Plan Media" drawer as soon as this mounts, so callers can
+  // host it as a standalone detection overlay for a specific blueprint.
+  autoOpen?: boolean;
+  // Fires when the drawer is dismissed (backdrop click or the X buttons).
+  onClose?: () => void;
 };
 
 type FilePreview = {
@@ -38,6 +43,8 @@ const ImageCard: React.FC<ImageCardProps> = ({
   onChange,
   onUpload,
   blueprint_images,
+  autoOpen,
+  onClose,
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [previews, setPreviews] = useState<PreviewType[]>([]);
@@ -63,6 +70,11 @@ const ImageCard: React.FC<ImageCardProps> = ({
     }
     setDrawerActive(true);
   }, []);
+
+  useEffect(() => {
+    if (autoOpen) openPanel();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
 
   const addFiles = useCallback(
     (files: FileList | File[]) => {
@@ -150,7 +162,10 @@ const ImageCard: React.FC<ImageCardProps> = ({
     setDrawerActive(false);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     // match transition duration (500ms) + small buffer
-    hideTimerRef.current = setTimeout(() => setSidebarOpen(false), 560);
+    hideTimerRef.current = setTimeout(() => {
+      setSidebarOpen(false);
+      onClose?.();
+    }, 560);
   };
 
   useEffect(() => {

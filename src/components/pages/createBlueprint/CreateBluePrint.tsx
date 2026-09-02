@@ -368,12 +368,13 @@ export default function CreateBlueprint({
             status={form.status}
             project_object_id={form.project_object_id}
             onAllDone={() => {
-              // Land on the project the blueprints were actually assigned to
-              // (form value is the selected project; initialProjectId can be
-              // empty), falling back to the global blueprints list.
+              // User explicitly closes the hub (after picking through Edit/Detect
+              // on whichever files they wanted) — land on the project.
               const targetProjectId = form.project_object_id || initialProjectId;
               router.push(
-                targetProjectId ? `/projects/${targetProjectId}` : "/blueprints"
+                targetProjectId
+                  ? `/project-details/${targetProjectId}`
+                  : "/blueprints"
               );
             }}
           />

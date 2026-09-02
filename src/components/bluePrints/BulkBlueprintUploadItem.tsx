@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { CheckCircle2, FileText, RotateCcw, XCircle } from "lucide-react";
+import { CheckCircle2, FileEdit, FileText, RotateCcw, ScanSearch, XCircle } from "lucide-react";
 import useCreateBlueprint from "@/hooks/useCreateBlueprint";
 
 export type BulkUploadItemStatus = "uploading" | "processing" | "done" | "error";
@@ -20,6 +20,8 @@ interface BulkBlueprintUploadItemProps {
     progress: number,
     errorMessage?: string
   ) => void;
+  onBlueprintCreated?: (fileKey: string, blueprintId: string) => void;
+  onAction?: (action: "edit" | "detect") => void;
 }
 
 export default function BulkBlueprintUploadItem({
@@ -31,6 +33,8 @@ export default function BulkBlueprintUploadItem({
   project_object_id,
   name,
   onStatusChange,
+  onBlueprintCreated,
+  onAction,
 }: BulkBlueprintUploadItemProps) {
   const fileKey = `${file.name}_${file.size}_${file.lastModified}`;
   const { createBlueprintWithStreaming, streamingProgress } = useCreateBlueprint();
@@ -39,6 +43,8 @@ export default function BulkBlueprintUploadItem({
   const [attempt, setAttempt] = useState(0);
   const onStatusChangeRef = useRef(onStatusChange);
   onStatusChangeRef.current = onStatusChange;
+  const onBlueprintCreatedRef = useRef(onBlueprintCreated);
+  onBlueprintCreatedRef.current = onBlueprintCreated;
   // Guards against React Strict Mode's dev-only double-invoke of this effect
   // (mount -> cleanup -> mount), which would otherwise fire the real upload
   // POST twice and race two blueprints for the same underlying WebSocket ref.
@@ -134,7 +140,10 @@ export default function BulkBlueprintUploadItem({
             data?.blueprint?._id ||
             data?.data?.blueprint?._id ||
             data?.data?._id;
-          if (blueprintId) startPolling(String(blueprintId));
+          if (blueprintId) {
+            onBlueprintCreatedRef.current?.(fileKey, String(blueprintId));
+            startPolling(String(blueprintId));
+          }
         },
         onImageProcessed: (data) => {
           if (settledRef.current) return;
@@ -209,6 +218,27 @@ export default function BulkBlueprintUploadItem({
 
       {itemStatus === "error" && errorMessage && (
         <p className="text-xs text-red-600 mt-2">{errorMessage}</p>
+      )}
+
+      {itemStatus === "done" && (
+        <div className="flex items-center gap-2 mt-3">
+          <button
+            type="button"
+            onClick={() => onAction?.("edit")}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            <FileEdit className="h-3.5 w-3.5" />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onAction?.("detect")}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            <ScanSearch className="h-3.5 w-3.5" />
+            Detection
+          </button>
+        </div>
       )}
     </div>
   );
