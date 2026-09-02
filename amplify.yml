@@ -4,8 +4,10 @@ frontend:
     preBuild:
       commands:
         - npm ci
-        # Explicitly write the API key to .env.production so Next.js can pick it up during build/runtime
+        # Explicitly write server-side secrets to .env.production so the Next.js
+        # SSR runtime can read them (Amplify console env vars are build-time only).
         - echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env.production
+        - echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env.production
     build:
       commands:
         - npm run build
